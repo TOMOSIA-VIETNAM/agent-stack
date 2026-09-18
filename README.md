@@ -91,4 +91,3 @@ Commit `dist/aidd.mjs` with any change to `src/`.
 
 Natural-language stack input (phase 2) and full project bootstrap with OpenSpec and
 multi-tool output (phase 3). The CLI is already the seam both would plug into.
-# open-aidd
