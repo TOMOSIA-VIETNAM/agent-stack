@@ -8,7 +8,6 @@ needs no network.
 ```
 catalog.yaml                       the technology graph
 upstream.yaml                      where imported content came from
-licenses/                          licence texts of imported content
 rules/<layer>/<id>.md              a rule
 skills/<layer>/<id>/SKILL.md       a skill, plus any files it references
 commands/<id>.md                   a slash command
@@ -93,13 +92,12 @@ form exists for a file that carries no front matter at all — a repository's ow
 `CLAUDE.md` — where the description Claude needs is declared in `upstream.yaml` rather
 than added to the copied file.
 
-`license_upstream_path` names the licence file to copy from the checkout. Omit it when
-upstream declares a licence without shipping its text; then `knowledge/<license_file>`
-is written by hand and must record where the declaration was found.
-
-Licence obligations travel with the output: each generated file names its source repo,
-commit and licence in a header comment, and `.claude/THIRD-PARTY-NOTICES.md` carries
-the full licence text of every source that contributed.
+`license`, `license_url` and `copyright` are what the attribution is built from. Each
+generated file carries a one-line comment with the copyright holder, the licence and a
+link to it, and the source repo and commit. **That line is not decoration.** Both
+upstream licences require the copyright notice to accompany every copy, so it is the
+condition under which this content may be redistributed at all — do not strip it, and
+do not add a source that cannot be attributed this way.
 
 ```bash
 npm run sync                      # re-copy at the pinned commit
@@ -136,5 +134,5 @@ Do not author files under a path that `upstream.yaml` maps to: the next sync del
 them.
 
 Run `npm test` after any change: the suite loads this directory and fails on a
-dangling reference, a duplicate id, an invalid range, a layer that declares the wrong
-`applies_to`, or a missing licence file.
+dangling reference, a duplicate id, an invalid range, or a layer that declares the
+wrong `applies_to`.

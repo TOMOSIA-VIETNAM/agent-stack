@@ -56,7 +56,6 @@ CLAUDE.md                        global guidance and @-imports, inside aidd mark
 .claude/rules/NN-<id>.md         one file per selected rule, priority-ordered
 .claude/skills/<id>/SKILL.md     one directory per selected skill, with its files
 .claude/commands/<id>.md         one file per selected command
-.claude/THIRD-PARTY-NOTICES.md   licences of the imported content
 .claude/aidd-manifest.json       what this run generated
 ```
 
@@ -74,7 +73,6 @@ metadata schema and how to add a rule, a skill, or a technology.
 knowledge/
 ├── catalog.yaml            technology graph: requires / conflicts_with / versions
 ├── upstream.yaml           where imported content came from, pinned to a commit
-├── licenses/               licence texts of imported content
 ├── rules/<layer>/<id>.md
 ├── skills/<layer>/<id>/SKILL.md
 ├── commands/<id>.md
@@ -130,7 +128,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md
 [Apache-2.0](LICENSE), Copyright 2026 TOMOSIA VIETNAM.
 
 Content under `knowledge/` copied from other projects keeps its own licence; see
-[NOTICE](NOTICE) and `knowledge/licenses/`.
+[NOTICE](NOTICE). Every generated file carries its source's copyright line, which is
+what those licences require in return for redistribution.
 
 ## Not in this phase
 

@@ -18,6 +18,7 @@ export interface Provenance {
   repo: string;
   ref: string;
   license: string;
+  licenseUrl: string;
   copyright: string;
 }
 
@@ -194,6 +195,7 @@ function attachProvenance(artifacts: Artifact[], imported: ImportedSource[]): vo
         repo: owner.repo,
         ref: owner.ref,
         license: owner.license,
+        licenseUrl: owner.licenseUrl,
         copyright: owner.copyright,
       };
     }

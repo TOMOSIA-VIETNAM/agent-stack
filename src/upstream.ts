@@ -27,14 +27,8 @@ export const upstreamSourceSchema = z.object({
   /** Full 40-character commit SHA. A branch or tag is rejected: the copy must be traceable. */
   ref: z.string().regex(/^[0-9a-f]{40}$/, 'ref must be a full 40-character commit SHA'),
   license: z.string().min(1),
-  /** Licence text, relative to knowledge/. */
-  license_file: z.string().min(1),
-  /**
-   * Path to the licence in the upstream checkout, for `npm run sync` to copy.
-   * Omitted when upstream ships no licence file and `license_file` is written here
-   * instead — the notice then has to record where the licence was declared.
-   */
-  license_upstream_path: z.string().min(1).optional(),
+  /** Where the licence can be read. Travels into every generated file's origin comment. */
+  license_url: z.string().url(),
   copyright: z.string().min(1),
   /** Upstream path -> path under knowledge/. The targets mark which artifacts are imported. */
   copy: z.record(z.string().min(1), copyEntrySchema),
@@ -52,8 +46,8 @@ export interface ImportedSource {
   repo: string;
   ref: string;
   license: string;
+  licenseUrl: string;
   copyright: string;
-  licenseText: string;
   /** Paths under knowledge/ that hold this source's files. */
   paths: string[];
   /** Description for a copied file that carries no front matter, keyed by that path. */
@@ -78,11 +72,6 @@ export async function loadUpstream(root: string): Promise<ImportedSource[]> {
 
   const sources: ImportedSource[] = [];
   for (const [name, source] of Object.entries(parsed.data.sources)) {
-    const licenseText = await readFile(join(root, source.license_file), 'utf8').catch(() => {
-      throw new Error(
-        `upstream.yaml: source "${name}" declares ${source.license} but knowledge/${source.license_file} is missing. Run \`npm run sync\`.`,
-      );
-    });
     const descriptions: Record<string, string> = {};
     for (const entry of Object.values(source.copy)) {
       if (typeof entry !== 'string' && entry.description) {
@@ -95,8 +84,8 @@ export async function loadUpstream(root: string): Promise<ImportedSource[]> {
       repo: source.repo,
       ref: source.ref,
       license: source.license,
+      licenseUrl: source.license_url,
       copyright: source.copyright,
-      licenseText: licenseText.trim(),
       paths: Object.values(source.copy).map(copyTarget),
       descriptions,
     });

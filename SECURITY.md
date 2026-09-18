@@ -47,6 +47,8 @@ interesting boundaries are:
 - Generated output that destroys files open-aidd did not create. The generator may
   only remove paths its own previous manifest lists.
 - Malicious content reaching `knowledge/` through the sync path without review.
+- Generated output losing the attribution comment that imported content is
+  redistributed under.
 
 **Out of scope**
 

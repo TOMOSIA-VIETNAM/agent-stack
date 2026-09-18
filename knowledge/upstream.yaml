@@ -12,8 +12,7 @@ sources:
     repo: https://github.com/addyosmani/agent-skills.git
     ref: a120596f6d7ff9b967a3f5e0331ea911376ee5ef
     license: MIT
-    license_file: licenses/agent-skills-LICENSE
-    license_upstream_path: LICENSE
+    license_url: https://github.com/addyosmani/agent-skills/blob/main/LICENSE
     copyright: Copyright (c) Addy Osmani
     # <upstream path> -> <path under knowledge/>
     copy:
@@ -24,9 +23,9 @@ sources:
     repo: https://github.com/multica-ai/andrej-karpathy-skills.git
     ref: 2c606141936f1eeef17fa3043a72095b4765b9c2
     license: MIT
-    # Upstream declares MIT in its README and .claude-plugin/plugin.json but ships
-    # no LICENSE file, so this one is written here and records that.
-    license_file: licenses/karpathy-guidelines-LICENSE
+    # Declared in the upstream README and .claude-plugin/plugin.json; that repository
+    # ships no LICENSE file of its own.
+    license_url: https://github.com/multica-ai/andrej-karpathy-skills#license
     copyright: Copyright (c) multica-ai
     copy:
       # A repository's own CLAUDE.md has no front matter, so the description Claude

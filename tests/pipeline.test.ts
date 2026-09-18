@@ -197,20 +197,17 @@ describe('imported content', () => {
       'utf8',
     );
     expect(skill).toContain('name: test-driven-development');
-    expect(skill).toContain('addyosmani/agent-skills');
+    expect(skill).toContain('Copyright (c) Addy Osmani');
 
     const command = await readFile(join(out, '.claude/commands/test.md'), 'utf8');
     expect(command).toContain('description:');
-    expect(command).toContain('addyosmani/agent-skills');
-
-    const notices = await readFile(join(out, '.claude/THIRD-PARTY-NOTICES.md'), 'utf8');
-    expect(notices).toContain('Permission is hereby granted');
-    expect(notices).toContain(kb.imported[0]!.ref);
+    expect(command).toContain('Copyright (c) Addy Osmani');
 
     const manifest = JSON.parse(await readFile(join(out, '.claude/aidd-manifest.json'), 'utf8'));
-    expect(manifest.extras).toContain('.claude/THIRD-PARTY-NOTICES.md');
     expect(manifest.commands.map((c: { id: string }) => c.id)).toContain('test');
     expect(manifest.imported[0].ref).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest.imported[0].licenseUrl).toMatch(/^https:/);
+    expect(kb.imported[0]!.licenseUrl).toMatch(/^https:/);
   });
 
   it('copies the files a skill references', async () => {
@@ -262,21 +259,21 @@ describe('imported content', () => {
     expect(claudeMd).toContain('Hand written.');
     expect(claudeMd).toContain('## 1. Think Before Coding');
     expect(claudeMd).toContain('multica-ai/andrej-karpathy-skills');
+    expect(claudeMd).toContain('MIT licensed');
     // The fragment's own title is dropped, so the project keeps a single h1.
     expect(claudeMd.match(/^# /gm)?.length).toBe(1);
     expect(claudeMd).not.toContain('@.claude/rules/20-karpathy-guidelines.md');
 
-    // Nothing is emitted for it, and the notice still travels with the content.
+    // Nothing is emitted for it, and the attribution travels with the content.
     expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('karpathy-guidelines');
-    const notices = await readFile(join(out, '.claude/THIRD-PARTY-NOTICES.md'), 'utf8');
-    expect(notices).toContain('karpathy-guidelines');
+    expect(claudeMd).toContain('Copyright (c) multica-ai');
   });
 
   it('rejects a source pinned to anything but a full SHA', () => {
     const base = {
       repo: 'https://github.com/addyosmani/agent-skills.git',
       license: 'MIT',
-      license_file: 'licenses/agent-skills-LICENSE',
+      license_url: 'https://github.com/addyosmani/agent-skills/blob/main/LICENSE',
       copyright: 'Copyright (c) Addy Osmani',
       copy: { skills: 'skills/global' },
     };

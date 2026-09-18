@@ -84,17 +84,6 @@ for (const name of names) {
       console.log(`  ${from} -> knowledge/${to}`);
     }
 
-    // Some upstreams declare a licence without shipping its text. For those,
-    // knowledge/<license_file> is written by hand and says where it was declared.
-    if (source.license_upstream_path) {
-      const licenseTarget = join(KNOWLEDGE, source.license_file);
-      await mkdir(dirname(licenseTarget), { recursive: true });
-      await cp(join(work, source.license_upstream_path), licenseTarget);
-      console.log(`  ${source.license_upstream_path} -> knowledge/${source.license_file}`);
-    } else {
-      console.log(`  licence: keeping knowledge/${source.license_file} (upstream ships none)`);
-    }
-
     if (ref !== source.ref) {
       await writeFile(UPSTREAM, raw.replace(source.ref, ref), 'utf8');
       console.log(`  pin moved ${source.ref.slice(0, 7)} -> ${ref.slice(0, 7)}`);
