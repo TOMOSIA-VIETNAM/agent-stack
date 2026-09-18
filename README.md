@@ -56,7 +56,7 @@ CLAUDE.md                        global guidance and @-imports, inside aidd mark
 .claude/rules/NN-<id>.md         one file per selected rule, priority-ordered
 .claude/skills/<id>/SKILL.md     one directory per selected skill, with its files
 .claude/commands/<id>.md         one file per selected command
-.claude/aidd-manifest.json       what this run generated
+.claude/aidd-manifest.json       what this run generated, and what it was copied from
 ```
 
 `CLAUDE.md` holds the global guidance inline, then `@`-imports the stack-specific
@@ -128,8 +128,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md
 [Apache-2.0](LICENSE), Copyright 2026 TOMOSIA VIETNAM.
 
 Content under `knowledge/` copied from other projects keeps its own licence; see
-[NOTICE](NOTICE). Every generated file carries its source's copyright line, which is
-what those licences require in return for redistribution.
+[NOTICE](NOTICE). Generated projects record it in `.claude/aidd-manifest.json`.
 
 ## Not in this phase
 

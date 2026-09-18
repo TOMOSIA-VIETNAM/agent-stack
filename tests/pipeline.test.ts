@@ -197,17 +197,19 @@ describe('imported content', () => {
       'utf8',
     );
     expect(skill).toContain('name: test-driven-development');
-    expect(skill).toContain('Copyright (c) Addy Osmani');
+    expect(skill).not.toContain('Copyright');
 
     const command = await readFile(join(out, '.claude/commands/test.md'), 'utf8');
     expect(command).toContain('description:');
-    expect(command).toContain('Copyright (c) Addy Osmani');
+    expect(command).not.toContain('Copyright');
 
     const manifest = JSON.parse(await readFile(join(out, '.claude/aidd-manifest.json'), 'utf8'));
     expect(manifest.commands.map((c: { id: string }) => c.id)).toContain('test');
     expect(manifest.imported[0].ref).toMatch(/^[0-9a-f]{40}$/);
+    // Attribution lives once, in the manifest, rather than on every file.
     expect(manifest.imported[0].licenseUrl).toMatch(/^https:/);
-    expect(kb.imported[0]!.licenseUrl).toMatch(/^https:/);
+    expect(manifest.imported[0].copyright).toContain('Copyright');
+    expect(manifest.imported[0].license).toBe('MIT');
   });
 
   it('copies the files a skill references', async () => {
@@ -258,15 +260,16 @@ describe('imported content', () => {
     const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
     expect(claudeMd).toContain('Hand written.');
     expect(claudeMd).toContain('## 1. Think Before Coding');
-    expect(claudeMd).toContain('multica-ai/andrej-karpathy-skills');
-    expect(claudeMd).toContain('MIT licensed');
+    expect(claudeMd).not.toContain('Copyright');
     // The fragment's own title is dropped, so the project keeps a single h1.
     expect(claudeMd.match(/^# /gm)?.length).toBe(1);
     expect(claudeMd).not.toContain('@.claude/rules/20-karpathy-guidelines.md');
 
-    // Nothing is emitted for it, and the attribution travels with the content.
+    // Nothing is emitted for it, and the manifest records where it came from.
     expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('karpathy-guidelines');
-    expect(claudeMd).toContain('Copyright (c) multica-ai');
+    expect(composed.manifest.imported.map((entry) => entry.source)).toContain(
+      'karpathy-guidelines',
+    );
   });
 
   it('rejects a source pinned to anything but a full SHA', () => {

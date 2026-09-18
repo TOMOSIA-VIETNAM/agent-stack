@@ -92,12 +92,11 @@ form exists for a file that carries no front matter at all — a repository's ow
 `CLAUDE.md` — where the description Claude needs is declared in `upstream.yaml` rather
 than added to the copied file.
 
-`license`, `license_url` and `copyright` are what the attribution is built from. Each
-generated file carries a one-line comment with the copyright holder, the licence and a
-link to it, and the source repo and commit. **That line is not decoration.** Both
-upstream licences require the copyright notice to accompany every copy, so it is the
-condition under which this content may be redistributed at all — do not strip it, and
-do not add a source that cannot be attributed this way.
+`license`, `license_url` and `copyright` travel into every generated project's
+`.claude/aidd-manifest.json`, under `imported`. That is where the upstream notices
+live — once per project, the way an installed plugin's own LICENSE sits once in its
+checkout rather than at the top of every skill file. Keep it accurate, and do not add
+a source that cannot be attributed there.
 
 ```bash
 npm run sync                      # re-copy at the pinned commit
