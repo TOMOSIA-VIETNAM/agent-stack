@@ -75,7 +75,8 @@ for (const name of names) {
     console.log(`${name}: fetching ${source.repo} at ${ref}`);
     await checkout(source.repo, ref, work);
 
-    for (const [from, to] of Object.entries(source.copy)) {
+    for (const [from, entry] of Object.entries(source.copy)) {
+      const to = typeof entry === 'string' ? entry : entry.to;
       const target = join(KNOWLEDGE, to);
       await rm(target, { recursive: true, force: true });
       await mkdir(dirname(target), { recursive: true });
@@ -83,10 +84,16 @@ for (const name of names) {
       console.log(`  ${from} -> knowledge/${to}`);
     }
 
-    const licenseTarget = join(KNOWLEDGE, source.license_file);
-    await mkdir(dirname(licenseTarget), { recursive: true });
-    await cp(join(work, 'LICENSE'), licenseTarget);
-    console.log(`  LICENSE -> knowledge/${source.license_file}`);
+    // Some upstreams declare a licence without shipping its text. For those,
+    // knowledge/<license_file> is written by hand and says where it was declared.
+    if (source.license_upstream_path) {
+      const licenseTarget = join(KNOWLEDGE, source.license_file);
+      await mkdir(dirname(licenseTarget), { recursive: true });
+      await cp(join(work, source.license_upstream_path), licenseTarget);
+      console.log(`  ${source.license_upstream_path} -> knowledge/${source.license_file}`);
+    } else {
+      console.log(`  licence: keeping knowledge/${source.license_file} (upstream ships none)`);
+    }
 
     if (ref !== source.ref) {
       await writeFile(UPSTREAM, raw.replace(source.ref, ref), 'utf8');

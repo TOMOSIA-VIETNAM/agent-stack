@@ -83,10 +83,13 @@ The directory decides the layer; the file or directory name decides the id.
 
 Coverage is split:
 
-- **Layer 1, global** — 25 skills and 9 commands copied from
-  [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT) at the
-  commit pinned in `upstream.yaml`. They are committed here, so generating needs no
-  network. `npm run sync` re-copies them; see
+- **Layer 1, global** — copied from two MIT projects at the commits pinned in
+  `upstream.yaml`: 25 skills and 9 commands from
+  [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), and the
+  behavioural guidelines from
+  [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)
+  as an always-loaded rule every project gets. They are committed here, so generating
+  needs no network. `npm run sync` re-copies them; see
   [knowledge/README.md](knowledge/README.md#imported-content).
 - **Layers 2 and 3** — authored here: Ruby, Rails, Active Record, RSpec.
 

@@ -244,6 +244,25 @@ describe('imported content', () => {
     expect(onDisk).not.toContain('layer:');
   });
 
+  it('always applies the imported global rule, described from upstream.yaml', async () => {
+    const { kb, stack, selection } = await run({ language: [{ tech: 'ruby', version: '3.3' }] });
+    const rule = selection.rules.find((entry) => entry.artifact.meta.id === 'karpathy-guidelines');
+    expect(rule?.artifact.meta.layer).toBe('global');
+    expect(rule?.artifact.meta.description).toContain('assumptions');
+    expect(rule?.artifact.provenance?.license).toBe('MIT');
+
+    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    await emit(out, compose(stack, selection, 'test', kb.imported), { dryRun: false });
+
+    const emitted = await readFile(join(out, '.claude/rules/20-karpathy-guidelines.md'), 'utf8');
+    expect(emitted).toContain('multica-ai/andrej-karpathy-skills');
+    // The upstream document carries its own title; no second one is added above it.
+    expect(emitted.match(/^# /gm)?.length).toBe(1);
+
+    const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
+    expect(claudeMd).toContain('@.claude/rules/20-karpathy-guidelines.md');
+  });
+
   it('rejects a source pinned to anything but a full SHA', () => {
     const base = {
       repo: 'https://github.com/addyosmani/agent-skills.git',

@@ -11603,6 +11603,10 @@ var techStackInputSchema = external_exports.object({
 var import_yaml = __toESM(require_dist(), 1);
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+var copyEntrySchema = external_exports.union([
+  external_exports.string().min(1),
+  external_exports.object({ to: external_exports.string().min(1), description: external_exports.string().min(1).optional() })
+]);
 var upstreamSourceSchema = external_exports.object({
   repo: external_exports.string().url().startsWith("https://"),
   /** Full 40-character commit SHA. A branch or tag is rejected: the copy must be traceable. */
@@ -11610,14 +11614,23 @@ var upstreamSourceSchema = external_exports.object({
   license: external_exports.string().min(1),
   /** Licence text, relative to knowledge/. */
   license_file: external_exports.string().min(1),
+  /**
+   * Path to the licence in the upstream checkout, for `npm run sync` to copy.
+   * Omitted when upstream ships no licence file and `license_file` is written here
+   * instead — the notice then has to record where the licence was declared.
+   */
+  license_upstream_path: external_exports.string().min(1).optional(),
   copyright: external_exports.string().min(1),
-  /** Upstream path -> path under knowledge/. The values mark which artifacts are imported. */
-  copy: external_exports.record(external_exports.string().min(1), external_exports.string().min(1))
+  /** Upstream path -> path under knowledge/. The targets mark which artifacts are imported. */
+  copy: external_exports.record(external_exports.string().min(1), copyEntrySchema)
 });
 var upstreamFileSchema = external_exports.object({
   version: external_exports.literal(1),
   sources: external_exports.record(external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/), upstreamSourceSchema)
 });
+function copyTarget(entry) {
+  return typeof entry === "string" ? entry : entry.to;
+}
 async function loadUpstream(root) {
   const raw = await readFile(join(root, "upstream.yaml"), "utf8").catch(() => void 0);
   if (raw === void 0) return [];
@@ -11633,6 +11646,12 @@ async function loadUpstream(root) {
         `upstream.yaml: source "${name}" declares ${source.license} but knowledge/${source.license_file} is missing. Run \`npm run sync\`.`
       );
     });
+    const descriptions = {};
+    for (const entry of Object.values(source.copy)) {
+      if (typeof entry !== "string" && entry.description) {
+        descriptions[entry.to] = entry.description;
+      }
+    }
     sources.push({
       name,
       repo: source.repo,
@@ -11640,7 +11659,8 @@ async function loadUpstream(root) {
       license: source.license,
       copyright: source.copyright,
       licenseText: licenseText.trim(),
-      paths: Object.values(source.copy)
+      paths: Object.values(source.copy).map(copyTarget),
+      descriptions
     });
   }
   return sources;
@@ -11689,8 +11709,11 @@ async function loadArtifact(path, root, options) {
   const raw = await readFile2(path, "utf8");
   const { data, body } = splitFrontMatter(raw);
   const source = relative(root, path);
-  if (data === void 0) {
-    throw new Error(`${source}: missing YAML front matter`);
+  const declared = options.descriptions[source];
+  if (data === void 0 && declared === void 0) {
+    throw new Error(
+      `${source}: missing YAML front matter, and upstream.yaml declares no description for it`
+    );
   }
   const declaresOwnMetadata = typeof data === "object" && data !== null && "id" in data && "type" in data;
   let meta;
@@ -11705,17 +11728,18 @@ async function loadArtifact(path, root, options) {
     }
     meta = parsed.data;
   } else {
-    const parsed = claudeFrontMatterSchema.safeParse(data);
-    if (!parsed.success) {
+    const parsed = claudeFrontMatterSchema.safeParse(data ?? {});
+    const description = parsed.success ? parsed.data.description : declared;
+    if (description === void 0) {
       throw new Error(
-        `${source}: needs either open-aidd metadata (id, type, ...) or a "description" front matter field`
+        `${source}: needs either open-aidd metadata (id, type, ...), a "description" front matter field, or a description in upstream.yaml`
       );
     }
     const layer = layerFromPath(source, options.fallbackLayer);
     meta = artifactMetaSchema.parse({
       id: options.id,
-      name: parsed.data.name ?? options.id,
-      description: parsed.data.description,
+      name: (parsed.success ? parsed.data.name : void 0) ?? options.id,
+      description,
       type: options.type,
       layer,
       priority: LAYER_PRIORITY[layer]
@@ -11757,13 +11781,16 @@ async function loadKnowledgeBase(root) {
     const issues = catalogParsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
     throw new Error(`catalog.yaml: invalid (${issues})`);
   }
+  const imported = await loadUpstream(root);
+  const descriptions = Object.assign({}, ...imported.map((source) => source.descriptions));
   const rules = await Promise.all(
     (await listFiles(join2(root, "rules"))).filter((path) => path.endsWith(".md")).map(
       (path) => loadArtifact(path, root, {
         type: "rule",
         dir: dirname(path),
         id: basename(path, ".md"),
-        fallbackLayer: "global"
+        fallbackLayer: "global",
+        descriptions
       })
     )
   );
@@ -11773,7 +11800,8 @@ async function loadKnowledgeBase(root) {
         type: "skill",
         dir: dirname(path),
         id: basename(dirname(path)),
-        fallbackLayer: "global"
+        fallbackLayer: "global",
+        descriptions
       })
     )
   );
@@ -11783,11 +11811,11 @@ async function loadKnowledgeBase(root) {
         type: "command",
         dir: dirname(path),
         id: basename(path, ".md"),
-        fallbackLayer: "global"
+        fallbackLayer: "global",
+        descriptions
       })
     )
   );
-  const imported = await loadUpstream(root);
   attachProvenance([...rules, ...skills, ...commands], imported);
   const kb = {
     root,
@@ -11875,14 +11903,14 @@ function skillDir(entry) {
   return posix.join(".claude", "skills", entry.artifact.meta.id);
 }
 function ruleFile(entry) {
-  const { meta, body, source } = entry.artifact;
-  const origin = entry.matchedBy.length > 0 ? `applies to: ${entry.matchedBy.join(", ")}` : "applies to: all projects";
+  const { meta, body } = entry.artifact;
+  const applies = entry.matchedBy.length > 0 ? `applies to: ${entry.matchedBy.join(", ")}` : "applies to: all projects";
+  const heading = body.startsWith("# ") ? [] : [`# ${meta.name}`, ""];
   return [
-    `<!-- generated by open-aidd from knowledge/${source} - edit the knowledge base, not this file -->`,
-    `<!-- ${origin} -->`,
+    originComment(entry, NOTICES_PATH),
+    `<!-- ${applies} -->`,
     "",
-    `# ${meta.name}`,
-    "",
+    ...heading,
     body,
     ""
   ].join("\n");

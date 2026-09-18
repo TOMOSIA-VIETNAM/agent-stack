@@ -10,6 +10,18 @@ import { z } from 'zod';
  * record exists to say where they came from, to carry the licence obligations
  * into the generated output, and to tell `npm run sync` what to copy.
  */
+/**
+ * One upstream path copied under knowledge/.
+ *
+ * `description` supplies the one field Claude needs that an upstream file may not
+ * carry — a repository's own CLAUDE.md has no front matter at all. It is written
+ * here rather than added to the copied file, so syncing stays a plain overwrite.
+ */
+const copyEntrySchema = z.union([
+  z.string().min(1),
+  z.object({ to: z.string().min(1), description: z.string().min(1).optional() }),
+]);
+
 export const upstreamSourceSchema = z.object({
   repo: z.string().url().startsWith('https://'),
   /** Full 40-character commit SHA. A branch or tag is rejected: the copy must be traceable. */
@@ -17,9 +29,15 @@ export const upstreamSourceSchema = z.object({
   license: z.string().min(1),
   /** Licence text, relative to knowledge/. */
   license_file: z.string().min(1),
+  /**
+   * Path to the licence in the upstream checkout, for `npm run sync` to copy.
+   * Omitted when upstream ships no licence file and `license_file` is written here
+   * instead — the notice then has to record where the licence was declared.
+   */
+  license_upstream_path: z.string().min(1).optional(),
   copyright: z.string().min(1),
-  /** Upstream path -> path under knowledge/. The values mark which artifacts are imported. */
-  copy: z.record(z.string().min(1), z.string().min(1)),
+  /** Upstream path -> path under knowledge/. The targets mark which artifacts are imported. */
+  copy: z.record(z.string().min(1), copyEntrySchema),
 });
 
 export type UpstreamSource = z.infer<typeof upstreamSourceSchema>;
@@ -38,6 +56,12 @@ export interface ImportedSource {
   licenseText: string;
   /** Paths under knowledge/ that hold this source's files. */
   paths: string[];
+  /** Description for a copied file that carries no front matter, keyed by that path. */
+  descriptions: Record<string, string>;
+}
+
+export function copyTarget(entry: z.infer<typeof copyEntrySchema>): string {
+  return typeof entry === 'string' ? entry : entry.to;
 }
 
 export async function loadUpstream(root: string): Promise<ImportedSource[]> {
@@ -59,6 +83,13 @@ export async function loadUpstream(root: string): Promise<ImportedSource[]> {
         `upstream.yaml: source "${name}" declares ${source.license} but knowledge/${source.license_file} is missing. Run \`npm run sync\`.`,
       );
     });
+    const descriptions: Record<string, string> = {};
+    for (const entry of Object.values(source.copy)) {
+      if (typeof entry !== 'string' && entry.description) {
+        descriptions[entry.to] = entry.description;
+      }
+    }
+
     sources.push({
       name,
       repo: source.repo,
@@ -66,7 +97,8 @@ export async function loadUpstream(root: string): Promise<ImportedSource[]> {
       license: source.license,
       copyright: source.copyright,
       licenseText: licenseText.trim(),
-      paths: Object.values(source.copy),
+      paths: Object.values(source.copy).map(copyTarget),
+      descriptions,
     });
   }
   return sources;

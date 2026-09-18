@@ -101,6 +101,8 @@ interface LoadOptions {
   dir: string;
   id: string;
   fallbackLayer: Layer;
+  /** Descriptions declared in upstream.yaml, keyed by path under knowledge/. */
+  descriptions: Record<string, string>;
 }
 
 /**
@@ -120,8 +122,11 @@ async function loadArtifact(
   const raw = await readFile(path, 'utf8');
   const { data, body } = splitFrontMatter(raw);
   const source = relative(root, path);
-  if (data === undefined) {
-    throw new Error(`${source}: missing YAML front matter`);
+  const declared = options.descriptions[source];
+  if (data === undefined && declared === undefined) {
+    throw new Error(
+      `${source}: missing YAML front matter, and upstream.yaml declares no description for it`,
+    );
   }
 
   const declaresOwnMetadata =
@@ -141,17 +146,18 @@ async function loadArtifact(
     }
     meta = parsed.data;
   } else {
-    const parsed = claudeFrontMatterSchema.safeParse(data);
-    if (!parsed.success) {
+    const parsed = claudeFrontMatterSchema.safeParse(data ?? {});
+    const description = parsed.success ? parsed.data.description : declared;
+    if (description === undefined) {
       throw new Error(
-        `${source}: needs either open-aidd metadata (id, type, ...) or a "description" front matter field`,
+        `${source}: needs either open-aidd metadata (id, type, ...), a "description" front matter field, or a description in upstream.yaml`,
       );
     }
     const layer = layerFromPath(source, options.fallbackLayer);
     meta = artifactMetaSchema.parse({
       id: options.id,
-      name: parsed.data.name ?? options.id,
-      description: parsed.data.description,
+      name: (parsed.success ? parsed.data.name : undefined) ?? options.id,
+      description,
       type: options.type,
       layer,
       priority: LAYER_PRIORITY[layer],
@@ -206,6 +212,12 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
     throw new Error(`catalog.yaml: invalid (${issues})`);
   }
 
+  const imported = await loadUpstream(root);
+  const descriptions = Object.assign({}, ...imported.map((source) => source.descriptions)) as Record<
+    string,
+    string
+  >;
+
   const rules = await Promise.all(
     (await listFiles(join(root, 'rules')))
       .filter((path) => path.endsWith('.md'))
@@ -215,6 +227,7 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
           dir: dirname(path),
           id: basename(path, '.md'),
           fallbackLayer: 'global',
+          descriptions,
         }),
       ),
   );
@@ -228,6 +241,7 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
           dir: dirname(path),
           id: basename(dirname(path)),
           fallbackLayer: 'global',
+          descriptions,
         }),
       ),
   );
@@ -241,11 +255,11 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
           dir: dirname(path),
           id: basename(path, '.md'),
           fallbackLayer: 'global',
+          descriptions,
         }),
       ),
   );
 
-  const imported = await loadUpstream(root);
   attachProvenance([...rules, ...skills, ...commands], imported);
 
   const kb: KnowledgeBase = {

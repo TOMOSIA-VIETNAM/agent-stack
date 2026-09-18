@@ -13,8 +13,27 @@ sources:
     ref: a120596f6d7ff9b967a3f5e0331ea911376ee5ef
     license: MIT
     license_file: licenses/agent-skills-LICENSE
+    license_upstream_path: LICENSE
     copyright: Copyright (c) Addy Osmani
     # <upstream path> -> <path under knowledge/>
     copy:
       skills: skills/global
       .claude/commands: commands
+
+  karpathy-guidelines:
+    repo: https://github.com/multica-ai/andrej-karpathy-skills.git
+    ref: 2c606141936f1eeef17fa3043a72095b4765b9c2
+    license: MIT
+    # Upstream declares MIT in its README and .claude-plugin/plugin.json but ships
+    # no LICENSE file, so this one is written here and records that.
+    license_file: licenses/karpathy-guidelines-LICENSE
+    copyright: Copyright (c) multica-ai
+    copy:
+      # A repository's own CLAUDE.md has no front matter, so the description Claude
+      # needs is declared here rather than added to the copied file.
+      CLAUDE.md:
+        to: rules/global/karpathy-guidelines.md
+        description: >-
+          Behavioural guidelines that reduce common LLM coding mistakes: state
+          assumptions before implementing, keep changes minimal and surgical, and
+          work to verifiable success criteria.

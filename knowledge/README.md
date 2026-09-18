@@ -43,10 +43,12 @@ numbered steps, it is a skill.
 | `files` | no | Extra files to copy. Defaults to every other file in the artifact's directory. |
 
 **Imported** (see below) — carries only Claude's own front matter (`name`,
-`description` for a skill; `description` for a command). Everything else is derived:
-`id` from the file or directory name, `layer` from the directory, `priority` from the
-layer (`global` 20, `language` 30, `framework` 40), `applies_to` empty. Imported files
-are never edited, so syncing stays a plain overwrite.
+`description` for a skill; `description` for a command), or none at all when the file
+is a repository's own `CLAUDE.md`, in which case `upstream.yaml` supplies the
+description. Everything else is derived: `id` from the file or directory name, `layer`
+from the directory, `priority` from the layer (`global` 20, `language` 30, `framework`
+40), `applies_to` empty. Imported files are never edited, so syncing stays a plain
+overwrite.
 
 ### Version ranges
 
@@ -66,14 +68,27 @@ validator raises `missing-version` and asks, rather than assuming a version.
 
 ## Imported content
 
-The global layer is not authored here. It is copied from
-[addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT):
-25 skills into `skills/global/` and 9 commands into `commands/`.
+The global layer is not authored here. It is copied from two projects:
+
+- [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT) —
+  25 skills into `skills/global/` and 9 commands into `commands/`.
+- [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)
+  (MIT) — its `CLAUDE.md` into `rules/global/karpathy-guidelines.md`, so every
+  generated project carries those behavioural guidelines as an always-loaded rule.
 
 `upstream.yaml` records the repository, the exact commit the files were taken at, the
 licence, and which upstream path maps to which path under `knowledge/`. The commit is
 a **full 40-character SHA** — a branch or tag is rejected — so the copy is traceable
 to one revision.
+
+A copy entry may be a plain target path, or an object with a `description`. The second
+form exists for a file that carries no front matter at all — a repository's own
+`CLAUDE.md` — where the description Claude needs is declared in `upstream.yaml` rather
+than added to the copied file.
+
+`license_upstream_path` names the licence file to copy from the checkout. Omit it when
+upstream declares a licence without shipping its text; then `knowledge/<license_file>`
+is written by hand and must record where the declaration was found.
 
 Licence obligations travel with the output: each generated file names its source repo,
 commit and licence in a header comment, and `.claude/THIRD-PARTY-NOTICES.md` carries
@@ -102,7 +117,8 @@ than rewritten.
 A technology with no rules is valid: it resolves and is reported as uncovered.
 
 **A rule** — new file under `rules/<layer>/`, front matter above, body in Markdown
-starting at `##`. The generator adds the `# <name>` heading.
+starting at `##`. The generator adds the `# <name>` heading, unless the body already
+opens with one.
 
 **A skill** — new directory under `skills/<layer>/<id>/` with a `SKILL.md`. Write
 steps in order, and end with what to report. Keep it under ~500 lines; put long
