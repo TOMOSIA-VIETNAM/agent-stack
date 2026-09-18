@@ -103,6 +103,18 @@ npm run sync       # re-copy imported content at the pinned commit
 
 Commit `dist/aidd.mjs` with any change to `src/`.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and
+[SECURITY.md](SECURITY.md) for reporting a vulnerability privately.
+
+## Licence
+
+[Apache-2.0](LICENSE), Copyright 2026 TOMOSIA VIETNAM.
+
+Content under `knowledge/` copied from other projects keeps its own licence; see
+[NOTICE](NOTICE) and `knowledge/licenses/`.
+
 ## Not in this phase
 
 Natural-language stack input (phase 2) and full project bootstrap with OpenSpec and
