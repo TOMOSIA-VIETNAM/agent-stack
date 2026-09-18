@@ -62,7 +62,6 @@ Select  →  Resolve  →  Compose  →  Validate
 - [Knowledge base](#knowledge-base)
 - [Coverage](#coverage)
 - [Develop](#develop)
-- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Licence](#licence)
 
@@ -252,15 +251,6 @@ One concern per module:
 | `validator.ts` | Completeness and consistency findings |
 | `emit.ts` | The only module that writes or deletes |
 | `cli.ts` | Flags, human and `--json` output |
-
-## Roadmap
-
-This is phase 1 of [idea.md](idea.md) — the whole pipeline, deterministic.
-
-- **Phase 2** — natural-language stack input: describe the project in a sentence, the model converts it to a normalized stack, resolution and composition stay deterministic.
-- **Phase 3** — full project bootstrap: rules, skills and OpenSpec together, emitted for more than one AI tool.
-
-The CLI is already the seam both phases plug into.
 
 ## Contributing
 
