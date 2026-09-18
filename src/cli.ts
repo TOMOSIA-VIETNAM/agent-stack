@@ -137,7 +137,7 @@ async function run(options: Options): Promise<number> {
       requires: tech.requires,
       conflicts_with: tech.conflicts_with,
       supported_versions: tech.supported_versions,
-      artifacts: [...kb.rules, ...kb.skills, ...kb.commands]
+      artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd]
         .filter((artifact) => artifact.meta.applies_to.some((a) => a.tech === id))
         .map((artifact) => artifact.meta.id),
     }));
@@ -151,9 +151,9 @@ async function run(options: Options): Promise<number> {
       process.stdout.write(`  ${tech.id} [${tech.kind}] - ${coverage}\n`);
     }
     process.stdout.write(
-      `\nRules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}\n`,
+      `\nRules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}  CLAUDE.md fragments: ${kb.claudeMd.length}\n`,
     );
-    const all = [...kb.rules, ...kb.skills, ...kb.commands];
+    const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
     for (const source of kb.imported) {
       const count = all.filter((a) => a.provenance?.source === source.name).length;
       process.stdout.write(
@@ -229,6 +229,7 @@ function summarize(selection: ReturnType<typeof selectArtifacts>) {
     rules: describe(selection.rules),
     skills: describe(selection.skills),
     commands: describe(selection.commands),
+    claudeMd: describe(selection.claudeMd),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
       reason: entry.reason,
@@ -239,7 +240,7 @@ function summarize(selection: ReturnType<typeof selectArtifacts>) {
 function printReport(report: ReturnType<typeof validate>): void {
   const { counts } = report;
   process.stdout.write(
-    `\nSelected ${counts.rules} rule(s), ${counts.skills} skill(s) and ${counts.commands} command(s) for ${counts.technologies} technolog(ies).\n`,
+    `\nSelected ${counts.rules} rule(s), ${counts.skills} skill(s), ${counts.commands} command(s) and ${counts.claudeMd} CLAUDE.md fragment(s) for ${counts.technologies} technolog(ies).\n`,
   );
   const errors = report.findings.filter((f) => f.severity === 'error');
   const warnings = report.findings.filter((f) => f.severity === 'warning');

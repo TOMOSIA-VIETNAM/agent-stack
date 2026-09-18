@@ -12,16 +12,23 @@ licenses/                          licence texts of imported content
 rules/<layer>/<id>.md              a rule
 skills/<layer>/<id>/SKILL.md       a skill, plus any files it references
 commands/<id>.md                   a slash command
+claude-md/<id>.md                  guidance inlined into the project's CLAUDE.md
 ```
 
 `<layer>` is one of `global`, `language`, `framework` — the three layers of idea.md
 §1. **The directory decides the layer**, and the file or directory name decides the
 `id`.
 
-**Rule** = a convention: *how code must be written*. Always in context.
-**Skill** = a procedure: *how to carry out task X*, in steps. Loaded when the task
-comes up. **Command** = a slash command the developer types. If you are writing
-numbered steps, it is a skill.
+**Rule** = a convention: *how code must be written*. Emitted as its own file and
+@-imported from CLAUDE.md. **Skill** = a procedure: *how to carry out task X*, in
+steps. Loaded when the task comes up. **Command** = a slash command the developer
+types. If you are writing numbered steps, it is a skill.
+
+**CLAUDE.md fragment** = guidance that belongs in the project's CLAUDE.md itself
+rather than behind an import. Its body is inlined into the managed block, with its own
+leading `# title` dropped so the project keeps one. Nothing is emitted for it under
+`.claude/`. Fragments are always global; use one only for guidance every project needs
+in context from the first token.
 
 ## Two kinds of file
 
@@ -32,7 +39,7 @@ numbered steps, it is a skill.
 | `id` | yes | Unique per type, lowercase kebab-case. Becomes the output filename. |
 | `name` | yes | Human title. For a skill, use the skill's kebab-case id — Claude sees it. |
 | `description` | yes | One line. For a skill, what Claude matches a task against: what it does *and when to use it*. |
-| `type` | yes | `rule`, `skill`, or `command`. |
+| `type` | yes | `rule`, `skill`, `command`, or `claude-md`. |
 | `layer` | yes | `global`, `language`, or `framework`. Must match the directory. |
 | `priority` | yes | 0–999. Sorts the output and prefixes rule filenames. |
 | `applies_to` | layer ≠ global | `[{tech, versions?}]` — **all** entries must match the resolved stack. This generalizes idea.md's `language` / `framework` fields: any catalog technology can gate an artifact. |
@@ -73,8 +80,8 @@ The global layer is not authored here. It is copied from two projects:
 - [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT) —
   25 skills into `skills/global/` and 9 commands into `commands/`.
 - [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)
-  (MIT) — its `CLAUDE.md` into `rules/global/karpathy-guidelines.md`, so every
-  generated project carries those behavioural guidelines as an always-loaded rule.
+  (MIT) — its `CLAUDE.md` into `claude-md/karpathy-guidelines.md`, inlined into every
+  generated project's CLAUDE.md.
 
 `upstream.yaml` records the repository, the exact commit the files were taken at, the
 licence, and which upstream path maps to which path under `knowledge/`. The commit is

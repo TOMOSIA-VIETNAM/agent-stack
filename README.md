@@ -52,7 +52,7 @@ Exit codes: `0` ok · `2` validation errors · `64` bad usage · `65` unknown te
 ## Output
 
 ```
-CLAUDE.md                        @-imports, inside aidd:begin/end markers
+CLAUDE.md                        global guidance and @-imports, inside aidd markers
 .claude/rules/NN-<id>.md         one file per selected rule, priority-ordered
 .claude/skills/<id>/SKILL.md     one directory per selected skill, with its files
 .claude/commands/<id>.md         one file per selected command
@@ -60,7 +60,8 @@ CLAUDE.md                        @-imports, inside aidd:begin/end markers
 .claude/aidd-manifest.json       what this run generated
 ```
 
-`CLAUDE.md` is merged, never replaced: text outside the markers is left alone. On a
+`CLAUDE.md` holds the global guidance inline, then `@`-imports the stack-specific
+rules. It is merged, never replaced: text outside the markers is left alone. On a
 re-run, files listed in the previous manifest that are no longer selected are removed
 — and nothing else is ever deleted.
 
@@ -76,7 +77,8 @@ knowledge/
 ├── licenses/               licence texts of imported content
 ├── rules/<layer>/<id>.md
 ├── skills/<layer>/<id>/SKILL.md
-└── commands/<id>.md
+├── commands/<id>.md
+└── claude-md/<id>.md       inlined into the project's CLAUDE.md, not emitted as a file
 ```
 
 The directory decides the layer; the file or directory name decides the id.
@@ -87,8 +89,8 @@ Coverage is split:
   `upstream.yaml`: 25 skills and 9 commands from
   [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), and the
   behavioural guidelines from
-  [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)
-  as an always-loaded rule every project gets. They are committed here, so generating
+  [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills),
+  inlined directly into every project's CLAUDE.md. They are committed here, so generating
   needs no network. `npm run sync` re-copies them; see
   [knowledge/README.md](knowledge/README.md#imported-content).
 - **Layers 2 and 3** — authored here: Ruby, Rails, Active Record, RSpec.

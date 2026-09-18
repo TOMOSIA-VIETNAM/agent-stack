@@ -32,7 +32,7 @@ sources:
       # A repository's own CLAUDE.md has no front matter, so the description Claude
       # needs is declared here rather than added to the copied file.
       CLAUDE.md:
-        to: rules/global/karpathy-guidelines.md
+        to: claude-md/karpathy-guidelines.md
         description: >-
           Behavioural guidelines that reduce common LLM coding mistakes: state
           assumptions before implementing, keep changes minimal and surgical, and

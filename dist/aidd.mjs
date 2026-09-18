@@ -11565,7 +11565,7 @@ var artifactMetaSchema = external_exports.object({
   id: idSchema,
   name: external_exports.string().min(1),
   description: external_exports.string().min(1),
-  type: external_exports.enum(["rule", "skill", "command"]),
+  type: external_exports.enum(["rule", "skill", "command", "claude-md"]),
   layer: external_exports.enum(LAYERS),
   /**
    * Generalization of idea.md's `language` / `framework` fields: any catalog
@@ -11745,7 +11745,7 @@ async function loadArtifact(path, root, options) {
       priority: LAYER_PRIORITY[layer]
     });
   }
-  const attached = options.type === "command" ? [] : (await listFiles(options.dir)).filter((file) => file !== path).map((file) => relative(options.dir, file));
+  const attached = options.type === "command" || options.type === "claude-md" ? [] : (await listFiles(options.dir)).filter((file) => file !== path).map((file) => relative(options.dir, file));
   return {
     meta: { ...meta, files: meta.files.length > 0 ? meta.files : attached },
     body: body.trim(),
@@ -11805,6 +11805,17 @@ async function loadKnowledgeBase(root) {
       })
     )
   );
+  const claudeMd = await Promise.all(
+    (await listFiles(join2(root, "claude-md"))).filter((path) => path.endsWith(".md")).map(
+      (path) => loadArtifact(path, root, {
+        type: "claude-md",
+        dir: dirname(path),
+        id: basename(path, ".md"),
+        fallbackLayer: "global",
+        descriptions
+      })
+    )
+  );
   const commands = await Promise.all(
     (await listFiles(join2(root, "commands"))).filter((path) => path.endsWith(".md")).map(
       (path) => loadArtifact(path, root, {
@@ -11816,13 +11827,14 @@ async function loadKnowledgeBase(root) {
       })
     )
   );
-  attachProvenance([...rules, ...skills, ...commands], imported);
+  attachProvenance([...rules, ...skills, ...commands, ...claudeMd], imported);
   const kb = {
     root,
     catalog: catalogParsed.data,
     rules,
     skills,
     commands,
+    claudeMd,
     imported
   };
   const problems = lintKnowledgeBase(kb);
@@ -11835,7 +11847,7 @@ async function loadKnowledgeBase(root) {
 function lintKnowledgeBase(kb) {
   const problems = [];
   const techIds = new Set(Object.keys(kb.catalog.technologies));
-  const artifacts = [...kb.rules, ...kb.skills, ...kb.commands];
+  const artifacts = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
   const byId = /* @__PURE__ */ new Map();
   for (const artifact of artifacts) {
     const key = `${artifact.meta.type}:${artifact.meta.id}`;
@@ -11963,23 +11975,26 @@ function thirdPartyNotices(sources) {
   return [
     "# Third-party notices",
     "",
-    "Skills and commands generated into this project were copied from the",
-    "repositories below and are distributed under their original licences.",
+    "Content generated into this project, and the guidelines inlined into CLAUDE.md,",
+    "were copied from the repositories below and remain under their original licences.",
     "",
     ...sections,
     ""
   ].join("\n");
 }
-function claudeMdBlock(rules) {
-  const lines = [
-    BEGIN_MARKER,
-    "",
-    "## Project rules",
-    "",
-    ...rules.map((rule) => `@${rule.path}`),
-    "",
-    END_MARKER
-  ];
+function stripLeadingTitle(body) {
+  return body.startsWith("# ") ? body.slice(body.indexOf("\n") + 1).trimStart() : body;
+}
+function claudeMdBlock(fragments, rules) {
+  const lines = [BEGIN_MARKER, ""];
+  for (const fragment of fragments) {
+    lines.push(originComment(fragment, NOTICES_PATH), "");
+    lines.push(stripLeadingTitle(fragment.artifact.body), "");
+  }
+  if (rules.length > 0) {
+    lines.push("## Project rules", "", ...rules.map((rule) => `@${rule.path}`), "");
+  }
+  lines.push(END_MARKER);
   return lines.join("\n");
 }
 function mergeClaudeMd(existing, block) {
@@ -12027,7 +12042,7 @@ function compose(stack, selection, generatorVersion, imported = []) {
     commandEntries.push({ id: entry.artifact.meta.id, path });
   }
   const usedSources = new Set(
-    [...selection.rules, ...selection.skills, ...selection.commands].map((entry) => entry.artifact.provenance?.source).filter((source) => source !== void 0)
+    [...selection.rules, ...selection.skills, ...selection.commands, ...selection.claudeMd].map((entry) => entry.artifact.provenance?.source).filter((source) => source !== void 0)
   );
   const notices = imported.filter((source) => usedSources.has(source.name));
   const extras = [];
@@ -12051,7 +12066,11 @@ function compose(stack, selection, generatorVersion, imported = []) {
   };
   files.push({ path: MANIFEST_PATH, contents: `${JSON.stringify(manifest, null, 2)}
 ` });
-  return { files, manifest, claudeMdBlock: claudeMdBlock(ruleEntries) };
+  return {
+    files,
+    manifest,
+    claudeMdBlock: claudeMdBlock(selection.claudeMd, ruleEntries)
+  };
 }
 
 // src/emit.ts
@@ -12233,7 +12252,7 @@ function matches(artifact, stack) {
   return { ok: true, matchedBy };
 }
 function selectArtifacts(kb, stack) {
-  const all = [...kb.rules, ...kb.skills, ...kb.commands];
+  const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
   const byId = new Map(all.map((artifact) => [artifact.meta.id, artifact]));
   const selected = /* @__PURE__ */ new Map();
   const skipped = [];
@@ -12279,6 +12298,7 @@ function selectArtifacts(kb, stack) {
     rules: [...selected.values()].filter((e) => e.artifact.meta.type === "rule").sort(order),
     skills: [...selected.values()].filter((e) => e.artifact.meta.type === "skill").sort(order),
     commands: [...selected.values()].filter((e) => e.artifact.meta.type === "command").sort(order),
+    claudeMd: [...selected.values()].filter((e) => e.artifact.meta.type === "claude-md").sort(order),
     skipped: skipped.sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
     conflicts,
     uncovered
@@ -12331,7 +12351,7 @@ function validate(stack, selection, acceptedConflicts = []) {
   for (const warning of stack.warnings) {
     findings.push({ severity: "warning", code: "stack-warning", message: warning });
   }
-  if (selection.rules.length === 0 && selection.skills.length === 0) {
+  if (selection.rules.length === 0 && selection.skills.length === 0 && selection.commands.length === 0 && selection.claudeMd.length === 0) {
     findings.push({
       severity: "error",
       code: "empty-output",
@@ -12344,6 +12364,7 @@ function validate(stack, selection, acceptedConflicts = []) {
       rules: selection.rules.length,
       skills: selection.skills.length,
       commands: selection.commands.length,
+      claudeMd: selection.claudeMd.length,
       technologies: stack.technologies.length
     },
     ok: !findings.some((finding) => finding.severity === "error")
@@ -12467,7 +12488,7 @@ async function run(options) {
       requires: tech.requires,
       conflicts_with: tech.conflicts_with,
       supported_versions: tech.supported_versions,
-      artifacts: [...kb.rules, ...kb.skills, ...kb.commands].filter((artifact) => artifact.meta.applies_to.some((a) => a.tech === id)).map((artifact) => artifact.meta.id)
+      artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd].filter((artifact) => artifact.meta.applies_to.some((a) => a.tech === id)).map((artifact) => artifact.meta.id)
     }));
     if (options.json) {
       process.stdout.write(`${JSON.stringify({ technologies }, null, 2)}
@@ -12483,10 +12504,10 @@ async function run(options) {
     }
     process.stdout.write(
       `
-Rules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}
+Rules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}  CLAUDE.md fragments: ${kb.claudeMd.length}
 `
     );
-    const all = [...kb.rules, ...kb.skills, ...kb.commands];
+    const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
     for (const source of kb.imported) {
       const count = all.filter((a) => a.provenance?.source === source.name).length;
       process.stdout.write(
@@ -12565,6 +12586,7 @@ function summarize(selection) {
     rules: describe(selection.rules),
     skills: describe(selection.skills),
     commands: describe(selection.commands),
+    claudeMd: describe(selection.claudeMd),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
       reason: entry.reason
@@ -12575,7 +12597,7 @@ function printReport(report) {
   const { counts } = report;
   process.stdout.write(
     `
-Selected ${counts.rules} rule(s), ${counts.skills} skill(s) and ${counts.commands} command(s) for ${counts.technologies} technolog(ies).
+Selected ${counts.rules} rule(s), ${counts.skills} skill(s), ${counts.commands} command(s) and ${counts.claudeMd} CLAUDE.md fragment(s) for ${counts.technologies} technolog(ies).
 `
   );
   const errors = report.findings.filter((f) => f.severity === "error");

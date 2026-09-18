@@ -18,7 +18,13 @@ export interface Finding {
 
 export interface ValidationReport {
   findings: Finding[];
-  counts: { rules: number; skills: number; commands: number; technologies: number };
+  counts: {
+    rules: number;
+    skills: number;
+    commands: number;
+    claudeMd: number;
+    technologies: number;
+  };
   ok: boolean;
 }
 
@@ -87,7 +93,12 @@ export function validate(
     findings.push({ severity: 'warning', code: 'stack-warning', message: warning });
   }
 
-  if (selection.rules.length === 0 && selection.skills.length === 0) {
+  if (
+    selection.rules.length === 0 &&
+    selection.skills.length === 0 &&
+    selection.commands.length === 0 &&
+    selection.claudeMd.length === 0
+  ) {
     findings.push({
       severity: 'error',
       code: 'empty-output',
@@ -101,6 +112,7 @@ export function validate(
       rules: selection.rules.length,
       skills: selection.skills.length,
       commands: selection.commands.length,
+      claudeMd: selection.claudeMd.length,
       technologies: stack.technologies.length,
     },
     ok: !findings.some((finding) => finding.severity === 'error'),

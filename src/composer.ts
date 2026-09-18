@@ -122,24 +122,43 @@ function thirdPartyNotices(sources: ImportedSource[]): string {
   return [
     '# Third-party notices',
     '',
-    'Skills and commands generated into this project were copied from the',
-    'repositories below and are distributed under their original licences.',
+    'Content generated into this project, and the guidelines inlined into CLAUDE.md,',
+    'were copied from the repositories below and remain under their original licences.',
     '',
     ...sections,
     '',
   ].join('\n');
 }
 
-function claudeMdBlock(rules: { path: string; name: string }[]): string {
-  const lines = [
-    BEGIN_MARKER,
-    '',
-    '## Project rules',
-    '',
-    ...rules.map((rule) => `@${rule.path}`),
-    '',
-    END_MARKER,
-  ];
+/**
+ * Drop a document's own leading title. A fragment is inlined under the project's
+ * existing heading, so its title would be a second one partway down the file.
+ */
+function stripLeadingTitle(body: string): string {
+  return body.startsWith('# ') ? body.slice(body.indexOf('\n') + 1).trimStart() : body;
+}
+
+/**
+ * The managed block: guidance that applies to every project is inlined, so it is
+ * in context without a hop; stack-specific rules stay separate files and are
+ * @-imported, so the diff of a stack change stays readable.
+ */
+function claudeMdBlock(
+  fragments: SelectedArtifact[],
+  rules: { path: string; name: string }[],
+): string {
+  const lines: string[] = [BEGIN_MARKER, ''];
+
+  for (const fragment of fragments) {
+    lines.push(originComment(fragment, NOTICES_PATH), '');
+    lines.push(stripLeadingTitle(fragment.artifact.body), '');
+  }
+
+  if (rules.length > 0) {
+    lines.push('## Project rules', '', ...rules.map((rule) => `@${rule.path}`), '');
+  }
+
+  lines.push(END_MARKER);
   return lines.join('\n');
 }
 
@@ -197,7 +216,7 @@ export function compose(
   }
 
   const usedSources = new Set(
-    [...selection.rules, ...selection.skills, ...selection.commands]
+    [...selection.rules, ...selection.skills, ...selection.commands, ...selection.claudeMd]
       .map((entry) => entry.artifact.provenance?.source)
       .filter((source): source is string => source !== undefined),
   );
@@ -225,5 +244,9 @@ export function compose(
 
   files.push({ path: MANIFEST_PATH, contents: `${JSON.stringify(manifest, null, 2)}\n` });
 
-  return { files, manifest, claudeMdBlock: claudeMdBlock(ruleEntries) };
+  return {
+    files,
+    manifest,
+    claudeMdBlock: claudeMdBlock(selection.claudeMd, ruleEntries),
+  };
 }

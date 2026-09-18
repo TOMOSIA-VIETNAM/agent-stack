@@ -244,23 +244,32 @@ describe('imported content', () => {
     expect(onDisk).not.toContain('layer:');
   });
 
-  it('always applies the imported global rule, described from upstream.yaml', async () => {
+  it('inlines the imported guidelines into CLAUDE.md instead of a rule file', async () => {
     const { kb, stack, selection } = await run({ language: [{ tech: 'ruby', version: '3.3' }] });
-    const rule = selection.rules.find((entry) => entry.artifact.meta.id === 'karpathy-guidelines');
-    expect(rule?.artifact.meta.layer).toBe('global');
-    expect(rule?.artifact.meta.description).toContain('assumptions');
-    expect(rule?.artifact.provenance?.license).toBe('MIT');
+    const fragment = selection.claudeMd.find(
+      (entry) => entry.artifact.meta.id === 'karpathy-guidelines',
+    );
+    expect(fragment?.artifact.meta.layer).toBe('global');
+    expect(fragment?.artifact.meta.description).toContain('assumptions');
+    expect(fragment?.artifact.provenance?.license).toBe('MIT');
 
     const out = await mkdtemp(join(tmpdir(), 'aidd-'));
-    await emit(out, compose(stack, selection, 'test', kb.imported), { dryRun: false });
-
-    const emitted = await readFile(join(out, '.claude/rules/20-karpathy-guidelines.md'), 'utf8');
-    expect(emitted).toContain('multica-ai/andrej-karpathy-skills');
-    // The upstream document carries its own title; no second one is added above it.
-    expect(emitted.match(/^# /gm)?.length).toBe(1);
+    await writeFile(join(out, 'CLAUDE.md'), '# My project\n\nHand written.\n', 'utf8');
+    const composed = compose(stack, selection, 'test', kb.imported);
+    await emit(out, composed, { dryRun: false });
 
     const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
-    expect(claudeMd).toContain('@.claude/rules/20-karpathy-guidelines.md');
+    expect(claudeMd).toContain('Hand written.');
+    expect(claudeMd).toContain('## 1. Think Before Coding');
+    expect(claudeMd).toContain('multica-ai/andrej-karpathy-skills');
+    // The fragment's own title is dropped, so the project keeps a single h1.
+    expect(claudeMd.match(/^# /gm)?.length).toBe(1);
+    expect(claudeMd).not.toContain('@.claude/rules/20-karpathy-guidelines.md');
+
+    // Nothing is emitted for it, and the notice still travels with the content.
+    expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('karpathy-guidelines');
+    const notices = await readFile(join(out, '.claude/THIRD-PARTY-NOTICES.md'), 'utf8');
+    expect(notices).toContain('karpathy-guidelines');
   });
 
   it('rejects a source pinned to anything but a full SHA', () => {

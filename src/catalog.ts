@@ -38,6 +38,8 @@ export interface KnowledgeBase {
   rules: Artifact[];
   skills: Artifact[];
   commands: Artifact[];
+  /** Fragments inlined into the project's CLAUDE.md rather than emitted as files. */
+  claudeMd: Artifact[];
   imported: ImportedSource[];
 }
 
@@ -165,7 +167,7 @@ async function loadArtifact(
   }
 
   const attached =
-    options.type === 'command'
+    options.type === 'command' || options.type === 'claude-md'
       ? []
       : (await listFiles(options.dir))
           .filter((file) => file !== path)
@@ -246,6 +248,20 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
       ),
   );
 
+  const claudeMd = await Promise.all(
+    (await listFiles(join(root, 'claude-md')))
+      .filter((path) => path.endsWith('.md'))
+      .map((path) =>
+        loadArtifact(path, root, {
+          type: 'claude-md',
+          dir: dirname(path),
+          id: basename(path, '.md'),
+          fallbackLayer: 'global',
+          descriptions,
+        }),
+      ),
+  );
+
   const commands = await Promise.all(
     (await listFiles(join(root, 'commands')))
       .filter((path) => path.endsWith('.md'))
@@ -260,7 +276,7 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
       ),
   );
 
-  attachProvenance([...rules, ...skills, ...commands], imported);
+  attachProvenance([...rules, ...skills, ...commands, ...claudeMd], imported);
 
   const kb: KnowledgeBase = {
     root,
@@ -268,6 +284,7 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
     rules,
     skills,
     commands,
+    claudeMd,
     imported,
   };
   const problems = lintKnowledgeBase(kb);
@@ -281,7 +298,7 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
 export function lintKnowledgeBase(kb: KnowledgeBase): string[] {
   const problems: string[] = [];
   const techIds = new Set(Object.keys(kb.catalog.technologies));
-  const artifacts = [...kb.rules, ...kb.skills, ...kb.commands];
+  const artifacts = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
   const byId = new Map<string, Artifact>();
 
   for (const artifact of artifacts) {

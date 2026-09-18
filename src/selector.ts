@@ -18,6 +18,8 @@ export interface Selection {
   rules: SelectedArtifact[];
   skills: SelectedArtifact[];
   commands: SelectedArtifact[];
+  /** Fragments inlined into CLAUDE.md. */
+  claudeMd: SelectedArtifact[];
   skipped: SkippedArtifact[];
   /** Artifact-level conflicts, e.g. two rule sets that contradict each other. */
   conflicts: { left: string; right: string }[];
@@ -65,7 +67,7 @@ function matches(artifact: Artifact, stack: ResolvedStack): MatchResult {
 
 /** Choose the rules and skills that cover the resolved stack (idea.md §5). */
 export function selectArtifacts(kb: KnowledgeBase, stack: ResolvedStack): Selection {
-  const all = [...kb.rules, ...kb.skills, ...kb.commands];
+  const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
   const byId = new Map(all.map((artifact) => [artifact.meta.id, artifact]));
 
   const selected = new Map<string, SelectedArtifact>();
@@ -121,6 +123,7 @@ export function selectArtifacts(kb: KnowledgeBase, stack: ResolvedStack): Select
     rules: [...selected.values()].filter((e) => e.artifact.meta.type === 'rule').sort(order),
     skills: [...selected.values()].filter((e) => e.artifact.meta.type === 'skill').sort(order),
     commands: [...selected.values()].filter((e) => e.artifact.meta.type === 'command').sort(order),
+    claudeMd: [...selected.values()].filter((e) => e.artifact.meta.type === 'claude-md').sort(order),
     skipped: skipped.sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
     conflicts,
     uncovered,

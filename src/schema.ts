@@ -60,7 +60,7 @@ export const artifactMetaSchema = z.object({
   id: idSchema,
   name: z.string().min(1),
   description: z.string().min(1),
-  type: z.enum(['rule', 'skill', 'command']),
+  type: z.enum(['rule', 'skill', 'command', 'claude-md']),
   layer: z.enum(LAYERS),
   /**
    * Generalization of idea.md's `language` / `framework` fields: any catalog
