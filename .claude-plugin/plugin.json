@@ -1,0 +1,9 @@
+{
+  "name": "open-aidd",
+  "description": "Generate a project's .claude rules and skills from a curated, version-controlled knowledge base. Selection, dependency resolution and composition are deterministic; the model only handles input and conflict decisions.",
+  "version": "0.1.0",
+  "author": {
+    "name": "TOMOSIA VIETNAM"
+  },
+  "keywords": ["rules", "skills", "scaffolding", "knowledge-base", "rails"]
+}

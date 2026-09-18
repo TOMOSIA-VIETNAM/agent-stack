@@ -1,0 +1,15 @@
+{
+  "name": "open-aidd",
+  "description": "Marketplace for the open-aidd plugin: generate a project's .claude rules and skills from a curated knowledge base.",
+  "owner": {
+    "name": "TOMOSIA VIETNAM"
+  },
+  "strict": true,
+  "plugins": [
+    {
+      "name": "open-aidd",
+      "source": ".",
+      "description": "Generate a project's .claude rules and skills from a curated, version-controlled knowledge base. Dependency resolution, compatibility checking, selection and composition are deterministic; the model only maps the request to flags and asks the operator to decide conflicts."
+    }
+  ]
+}
