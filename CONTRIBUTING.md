@@ -34,14 +34,25 @@ Node 20 or newer. `dist/aidd.mjs` is committed so the plugin runs without an ins
 step, so **rebuild and commit `dist/` with any change under `src/`**. `npm run check`
 does the rebuild for you.
 
-Try it against a scratch directory rather than a real project:
+Try it against a scratch project inside the repository rather than a real one:
 
 ```bash
-mkdir /tmp/scratch && cd /tmp/scratch
-node /path/to/open-aidd/dist/aidd.mjs generate --language ruby@3.3 --framework rails@7.1 --out .
+npm run try                          # a Rails stack, exercising every layer
+npm run try -- --language node@22    # any stack flags the CLI takes
+npm run try -- --clean               # remove the scratch directory
 ```
 
-Without `--write`, the command only previews what it would do.
+Output lands in `.aidd-try/`, which is gitignored. The script seeds a hand-written
+`CLAUDE.md` first, so each run also shows that the generator merges its block without
+touching text around it. Read the result, and open it with Claude Code if you want to
+see the rules and skills actually load.
+
+To drive the CLI directly, point `--out` wherever you like. Without `--write` it only
+previews what it would do:
+
+```bash
+node dist/aidd.mjs generate --language ruby@3.3 --framework rails@7.1 --out /tmp/scratch
+```
 
 ## Where things live
 
@@ -51,6 +62,7 @@ Without `--write`, the command only previews what it would do.
 | `knowledge/` | The content: technology graph, rules, skills, commands |
 | `commands/` | The plugin's own slash commands |
 | `scripts/sync-upstream.mjs` | Re-copies imported content at its pinned commit |
+| `scripts/try.mjs` | Development aid: generates into `.aidd-try/` so you can read the output |
 | `tests/` | Vitest suite; `pipeline.test.ts` loads the real knowledge base |
 
 ## Changing the knowledge base

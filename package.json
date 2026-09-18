@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",
-    "sync": "node scripts/sync-upstream.mjs"
+    "sync": "node scripts/sync-upstream.mjs",
+    "try": "node scripts/try.mjs"
   },
   "dependencies": {
     "yaml": "^2.9.1",

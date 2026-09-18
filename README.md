@@ -102,7 +102,19 @@ has no content yet; the validator reports each one as `uncovered-technology`.
 npm install
 npm run check      # typecheck + tests + bundle
 npm run sync       # re-copy imported content at the pinned commit
+npm run try        # generate into .aidd-try/ to see the output for real
 ```
+
+`npm run try` runs the plugin against a scratch project inside this repository, so you
+can read the generated tree instead of guessing at it. It takes the same stack flags
+as the CLI, and `--clean` removes the directory:
+
+```bash
+npm run try -- --language node@22
+npm run try -- --clean
+```
+
+`.aidd-try/` is gitignored.
 
 Commit `dist/aidd.mjs` with any change to `src/`.
 

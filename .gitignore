@@ -1,3 +1,6 @@
 node_modules/
 *.log
 .DS_Store
+
+# Scratch target for `npm run try` — generated output, never committed.
+.aidd-try/
