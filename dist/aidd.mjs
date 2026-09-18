@@ -7372,8 +7372,8 @@ import { dirname as dirname3, isAbsolute, resolve } from "node:path";
 
 // src/catalog.ts
 var import_yaml = __toESM(require_dist(), 1);
-import { readdir, readFile } from "node:fs/promises";
-import { basename, dirname, join, relative } from "node:path";
+import { readdir, readFile as readFile2 } from "node:fs/promises";
+import { basename, dirname, join as join2, relative } from "node:path";
 
 // node_modules/zod/v3/external.js
 var external_exports = {};
@@ -11598,6 +11598,95 @@ var techStackInputSchema = external_exports.object({
   library: external_exports.array(stackSelectionSchema).default([])
 });
 
+// src/vendor.ts
+import { execFile } from "node:child_process";
+import { access, mkdir, readFile, rm } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
+var run = promisify(execFile);
+var SHA = /^[0-9a-f]{40}$/;
+var vendorSourceSchema = external_exports.object({
+  /** Clone URL. Only https:// is accepted, so a checkout never prompts for a key. */
+  repo: external_exports.string().url().startsWith("https://"),
+  /** Full 40-character commit SHA. A branch or tag is rejected: the checkout must be reproducible. */
+  ref: external_exports.string().regex(SHA, "ref must be a full 40-character commit SHA"),
+  license: external_exports.string().min(1),
+  /** File in the checkout holding the licence text, copied into the output. */
+  license_file: external_exports.string().min(1).default("LICENSE"),
+  copyright: external_exports.string().min(1),
+  /** Directory inside the checkout holding one subdirectory per skill. */
+  path: external_exports.string().min(1),
+  layer: external_exports.enum(["global", "language", "framework"]).default("global"),
+  priority: external_exports.number().int().min(0).max(999)
+});
+var vendorFileSchema = external_exports.object({
+  version: external_exports.literal(1),
+  sources: external_exports.record(external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/), vendorSourceSchema)
+});
+var VendorError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "VendorError";
+  }
+};
+function cacheRoot() {
+  const xdg = process.env["XDG_CACHE_HOME"];
+  return join(xdg && xdg.length > 0 ? xdg : join(homedir(), ".cache"), "open-aidd");
+}
+function checkoutPath(name, source) {
+  return join(cacheRoot(), name, source.ref);
+}
+async function exists(path) {
+  return access(path).then(
+    () => true,
+    () => false
+  );
+}
+async function ensureCheckout(name, source) {
+  const target = checkoutPath(name, source);
+  if (await exists(join(target, ".git"))) {
+    return target;
+  }
+  await rm(target, { recursive: true, force: true });
+  await mkdir(target, { recursive: true });
+  const git = async (...args) => {
+    await run("git", ["-C", target, ...args], { timeout: 12e4 });
+  };
+  try {
+    await git("init", "--quiet");
+    await git("remote", "add", "origin", source.repo);
+    await git("fetch", "--quiet", "--depth", "1", "origin", source.ref);
+    await git("checkout", "--quiet", "FETCH_HEAD");
+  } catch (error) {
+    await rm(target, { recursive: true, force: true });
+    const detail = error instanceof Error ? error.message.trim().split("\n").at(-1) : String(error);
+    throw new VendorError(
+      `Could not fetch ${source.repo} at ${source.ref} (vendored source "${name}"): ${detail}
+The pinned commit is required to build the knowledge base. Check network access, then re-run.`
+    );
+  }
+  const { stdout } = await run("git", ["-C", target, "rev-parse", "HEAD"], { timeout: 3e4 });
+  const head = stdout.trim();
+  if (head !== source.ref) {
+    await rm(target, { recursive: true, force: true });
+    throw new VendorError(
+      `Vendored source "${name}" checked out ${head}, expected ${source.ref}.`
+    );
+  }
+  return target;
+}
+async function readLicense(name, source, checkout) {
+  const path = join(checkout, source.license_file);
+  const text = await readFile(path, "utf8").catch(() => void 0);
+  if (text === void 0) {
+    throw new VendorError(
+      `Vendored source "${name}" declares ${source.license} but ${source.license_file} is missing from the checkout.`
+    );
+  }
+  return text.trim();
+}
+
 // src/catalog.ts
 var FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 function splitFrontMatter(raw) {
@@ -11616,7 +11705,7 @@ async function listFiles(dir) {
   );
   const files = [];
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const path = join(dir, entry.name);
+    const path = join2(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...await listFiles(path));
     } else if (entry.isFile()) {
@@ -11626,7 +11715,7 @@ async function listFiles(dir) {
   return files;
 }
 async function loadArtifact(path, root, expected) {
-  const raw = await readFile(path, "utf8");
+  const raw = await readFile2(path, "utf8");
   const { data, body } = splitFrontMatter(raw);
   const source = relative(root, path);
   if (data === void 0) {
@@ -11647,9 +11736,72 @@ async function loadArtifact(path, root, expected) {
     source
   };
 }
+async function loadVendoredSkill(path, checkout, name, source, provenance) {
+  const raw = await readFile2(path, "utf8");
+  const { data, body } = splitFrontMatter(raw);
+  const relativePath = relative(checkout, path);
+  const parsed = external_exports.object({ name: external_exports.string().min(1), description: external_exports.string().min(1) }).safeParse(data);
+  if (!parsed.success) {
+    throw new Error(
+      `${name}:${relativePath}: upstream skill needs "name" and "description" front matter`
+    );
+  }
+  const dir = dirname(path);
+  const id = basename(dir);
+  const extras = (await listFiles(dir)).filter((file) => file !== path).map((file) => relative(dir, file));
+  return {
+    meta: artifactMetaSchema.parse({
+      id,
+      name: parsed.data.name,
+      description: parsed.data.description,
+      type: "skill",
+      layer: source.layer,
+      priority: source.priority,
+      tags: [name],
+      files: extras
+    }),
+    body: body.trim(),
+    dir,
+    source: `${name}:${relativePath}`,
+    provenance
+  };
+}
+async function loadVendored(root) {
+  const raw = await readFile2(join2(root, "vendor.yaml"), "utf8").catch(() => void 0);
+  if (raw === void 0) {
+    return { skills: [], vendored: [] };
+  }
+  const parsed = vendorFileSchema.safeParse((0, import_yaml.parse)(raw));
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
+    throw new Error(`vendor.yaml: invalid (${issues})`);
+  }
+  const skills = [];
+  const vendored = [];
+  for (const [name, source] of Object.entries(parsed.data.sources)) {
+    const checkout = await ensureCheckout(name, source);
+    const provenance = {
+      source: name,
+      repo: source.repo,
+      ref: source.ref,
+      license: source.license,
+      copyright: source.copyright
+    };
+    vendored.push({ ...provenance, licenseText: await readLicense(name, source, checkout) });
+    const skillRoot = join2(checkout, source.path);
+    const paths = (await listFiles(skillRoot)).filter((p) => basename(p) === "SKILL.md");
+    if (paths.length === 0) {
+      throw new Error(`vendor.yaml: source "${name}" has no SKILL.md under "${source.path}"`);
+    }
+    for (const path of paths) {
+      skills.push(await loadVendoredSkill(path, checkout, name, source, provenance));
+    }
+  }
+  return { skills, vendored };
+}
 async function loadKnowledgeBase(root) {
-  const catalogPath = join(root, "catalog.yaml");
-  const catalogRaw = await readFile(catalogPath, "utf8").catch(() => {
+  const catalogPath = join2(root, "catalog.yaml");
+  const catalogRaw = await readFile2(catalogPath, "utf8").catch(() => {
     throw new Error(`Knowledge base not found: ${catalogPath}`);
   });
   const catalogParsed = catalogSchema.safeParse((0, import_yaml.parse)(catalogRaw));
@@ -11657,13 +11809,20 @@ async function loadKnowledgeBase(root) {
     const issues = catalogParsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
     throw new Error(`catalog.yaml: invalid (${issues})`);
   }
-  const rulePaths = (await listFiles(join(root, "rules"))).filter((p) => p.endsWith(".md"));
-  const skillPaths = (await listFiles(join(root, "skills"))).filter(
+  const rulePaths = (await listFiles(join2(root, "rules"))).filter((p) => p.endsWith(".md"));
+  const skillPaths = (await listFiles(join2(root, "skills"))).filter(
     (p) => basename(p) === "SKILL.md"
   );
   const rules = await Promise.all(rulePaths.map((p) => loadArtifact(p, root, "rule")));
-  const skills = await Promise.all(skillPaths.map((p) => loadArtifact(p, root, "skill")));
-  const kb = { root, catalog: catalogParsed.data, rules, skills };
+  const local = await Promise.all(skillPaths.map((p) => loadArtifact(p, root, "skill")));
+  const { skills: imported, vendored } = await loadVendored(root);
+  const kb = {
+    root,
+    catalog: catalogParsed.data,
+    rules,
+    skills: [...local, ...imported],
+    vendored
+  };
   const problems = lintKnowledgeBase(kb);
   if (problems.length > 0) {
     throw new Error(`Knowledge base is inconsistent:
@@ -11725,7 +11884,7 @@ function lintKnowledgeBase(kb) {
 
 // src/composer.ts
 var import_yaml2 = __toESM(require_dist(), 1);
-import { join as join2, posix } from "node:path";
+import { join as join3, posix } from "node:path";
 var MANIFEST_PATH = posix.join(".claude", "aidd-manifest.json");
 var BEGIN_MARKER = "<!-- aidd:begin - generated by open-aidd, do not edit by hand -->";
 var END_MARKER = "<!-- aidd:end -->";
@@ -11750,16 +11909,32 @@ function ruleFile(entry) {
   ].join("\n");
 }
 function skillFile(entry) {
-  const { meta, body, source } = entry.artifact;
+  const { meta, body, source, provenance } = entry.artifact;
   const frontMatter = (0, import_yaml2.stringify)({ name: meta.name, description: meta.description }).trim();
+  const origin = provenance ? `<!-- vendored from ${provenance.repo} at ${provenance.ref} - ${provenance.license}, ${provenance.copyright}. See .claude/skills/THIRD-PARTY-NOTICES.md -->` : `<!-- generated by open-aidd from knowledge/${source} - edit the knowledge base, not this file -->`;
+  return ["---", frontMatter, "---", "", origin, "", body, ""].join("\n");
+}
+function thirdPartyNotices(sources) {
+  const sections = sources.map(
+    (source) => [
+      `## ${source.source}`,
+      "",
+      `Source: ${source.repo}`,
+      `Commit: ${source.ref}`,
+      `Licence: ${source.license}`,
+      "",
+      "```",
+      source.licenseText,
+      "```"
+    ].join("\n")
+  );
   return [
-    "---",
-    frontMatter,
-    "---",
+    "# Third-party notices",
     "",
-    `<!-- generated by open-aidd from knowledge/${source} - edit the knowledge base, not this file -->`,
+    "Skills in this directory were imported from the repositories below and are",
+    "distributed under their original licences.",
     "",
-    body,
+    ...sections,
     ""
   ].join("\n");
 }
@@ -11791,7 +11966,7 @@ function mergeClaudeMd(existing, block) {
   return `${existing}${separator}${block}
 `;
 }
-function compose(stack, selection, generatorVersion) {
+function compose(stack, selection, generatorVersion, vendored = []) {
   const files = [];
   const ruleEntries = selection.rules.map((entry) => ({
     id: entry.artifact.meta.id,
@@ -11809,9 +11984,19 @@ function compose(stack, selection, generatorVersion) {
     for (const extra of entry.artifact.meta.files) {
       files.push({
         path: posix.join(dir, extra),
-        copyFrom: join2(entry.artifact.dir, extra)
+        copyFrom: join3(entry.artifact.dir, extra)
       });
     }
+  }
+  const usedSources = new Set(
+    selection.skills.map((entry) => entry.artifact.provenance?.source).filter((source) => source !== void 0)
+  );
+  const notices = vendored.filter((source) => usedSources.has(source.source));
+  const extras = [];
+  if (notices.length > 0) {
+    const path = posix.join(".claude", "skills", "THIRD-PARTY-NOTICES.md");
+    files.push({ path, contents: thirdPartyNotices(notices) });
+    extras.push(path);
   }
   const manifest = {
     generator: `open-aidd@${generatorVersion}`,
@@ -11822,7 +12007,9 @@ function compose(stack, selection, generatorVersion) {
       origin: tech.origin
     })),
     rules: ruleEntries.map(({ id, path }) => ({ id, path })),
-    skills: skillEntries
+    skills: skillEntries,
+    extras,
+    vendored: notices.map(({ source, repo, ref }) => ({ source, repo, ref }))
   };
   files.push({ path: MANIFEST_PATH, contents: `${JSON.stringify(manifest, null, 2)}
 ` });
@@ -11830,10 +12017,10 @@ function compose(stack, selection, generatorVersion) {
 }
 
 // src/emit.ts
-import { copyFile, mkdir, readFile as readFile2, rm, writeFile } from "node:fs/promises";
-import { dirname as dirname2, join as join3 } from "node:path";
+import { copyFile, mkdir as mkdir2, readFile as readFile3, rm as rm2, writeFile } from "node:fs/promises";
+import { dirname as dirname2, join as join4 } from "node:path";
 async function readPreviousManifest(outDir) {
-  const raw = await readFile2(join3(outDir, MANIFEST_PATH), "utf8").catch(() => void 0);
+  const raw = await readFile3(join4(outDir, MANIFEST_PATH), "utf8").catch(() => void 0);
   if (!raw) return void 0;
   try {
     return JSON.parse(raw);
@@ -11845,12 +12032,16 @@ async function planEmit(outDir, composed) {
   const write = [...composed.files.map((file) => file.path), "CLAUDE.md"].sort();
   const previous = await readPreviousManifest(outDir);
   if (!previous) return { write, remove: [] };
-  const nextRules = new Set(composed.manifest.rules.map((rule) => rule.path));
-  const nextSkills = new Set(composed.manifest.skills.map((skill) => skill.path));
+  const next = /* @__PURE__ */ new Set([
+    ...composed.manifest.rules.map((rule) => rule.path),
+    ...composed.manifest.skills.map((skill) => skill.path),
+    ...composed.manifest.extras
+  ]);
   const remove = [
-    ...previous.rules.map((rule) => rule.path).filter((path) => !nextRules.has(path)),
-    ...previous.skills.map((skill) => skill.path).filter((path) => !nextSkills.has(path))
-  ].sort();
+    ...previous.rules.map((rule) => rule.path),
+    ...previous.skills.map((skill) => skill.path),
+    ...previous.extras ?? []
+  ].filter((path) => !next.has(path)).sort();
   return { write, remove };
 }
 async function emit(outDir, composed, options) {
@@ -11859,19 +12050,19 @@ async function emit(outDir, composed, options) {
     return { ...plan, outDir, dryRun: true };
   }
   for (const file of composed.files) {
-    const target = join3(outDir, file.path);
-    await mkdir(dirname2(target), { recursive: true });
+    const target = join4(outDir, file.path);
+    await mkdir2(dirname2(target), { recursive: true });
     if (file.copyFrom) {
       await copyFile(file.copyFrom, target);
     } else {
       await writeFile(target, file.contents ?? "", "utf8");
     }
   }
-  const claudeMdPath = join3(outDir, "CLAUDE.md");
-  const existing = await readFile2(claudeMdPath, "utf8").catch(() => void 0);
+  const claudeMdPath = join4(outDir, "CLAUDE.md");
+  const existing = await readFile3(claudeMdPath, "utf8").catch(() => void 0);
   await writeFile(claudeMdPath, mergeClaudeMd(existing, composed.claudeMdBlock), "utf8");
   for (const path of plan.remove) {
-    await rm(join3(outDir, path), { recursive: true, force: true });
+    await rm2(join4(outDir, path), { recursive: true, force: true });
   }
   return { ...plan, outDir, dryRun: false };
 }
@@ -12219,7 +12410,7 @@ function formatStack(stack) {
     return `  ${tech.id}${version} [${tech.slot}]${via}`;
   });
 }
-async function run(options) {
+async function run2(options) {
   if (options.command === "help") {
     process.stdout.write(USAGE);
     return 0;
@@ -12255,6 +12446,13 @@ async function run(options) {
     process.stdout.write(`
 Rules: ${kb.rules.length}  Skills: ${kb.skills.length}
 `);
+    for (const source of kb.vendored) {
+      const count = kb.skills.filter((s) => s.provenance?.source === source.source).length;
+      process.stdout.write(
+        `Vendored: ${source.source} ${count} skill(s) from ${source.repo} at ${source.ref.slice(0, 7)} (${source.license})
+`
+      );
+    }
     return 0;
   }
   if (options.command !== "resolve" && options.command !== "generate") {
@@ -12278,7 +12476,7 @@ Rules: ${kb.rules.length}  Skills: ${kb.skills.length}
     }
     return report.ok ? 0 : 2;
   }
-  const composed = compose(stack, selection, VERSION);
+  const composed = compose(stack, selection, VERSION, kb.vendored);
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
   if (options.json) {
     process.stdout.write(
@@ -12355,7 +12553,7 @@ Selected ${counts.rules} rule(s) and ${counts.skills} skill(s) for ${counts.tech
 }
 var argv = process.argv.slice(2);
 try {
-  process.exitCode = await run(parseArgs(argv));
+  process.exitCode = await run2(parseArgs(argv));
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   if (error instanceof UsageError) {
@@ -12367,6 +12565,10 @@ ${USAGE}`);
     process.stderr.write(`${message}
 `);
     process.exitCode = 65;
+  } else if (error instanceof VendorError) {
+    process.stderr.write(`${message}
+`);
+    process.exitCode = 66;
   } else {
     process.stderr.write(`${message}
 `);

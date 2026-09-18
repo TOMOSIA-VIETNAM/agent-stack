@@ -24,6 +24,7 @@ Otherwise summarize:
 - how many technologies the catalog declares, grouped by kind,
 - which of them have rules or skills, and which have none yet (these are the gaps
   worth filling next),
-- the total rule and skill count.
+- the total rule and skill count, and for each vendored source, how many skills it
+  contributes, its repository, the pinned commit, and its licence.
 
 Keep it to the numbers and the gaps. Do not quote rule bodies.

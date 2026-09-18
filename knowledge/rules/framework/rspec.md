@@ -7,7 +7,6 @@ layer: framework
 priority: 44
 applies_to:
   - tech: rspec
-dependencies: [testing-baseline]
 tags: [ruby, testing]
 ---
 

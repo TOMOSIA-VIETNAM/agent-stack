@@ -8,6 +8,7 @@ import { resolveStack, UnknownTechnologyError, type ResolvedStack } from './reso
 import { SLOTS, techStackInputSchema, type Slot, type TechStackInput } from './schema.js';
 import { selectArtifacts } from './selector.js';
 import { validate } from './validator.js';
+import { VendorError } from './vendor.js';
 
 const VERSION = '0.1.0';
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -151,6 +152,12 @@ async function run(options: Options): Promise<number> {
       process.stdout.write(`  ${tech.id} [${tech.kind}] - ${coverage}\n`);
     }
     process.stdout.write(`\nRules: ${kb.rules.length}  Skills: ${kb.skills.length}\n`);
+    for (const source of kb.vendored) {
+      const count = kb.skills.filter((s) => s.provenance?.source === source.source).length;
+      process.stdout.write(
+        `Vendored: ${source.source} ${count} skill(s) from ${source.repo} at ${source.ref.slice(0, 7)} (${source.license})\n`,
+      );
+    }
     return 0;
   }
 
@@ -175,7 +182,7 @@ async function run(options: Options): Promise<number> {
     return report.ok ? 0 : 2;
   }
 
-  const composed = compose(stack, selection, VERSION);
+  const composed = compose(stack, selection, VERSION, kb.vendored);
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
 
   if (options.json) {
@@ -254,6 +261,9 @@ try {
   } else if (error instanceof UnknownTechnologyError) {
     process.stderr.write(`${message}\n`);
     process.exitCode = 65;
+  } else if (error instanceof VendorError) {
+    process.stderr.write(`${message}\n`);
+    process.exitCode = 66;
   } else {
     process.stderr.write(`${message}\n`);
     process.exitCode = 1;

@@ -14,6 +14,12 @@ request into flags, relay conflicts to the user, and report the result. Never wr
 rule or skill file yourself, and never invent content that the knowledge base does
 not contain.
 
+The knowledge base's global layer is imported from another repository, pinned to a
+commit in `knowledge/vendor.yaml`. The first run on a machine fetches that commit
+into `~/.cache/open-aidd`; later runs reuse it. Exit code 66 means the fetch failed —
+report the CLI's message as-is and stop. Do not fall back to generating without those
+skills, and do not fetch the repository yourself.
+
 ## 1. Map the request to flags
 
 Run `node ${CLAUDE_PLUGIN_ROOT}/dist/aidd.mjs catalog --json` and map each requested
@@ -78,6 +84,8 @@ State:
 - how many rules and skills were applied,
 - every warning, in full,
 - the files written,
-- which selected technologies have no content in the knowledge base yet.
+- which selected technologies have no content in the knowledge base yet,
+- that the global skills are imported from their upstream repository at the pinned
+  commit, and that `.claude/skills/THIRD-PARTY-NOTICES.md` carries their licence.
 
 Then stop. Do not open, summarize, or edit the generated files unless asked.

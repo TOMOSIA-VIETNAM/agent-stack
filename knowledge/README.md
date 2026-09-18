@@ -7,11 +7,15 @@ reviewed and version-controlled.
 
 ```
 catalog.yaml                     the technology graph
-rules/global/<id>.md             layer 1 — always applied
+vendor.yaml                      skills imported from other repositories
 rules/language/<id>.md           layer 2 — ruby, php, node...
 rules/framework/<id>.md          layer 3 — rails, activerecord, rspec...
 skills/<id>/SKILL.md             a skill, plus any files it references
 ```
+
+Layer 1 — the global, language-independent engineering skills — is not authored
+here. It is imported from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)
+through `vendor.yaml`. See **Vendored sources** below.
 
 **Rule** = a convention: *how code must be written*. It is always in context.
 **Skill** = a procedure: *how to carry out task X*, in steps. It is loaded when the
@@ -70,3 +74,29 @@ material in a separate file and list it in `files`.
 Run `npm test` after any change: the suite loads this directory and fails on a
 dangling reference, a duplicate id, an invalid range, or a layer that declares the
 wrong `applies_to`.
+
+## Vendored sources
+
+`vendor.yaml` lists skill repositories imported wholesale. Each source is pinned to a
+**full commit SHA** — a branch or tag is rejected — so the checkout is reproducible
+and an upstream force-push cannot change what a previous run produced.
+
+The commit is fetched once into `~/.cache/open-aidd/<source>/<sha>` (honouring
+`XDG_CACHE_HOME`). The SHA is the cache key, so a new pin fetches into a new
+directory rather than mutating the old one. **If the fetch cannot complete, the run
+fails**: open-aidd never emits a partial rule set silently.
+
+An upstream `SKILL.md` is used exactly as published — open-aidd reads its `name` and
+`description` and derives everything else (`id` from the directory name, `layer` and
+`priority` from the source entry). Upstream files are never edited.
+
+Licence notices travel with the output: each generated skill carries its source repo,
+commit and licence in a header comment, and `.claude/skills/THIRD-PARTY-NOTICES.md`
+carries the full licence text of every source that contributed a skill.
+
+**To update a source**, change `ref` to the new SHA in a reviewable commit, run
+`npm test`, and check the diff in what gets generated. Do not point a source at a
+moving branch.
+
+**Id collisions** between a vendored skill and a local one fail the load. Rename the
+local artifact rather than shadowing upstream.

@@ -1,6 +1,8 @@
+import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { loadKnowledgeBase } from '../src/catalog.js';
 import { compose, mergeClaudeMd, BEGIN_MARKER, END_MARKER } from '../src/composer.js';
@@ -9,6 +11,7 @@ import { resolveStack } from '../src/resolver.js';
 import { techStackInputSchema, type TechStackInput } from '../src/schema.js';
 import { selectArtifacts } from '../src/selector.js';
 import { validate } from '../src/validator.js';
+import { ensureCheckout, VendorError, vendorSourceSchema } from '../src/vendor.js';
 
 const KNOWLEDGE = resolve(import.meta.dirname, '..', 'knowledge');
 
@@ -28,11 +31,12 @@ describe('knowledge base', () => {
 });
 
 describe('selection', () => {
-  it('always applies the global layer', async () => {
+  it('always applies the global layer, which is vendored', async () => {
     const { selection } = await run({ language: [{ tech: 'ruby', version: '3.3' }] });
-    const ids = selection.rules.map((entry) => entry.artifact.meta.id);
-    expect(ids).toContain('coding-principles');
-    expect(ids).toContain('security-baseline');
+    const global = selection.skills.filter((entry) => entry.artifact.meta.layer === 'global');
+    expect(global.length).toBeGreaterThan(20);
+    expect(global.map((entry) => entry.artifact.meta.id)).toContain('test-driven-development');
+    expect(global.every((entry) => entry.artifact.provenance?.license === 'MIT')).toBe(true);
   });
 
   it('selects language and framework layers for a Rails stack', async () => {
@@ -129,7 +133,7 @@ describe('emit', () => {
     expect(result.dryRun).toBe(false);
 
     const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
-    expect(claudeMd).toContain('@.claude/rules/10-coding-principles.md');
+    expect(claudeMd).toContain('@.claude/rules/30-ruby-conventions.md');
     expect(claudeMd).toContain('@.claude/rules/40-rails-conventions.md');
 
     const rule = await readFile(join(out, '.claude/rules/40-rails-conventions.md'), 'utf8');
@@ -179,6 +183,71 @@ describe('emit', () => {
     expect(claudeMd).toContain('Hand written notes.');
     expect(claudeMd).not.toContain('40-rails-conventions');
   });
+});
+
+describe('vendored skills', () => {
+  it('emits an upstream skill with its provenance and licence notice', async () => {
+    const { kb, stack, selection } = await run({
+      language: [{ tech: 'ruby', version: '3.3' }],
+    });
+    const composed = compose(stack, selection, 'test', kb.vendored);
+    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    await emit(out, composed, { dryRun: false });
+
+    const skill = await readFile(
+      join(out, '.claude/skills/test-driven-development/SKILL.md'),
+      'utf8',
+    );
+    expect(skill).toContain('name: test-driven-development');
+    expect(skill).toContain('addyosmani/agent-skills');
+    expect(skill).toContain('MIT');
+
+    const notices = await readFile(join(out, '.claude/skills/THIRD-PARTY-NOTICES.md'), 'utf8');
+    expect(notices).toContain('Permission is hereby granted');
+    expect(notices).toContain(kb.vendored[0]!.ref);
+
+    const manifest = JSON.parse(await readFile(join(out, '.claude/aidd-manifest.json'), 'utf8'));
+    expect(manifest.extras).toContain('.claude/skills/THIRD-PARTY-NOTICES.md');
+    expect(manifest.vendored[0].ref).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it('checks out the pinned commit, not a branch', async () => {
+    const source = vendorSourceSchema.parse({
+      repo: 'https://github.com/addyosmani/agent-skills.git',
+      ref: 'a120596f6d7ff9b967a3f5e0331ea911376ee5ef',
+      license: 'MIT',
+      copyright: 'Copyright (c) Addy Osmani',
+      path: 'skills',
+      priority: 20,
+    });
+    const checkout = await ensureCheckout('agent-skills', source);
+    const { stdout } = await promisify(execFile)('git', ['-C', checkout, 'rev-parse', 'HEAD']);
+    expect(stdout.trim()).toBe(source.ref);
+  });
+
+  it('rejects a source pinned to anything but a full SHA', () => {
+    const base = {
+      repo: 'https://github.com/addyosmani/agent-skills.git',
+      license: 'MIT',
+      copyright: 'Copyright (c) Addy Osmani',
+      path: 'skills',
+      priority: 20,
+    };
+    expect(() => vendorSourceSchema.parse({ ...base, ref: 'main' })).toThrow();
+    expect(() => vendorSourceSchema.parse({ ...base, ref: 'a120596' })).toThrow();
+  });
+
+  it('fails the whole run when the pinned commit cannot be fetched', async () => {
+    const source = vendorSourceSchema.parse({
+      repo: 'https://github.com/addyosmani/agent-skills.git',
+      ref: '0'.repeat(40),
+      license: 'MIT',
+      copyright: 'Copyright (c) Addy Osmani',
+      path: 'skills',
+      priority: 20,
+    });
+    await expect(ensureCheckout('agent-skills-missing', source)).rejects.toThrow(VendorError);
+  }, 60_000);
 });
 
 describe('mergeClaudeMd', () => {

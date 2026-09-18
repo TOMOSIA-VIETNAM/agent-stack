@@ -47,15 +47,17 @@ Slots: `--language --framework --frontend --database --cache --testing
 --infrastructure --architecture --library`, each repeatable, each taking
 `tech` or `tech@version`.
 
-Exit codes: `0` ok · `2` validation errors · `64` bad usage · `65` unknown technology.
+Exit codes: `0` ok · `2` validation errors · `64` bad usage · `65` unknown technology ·
+`66` a vendored source could not be fetched.
 
 ## Output
 
 ```
-CLAUDE.md                        @-imports, inside aidd:begin/end markers
-.claude/rules/NN-<id>.md         one file per selected rule, priority-ordered
-.claude/skills/<id>/SKILL.md     one directory per selected skill
-.claude/aidd-manifest.json       what this run generated
+CLAUDE.md                              @-imports, inside aidd:begin/end markers
+.claude/rules/NN-<id>.md               one file per selected rule, priority-ordered
+.claude/skills/<id>/SKILL.md           one directory per selected skill
+.claude/skills/THIRD-PARTY-NOTICES.md  licences of the imported skills
+.claude/aidd-manifest.json             what this run generated
 ```
 
 `CLAUDE.md` is merged, never replaced: text outside the markers is left alone. On a
@@ -70,13 +72,22 @@ metadata schema and how to add a rule, a skill, or a technology.
 ```
 knowledge/
 ├── catalog.yaml            technology graph: requires / conflicts_with / versions
-├── rules/{global,language,framework}/<id>.md
+├── vendor.yaml             skills imported from other repos, pinned to a commit
+├── rules/{language,framework}/<id>.md
 └── skills/<id>/SKILL.md
 ```
 
-Current coverage: the global layer, Ruby, Rails, Active Record and RSpec. Every other
-technology in `catalog.yaml` resolves and conflict-checks correctly but has no
-content yet; the validator reports each one as `uncovered-technology`.
+Coverage is split:
+
+- **Layer 1, global** — 25 language-independent engineering skills imported from
+  [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT), pinned
+  to a commit SHA in `vendor.yaml`. The first run fetches that commit into
+  `~/.cache/open-aidd`; **without network access on that first run, generation
+  fails** rather than emitting a partial set.
+- **Layers 2 and 3** — authored here: Ruby, Rails, Active Record, RSpec.
+
+Every other technology in `catalog.yaml` resolves and conflict-checks correctly but
+has no content yet; the validator reports each one as `uncovered-technology`.
 
 ## Develop
 
