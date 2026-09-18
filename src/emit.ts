@@ -38,16 +38,15 @@ export async function planEmit(outDir: string, composed: ComposedOutput): Promis
   const previous = await readPreviousManifest(outDir);
   if (!previous) return { write, remove: [] };
 
-  const next = new Set([
-    ...composed.manifest.rules.map((rule) => rule.path),
-    ...composed.manifest.skills.map((skill) => skill.path),
-    ...composed.manifest.extras,
-  ]);
-  const remove = [
-    ...previous.rules.map((rule) => rule.path),
-    ...previous.skills.map((skill) => skill.path),
-    ...(previous.extras ?? []),
-  ]
+  const owned = (manifest: Manifest): string[] => [
+    ...manifest.rules.map((rule) => rule.path),
+    ...manifest.skills.map((skill) => skill.path),
+    ...(manifest.commands ?? []).map((command) => command.path),
+    ...(manifest.extras ?? []),
+  ];
+
+  const next = new Set(owned(composed.manifest));
+  const remove = owned(previous)
     .filter((path) => !next.has(path))
     .sort();
 

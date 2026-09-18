@@ -1,8 +1,6 @@
-import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { loadKnowledgeBase } from '../src/catalog.js';
 import { compose, mergeClaudeMd, BEGIN_MARKER, END_MARKER } from '../src/composer.js';
@@ -11,7 +9,7 @@ import { resolveStack } from '../src/resolver.js';
 import { techStackInputSchema, type TechStackInput } from '../src/schema.js';
 import { selectArtifacts } from '../src/selector.js';
 import { validate } from '../src/validator.js';
-import { ensureCheckout, VendorError, vendorSourceSchema } from '../src/vendor.js';
+import { upstreamSourceSchema } from '../src/upstream.js';
 
 const KNOWLEDGE = resolve(import.meta.dirname, '..', 'knowledge');
 
@@ -31,7 +29,7 @@ describe('knowledge base', () => {
 });
 
 describe('selection', () => {
-  it('always applies the global layer, which is vendored', async () => {
+  it('always applies the global layer, which is imported', async () => {
     const { selection } = await run({ language: [{ tech: 'ruby', version: '3.3' }] });
     const global = selection.skills.filter((entry) => entry.artifact.meta.layer === 'global');
     expect(global.length).toBeGreaterThan(20);
@@ -185,12 +183,12 @@ describe('emit', () => {
   });
 });
 
-describe('vendored skills', () => {
-  it('emits an upstream skill with its provenance and licence notice', async () => {
+describe('imported content', () => {
+  it('emits an upstream skill and command with provenance and a licence notice', async () => {
     const { kb, stack, selection } = await run({
       language: [{ tech: 'ruby', version: '3.3' }],
     });
-    const composed = compose(stack, selection, 'test', kb.vendored);
+    const composed = compose(stack, selection, 'test', kb.imported);
     const out = await mkdtemp(join(tmpdir(), 'aidd-'));
     await emit(out, composed, { dryRun: false });
 
@@ -200,54 +198,66 @@ describe('vendored skills', () => {
     );
     expect(skill).toContain('name: test-driven-development');
     expect(skill).toContain('addyosmani/agent-skills');
-    expect(skill).toContain('MIT');
 
-    const notices = await readFile(join(out, '.claude/skills/THIRD-PARTY-NOTICES.md'), 'utf8');
+    const command = await readFile(join(out, '.claude/commands/test.md'), 'utf8');
+    expect(command).toContain('description:');
+    expect(command).toContain('addyosmani/agent-skills');
+
+    const notices = await readFile(join(out, '.claude/THIRD-PARTY-NOTICES.md'), 'utf8');
     expect(notices).toContain('Permission is hereby granted');
-    expect(notices).toContain(kb.vendored[0]!.ref);
+    expect(notices).toContain(kb.imported[0]!.ref);
 
     const manifest = JSON.parse(await readFile(join(out, '.claude/aidd-manifest.json'), 'utf8'));
-    expect(manifest.extras).toContain('.claude/skills/THIRD-PARTY-NOTICES.md');
-    expect(manifest.vendored[0].ref).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest.extras).toContain('.claude/THIRD-PARTY-NOTICES.md');
+    expect(manifest.commands.map((c: { id: string }) => c.id)).toContain('test');
+    expect(manifest.imported[0].ref).toMatch(/^[0-9a-f]{40}$/);
   });
 
-  it('checks out the pinned commit, not a branch', async () => {
-    const source = vendorSourceSchema.parse({
-      repo: 'https://github.com/addyosmani/agent-skills.git',
-      ref: 'a120596f6d7ff9b967a3f5e0331ea911376ee5ef',
-      license: 'MIT',
-      copyright: 'Copyright (c) Addy Osmani',
-      path: 'skills',
-      priority: 20,
+  it('copies the files a skill references', async () => {
+    const { kb, stack, selection } = await run({
+      language: [{ tech: 'ruby', version: '3.3' }],
     });
-    const checkout = await ensureCheckout('agent-skills', source);
-    const { stdout } = await promisify(execFile)('git', ['-C', checkout, 'rev-parse', 'HEAD']);
-    expect(stdout.trim()).toBe(source.ref);
+    const composed = compose(stack, selection, 'test', kb.imported);
+    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    await emit(out, composed, { dryRun: false });
+
+    const referenced = await readFile(
+      join(out, '.claude/skills/idea-refine/frameworks.md'),
+      'utf8',
+    );
+    expect(referenced.length).toBeGreaterThan(0);
+  });
+
+  it('derives metadata from the directory, leaving upstream files untouched', async () => {
+    const kb = await loadKnowledgeBase(KNOWLEDGE);
+    const imported = kb.skills.find((s) => s.meta.id === 'test-driven-development');
+    expect(imported?.meta.layer).toBe('global');
+    expect(imported?.meta.priority).toBe(20);
+    expect(imported?.meta.applies_to).toEqual([]);
+    expect(imported?.provenance?.license).toBe('MIT');
+
+    const onDisk = await readFile(
+      join(KNOWLEDGE, 'skills/global/test-driven-development/SKILL.md'),
+      'utf8',
+    );
+    expect(onDisk).not.toContain('priority:');
+    expect(onDisk).not.toContain('layer:');
   });
 
   it('rejects a source pinned to anything but a full SHA', () => {
     const base = {
       repo: 'https://github.com/addyosmani/agent-skills.git',
       license: 'MIT',
+      license_file: 'licenses/agent-skills-LICENSE',
       copyright: 'Copyright (c) Addy Osmani',
-      path: 'skills',
-      priority: 20,
+      copy: { skills: 'skills/global' },
     };
-    expect(() => vendorSourceSchema.parse({ ...base, ref: 'main' })).toThrow();
-    expect(() => vendorSourceSchema.parse({ ...base, ref: 'a120596' })).toThrow();
+    expect(() => upstreamSourceSchema.parse({ ...base, ref: 'main' })).toThrow();
+    expect(() => upstreamSourceSchema.parse({ ...base, ref: 'a120596' })).toThrow();
+    expect(() =>
+      upstreamSourceSchema.parse({ ...base, ref: 'a120596f6d7ff9b967a3f5e0331ea911376ee5ef' }),
+    ).not.toThrow();
   });
-
-  it('fails the whole run when the pinned commit cannot be fetched', async () => {
-    const source = vendorSourceSchema.parse({
-      repo: 'https://github.com/addyosmani/agent-skills.git',
-      ref: '0'.repeat(40),
-      license: 'MIT',
-      copyright: 'Copyright (c) Addy Osmani',
-      path: 'skills',
-      priority: 20,
-    });
-    await expect(ensureCheckout('agent-skills-missing', source)).rejects.toThrow(VendorError);
-  }, 60_000);
 });
 
 describe('mergeClaudeMd', () => {

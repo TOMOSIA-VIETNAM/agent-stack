@@ -1,46 +1,52 @@
 # Knowledge base
 
-The content open-aidd selects from. Nothing here is generated; everything here is
-reviewed and version-controlled.
+The content open-aidd selects from. All of it is committed here, so a generate run
+needs no network.
 
 ## Layout
 
 ```
-catalog.yaml                     the technology graph
-vendor.yaml                      skills imported from other repositories
-rules/language/<id>.md           layer 2 — ruby, php, node...
-rules/framework/<id>.md          layer 3 — rails, activerecord, rspec...
-skills/<id>/SKILL.md             a skill, plus any files it references
+catalog.yaml                       the technology graph
+upstream.yaml                      where imported content came from
+licenses/                          licence texts of imported content
+rules/<layer>/<id>.md              a rule
+skills/<layer>/<id>/SKILL.md       a skill, plus any files it references
+commands/<id>.md                   a slash command
 ```
 
-Layer 1 — the global, language-independent engineering skills — is not authored
-here. It is imported from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)
-through `vendor.yaml`. See **Vendored sources** below.
+`<layer>` is one of `global`, `language`, `framework` — the three layers of idea.md
+§1. **The directory decides the layer**, and the file or directory name decides the
+`id`.
 
-**Rule** = a convention: *how code must be written*. It is always in context.
-**Skill** = a procedure: *how to carry out task X*, in steps. It is loaded when the
-task comes up. If you are writing numbered steps, it is a skill.
+**Rule** = a convention: *how code must be written*. Always in context.
+**Skill** = a procedure: *how to carry out task X*, in steps. Loaded when the task
+comes up. **Command** = a slash command the developer types. If you are writing
+numbered steps, it is a skill.
 
-## Metadata
+## Two kinds of file
 
-Every rule and skill carries YAML front matter:
+**Authored here** — declares full open-aidd metadata in its front matter:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `id` | yes | Unique, lowercase kebab-case. Becomes the output filename. |
-| `name` | yes | Human title. For a skill this is also the name Claude sees, so use the skill's kebab-case id. |
-| `description` | yes | One line. For a skill this is what Claude matches a task against — say what it does *and when to use it*. |
-| `type` | yes | `rule` or `skill`. |
-| `layer` | yes | `global`, `language`, or `framework`. |
-| `priority` | yes | 0–999. Sorts the output and becomes the rule file's numeric prefix. |
+| `id` | yes | Unique per type, lowercase kebab-case. Becomes the output filename. |
+| `name` | yes | Human title. For a skill, use the skill's kebab-case id — Claude sees it. |
+| `description` | yes | One line. For a skill, what Claude matches a task against: what it does *and when to use it*. |
+| `type` | yes | `rule`, `skill`, or `command`. |
+| `layer` | yes | `global`, `language`, or `framework`. Must match the directory. |
+| `priority` | yes | 0–999. Sorts the output and prefixes rule filenames. |
 | `applies_to` | layer ≠ global | `[{tech, versions?}]` — **all** entries must match the resolved stack. This generalizes idea.md's `language` / `framework` fields: any catalog technology can gate an artifact. |
 | `dependencies` | no | Other artifact ids pulled in whenever this one is selected. |
 | `conflicts_with` | no | Artifact ids that must not be emitted alongside this one. |
 | `compatible_with` | no | Documentation only; not enforced. |
 | `tags` | no | Free-form. |
-| `files` | no | Extra files copied next to `SKILL.md`, relative to the artifact directory. |
+| `files` | no | Extra files to copy. Defaults to every other file in the artifact's directory. |
 
-Priority bands in use: 10–19 global, 30–39 language, 40–49 framework.
+**Imported** (see below) — carries only Claude's own front matter (`name`,
+`description` for a skill; `description` for a command). Everything else is derived:
+`id` from the file or directory name, `layer` from the directory, `priority` from the
+layer (`global` 20, `language` 30, `framework` 40), `applies_to` empty. Imported files
+are never edited, so syncing stays a plain overwrite.
 
 ### Version ranges
 
@@ -58,6 +64,37 @@ Priority bands in use: 10–19 global, 30–39 language, 40–49 framework.
 A versioned `applies_to` never matches a technology the operator did not pin — the
 validator raises `missing-version` and asks, rather than assuming a version.
 
+## Imported content
+
+The global layer is not authored here. It is copied from
+[addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT):
+25 skills into `skills/global/` and 9 commands into `commands/`.
+
+`upstream.yaml` records the repository, the exact commit the files were taken at, the
+licence, and which upstream path maps to which path under `knowledge/`. The commit is
+a **full 40-character SHA** — a branch or tag is rejected — so the copy is traceable
+to one revision.
+
+Licence obligations travel with the output: each generated file names its source repo,
+commit and licence in a header comment, and `.claude/THIRD-PARTY-NOTICES.md` carries
+the full licence text of every source that contributed.
+
+```bash
+npm run sync                      # re-copy at the pinned commit
+npm run sync -- --ref <sha>       # move the pin, then copy
+```
+
+Destination directories are replaced wholesale, so a file deleted upstream disappears
+here too. Review the diff and run `npm test` before committing.
+
+### Known limitation
+
+The imported commands invoke skills by their upstream plugin name, e.g.
+`agent-skills:test-driven-development`. In a generated project those skills live at
+`.claude/skills/<id>/` with no namespace, so the reference only resolves if that
+project *also* installs the upstream plugin. The files are kept as published rather
+than rewritten.
+
 ## Adding content
 
 **A technology** — add an entry to `catalog.yaml` with its `kind`, what it `requires`
@@ -67,36 +104,14 @@ A technology with no rules is valid: it resolves and is reported as uncovered.
 **A rule** — new file under `rules/<layer>/`, front matter above, body in Markdown
 starting at `##`. The generator adds the `# <name>` heading.
 
-**A skill** — new directory under `skills/<id>/` with a `SKILL.md`. Write steps in
-order, and end with what to report. Keep it under ~500 lines; put long reference
-material in a separate file and list it in `files`.
+**A skill** — new directory under `skills/<layer>/<id>/` with a `SKILL.md`. Write
+steps in order, and end with what to report. Keep it under ~500 lines; put long
+reference material in a separate file in the same directory — it is copied
+automatically.
+
+Do not author files under a path that `upstream.yaml` maps to: the next sync deletes
+them.
 
 Run `npm test` after any change: the suite loads this directory and fails on a
-dangling reference, a duplicate id, an invalid range, or a layer that declares the
-wrong `applies_to`.
-
-## Vendored sources
-
-`vendor.yaml` lists skill repositories imported wholesale. Each source is pinned to a
-**full commit SHA** — a branch or tag is rejected — so the checkout is reproducible
-and an upstream force-push cannot change what a previous run produced.
-
-The commit is fetched once into `~/.cache/open-aidd/<source>/<sha>` (honouring
-`XDG_CACHE_HOME`). The SHA is the cache key, so a new pin fetches into a new
-directory rather than mutating the old one. **If the fetch cannot complete, the run
-fails**: open-aidd never emits a partial rule set silently.
-
-An upstream `SKILL.md` is used exactly as published — open-aidd reads its `name` and
-`description` and derives everything else (`id` from the directory name, `layer` and
-`priority` from the source entry). Upstream files are never edited.
-
-Licence notices travel with the output: each generated skill carries its source repo,
-commit and licence in a header comment, and `.claude/skills/THIRD-PARTY-NOTICES.md`
-carries the full licence text of every source that contributed a skill.
-
-**To update a source**, change `ref` to the new SHA in a reviewable commit, run
-`npm test`, and check the diff in what gets generated. Do not point a source at a
-moving branch.
-
-**Id collisions** between a vendored skill and a local one fail the load. Rename the
-local artifact rather than shadowing upstream.
+dangling reference, a duplicate id, an invalid range, a layer that declares the wrong
+`applies_to`, or a missing licence file.

@@ -18,7 +18,7 @@ export interface Finding {
 
 export interface ValidationReport {
   findings: Finding[];
-  counts: { rules: number; skills: number; technologies: number };
+  counts: { rules: number; skills: number; commands: number; technologies: number };
   ok: boolean;
 }
 
@@ -100,6 +100,7 @@ export function validate(
     counts: {
       rules: selection.rules.length,
       skills: selection.skills.length,
+      commands: selection.commands.length,
       technologies: stack.technologies.length,
     },
     ok: !findings.some((finding) => finding.severity === 'error'),

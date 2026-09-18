@@ -3999,10 +3999,10 @@ var require_resolve_block_map = __commonJS({
       let offset = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key, sep, value } = collItem;
+        const { start, key, sep: sep2, value } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
-          next: key ?? sep?.[0],
+          next: key ?? sep2?.[0],
           offset,
           onError,
           parentIndent: bm.indent,
@@ -4016,7 +4016,7 @@ var require_resolve_block_map = __commonJS({
             else if ("indent" in key && key.indent !== bm.indent)
               onError(offset, "BAD_INDENT", startColMsg);
           }
-          if (!keyProps.anchor && !keyProps.tag && !sep) {
+          if (!keyProps.anchor && !keyProps.tag && !sep2) {
             commentEnd = keyProps.end;
             if (keyProps.comment) {
               if (map.comment)
@@ -4040,7 +4040,7 @@ var require_resolve_block_map = __commonJS({
         ctx.atKey = false;
         if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
-        const valueProps = resolveProps.resolveProps(sep ?? [], {
+        const valueProps = resolveProps.resolveProps(sep2 ?? [], {
           indicator: "map-value-ind",
           next: value,
           offset: keyNode.range[2],
@@ -4056,7 +4056,7 @@ var require_resolve_block_map = __commonJS({
             if (ctx.options.strict && keyProps.start < valueProps.found.offset - 1024)
               onError(keyNode.range, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit block mapping key");
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep, null, valueProps, onError);
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep2, null, valueProps, onError);
           if (ctx.schema.compat)
             utilFlowIndentCheck.flowIndentCheck(bm.indent, value, onError);
           offset = valueNode.range[2];
@@ -4147,7 +4147,7 @@ var require_resolve_end = __commonJS({
       let comment = "";
       if (end) {
         let hasSpace = false;
-        let sep = "";
+        let sep2 = "";
         for (const token of end) {
           const { source, type } = token;
           switch (type) {
@@ -4161,13 +4161,13 @@ var require_resolve_end = __commonJS({
               if (!comment)
                 comment = cb;
               else
-                comment += sep + cb;
-              sep = "";
+                comment += sep2 + cb;
+              sep2 = "";
               break;
             }
             case "newline":
               if (comment)
-                sep += source;
+                sep2 += source;
               hasSpace = true;
               break;
             default:
@@ -4210,18 +4210,18 @@ var require_resolve_flow_collection = __commonJS({
       let offset = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key, sep, value } = collItem;
+        const { start, key, sep: sep2, value } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
-          next: key ?? sep?.[0],
+          next: key ?? sep2?.[0],
           offset,
           onError,
           parentIndent: fc.indent,
           startOnNewline: false
         });
         if (!props.found) {
-          if (!props.anchor && !props.tag && !sep && !value) {
+          if (!props.anchor && !props.tag && !sep2 && !value) {
             if (i === 0 && props.comma)
               onError(props.comma, "UNEXPECTED_TOKEN", `Unexpected , in ${fcName}`);
             else if (i < fc.items.length - 1)
@@ -4275,8 +4275,8 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap && !sep && !props.found) {
-          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep, null, props, onError);
+        if (!isMap && !sep2 && !props.found) {
+          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep2, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
           if (isBlock(value))
@@ -4288,7 +4288,7 @@ var require_resolve_flow_collection = __commonJS({
           if (isBlock(key))
             onError(keyNode.range, "BLOCK_IN_FLOW", blockMsg);
           ctx.atKey = false;
-          const valueProps = resolveProps.resolveProps(sep ?? [], {
+          const valueProps = resolveProps.resolveProps(sep2 ?? [], {
             flow: fcName,
             indicator: "map-value-ind",
             next: value,
@@ -4299,8 +4299,8 @@ var require_resolve_flow_collection = __commonJS({
           });
           if (valueProps.found) {
             if (!isMap && !props.found && ctx.options.strict) {
-              if (sep)
-                for (const st of sep) {
+              if (sep2)
+                for (const st of sep2) {
                   if (st === valueProps.found)
                     break;
                   if (st.type === "newline") {
@@ -4317,7 +4317,7 @@ var require_resolve_flow_collection = __commonJS({
             else
               onError(valueProps.start, "MISSING_CHAR", `Missing , or : between ${fcName} items`);
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep, null, valueProps, onError) : null;
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep2, null, valueProps, onError) : null;
           if (valueNode) {
             if (isBlock(value))
               onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
@@ -4497,7 +4497,7 @@ var require_resolve_block_scalar = __commonJS({
           chompStart = i + 1;
       }
       let value = "";
-      let sep = "";
+      let sep2 = "";
       let prevMoreIndented = false;
       for (let i = 0; i < contentStart; ++i)
         value += lines[i][0].slice(trimIndent) + "\n";
@@ -4514,24 +4514,24 @@ var require_resolve_block_scalar = __commonJS({
           indent = "";
         }
         if (type === Scalar.Scalar.BLOCK_LITERAL) {
-          value += sep + indent.slice(trimIndent) + content;
-          sep = "\n";
+          value += sep2 + indent.slice(trimIndent) + content;
+          sep2 = "\n";
         } else if (indent.length > trimIndent || content[0] === "	") {
-          if (sep === " ")
-            sep = "\n";
-          else if (!prevMoreIndented && sep === "\n")
-            sep = "\n\n";
-          value += sep + indent.slice(trimIndent) + content;
-          sep = "\n";
+          if (sep2 === " ")
+            sep2 = "\n";
+          else if (!prevMoreIndented && sep2 === "\n")
+            sep2 = "\n\n";
+          value += sep2 + indent.slice(trimIndent) + content;
+          sep2 = "\n";
           prevMoreIndented = true;
         } else if (content === "") {
-          if (sep === "\n")
+          if (sep2 === "\n")
             value += "\n";
           else
-            sep = "\n";
+            sep2 = "\n";
         } else {
-          value += sep + content;
-          sep = " ";
+          value += sep2 + content;
+          sep2 = " ";
           prevMoreIndented = false;
         }
       }
@@ -4714,25 +4714,25 @@ var require_resolve_flow_scalar = __commonJS({
         trimBoth = /^[ \t]+|[ \t]+$/g;
       }
       let res = match[1].replace(trimEnd, "");
-      let sep = " ";
+      let sep2 = " ";
       let pos = line.lastIndex;
       while (match = line.exec(source)) {
         const lm = match[1].replace(trimBoth, "");
         if (lm === "") {
-          if (sep === "\n")
-            res += sep;
+          if (sep2 === "\n")
+            res += sep2;
           else
-            sep = "\n";
+            sep2 = "\n";
         } else {
-          res += sep + lm;
-          sep = " ";
+          res += sep2 + lm;
+          sep2 = " ";
         }
         pos = line.lastIndex;
       }
       const last = /[ \t]*(.*)/sy;
       last.lastIndex = pos;
       match = last.exec(source);
-      return res + sep + (match?.[1] ?? "");
+      return res + sep2 + (match?.[1] ?? "");
     }
     function doubleQuotedValue(source, onError) {
       let res = "";
@@ -5542,14 +5542,14 @@ var require_cst_stringify = __commonJS({
         }
       }
     }
-    function stringifyItem({ start, key, sep, value }) {
+    function stringifyItem({ start, key, sep: sep2, value }) {
       let res = "";
       for (const st of start)
         res += st.source;
       if (key)
         res += stringifyToken(key);
-      if (sep)
-        for (const st of sep)
+      if (sep2)
+        for (const st of sep2)
           res += st.source;
       if (value)
         res += stringifyToken(value);
@@ -6716,18 +6716,18 @@ var require_parser = __commonJS({
         if (this.type === "map-value-ind") {
           const prev = getPrevProps(this.peek(2));
           const start = getFirstKeyStartProps(prev);
-          let sep;
+          let sep2;
           if (scalar.end) {
-            sep = scalar.end;
-            sep.push(this.sourceToken);
+            sep2 = scalar.end;
+            sep2.push(this.sourceToken);
             delete scalar.end;
           } else
-            sep = [this.sourceToken];
+            sep2 = [this.sourceToken];
           const map = {
             type: "block-map",
             offset: scalar.offset,
             indent: scalar.indent,
-            items: [{ start, key: scalar, sep }]
+            items: [{ start, key: scalar, sep: sep2 }]
           };
           this.onKeyLine = true;
           this.stack[this.stack.length - 1] = map;
@@ -6880,15 +6880,15 @@ var require_parser = __commonJS({
                 } else if (isFlowToken(it.key) && !includesToken(it.sep, "newline")) {
                   const start2 = getFirstKeyStartProps(it.start);
                   const key = it.key;
-                  const sep = it.sep;
-                  sep.push(this.sourceToken);
+                  const sep2 = it.sep;
+                  sep2.push(this.sourceToken);
                   delete it.key;
                   delete it.sep;
                   this.stack.push({
                     type: "block-map",
                     offset: this.offset,
                     indent: this.indent,
-                    items: [{ start: start2, key, sep }]
+                    items: [{ start: start2, key, sep: sep2 }]
                   });
                 } else if (start.length > 0) {
                   it.sep = it.sep.concat(start, this.sourceToken);
@@ -7082,13 +7082,13 @@ var require_parser = __commonJS({
             const prev = getPrevProps(parent);
             const start = getFirstKeyStartProps(prev);
             fixFlowSeqItems(fc);
-            const sep = fc.end.splice(1, fc.end.length);
-            sep.push(this.sourceToken);
+            const sep2 = fc.end.splice(1, fc.end.length);
+            sep2.push(this.sourceToken);
             const map = {
               type: "block-map",
               offset: fc.offset,
               indent: fc.indent,
-              items: [{ start, key: fc, sep }]
+              items: [{ start, key: fc, sep: sep2 }]
             };
             this.onKeyLine = true;
             this.stack[this.stack.length - 1] = map;
@@ -7371,9 +7371,9 @@ import { fileURLToPath } from "node:url";
 import { dirname as dirname3, isAbsolute, resolve } from "node:path";
 
 // src/catalog.ts
-var import_yaml = __toESM(require_dist(), 1);
+var import_yaml2 = __toESM(require_dist(), 1);
 import { readdir, readFile as readFile2 } from "node:fs/promises";
-import { basename, dirname, join as join2, relative } from "node:path";
+import { basename, dirname, join as join2, relative, sep } from "node:path";
 
 // node_modules/zod/v3/external.js
 var external_exports = {};
@@ -11539,6 +11539,7 @@ var SLOTS = [
   "architecture",
   "library"
 ];
+var LAYERS = ["global", "language", "framework"];
 var idSchema = external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/, "ids are lowercase kebab-case");
 var rangeSchema = external_exports.string().refine(isValidRange, (value) => ({ message: `invalid version range: "${value}"` }));
 var technologySchema = external_exports.object({
@@ -11564,8 +11565,8 @@ var artifactMetaSchema = external_exports.object({
   id: idSchema,
   name: external_exports.string().min(1),
   description: external_exports.string().min(1),
-  type: external_exports.enum(["rule", "skill"]),
-  layer: external_exports.enum(["global", "language", "framework"]),
+  type: external_exports.enum(["rule", "skill", "command"]),
+  layer: external_exports.enum(LAYERS),
   /**
    * Generalization of idea.md's `language` / `framework` fields: any catalog
    * technology can gate an artifact, with an optional version range.
@@ -11598,103 +11599,62 @@ var techStackInputSchema = external_exports.object({
   library: external_exports.array(stackSelectionSchema).default([])
 });
 
-// src/vendor.ts
-import { execFile } from "node:child_process";
-import { access, mkdir, readFile, rm } from "node:fs/promises";
-import { homedir } from "node:os";
+// src/upstream.ts
+var import_yaml = __toESM(require_dist(), 1);
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { promisify } from "node:util";
-var run = promisify(execFile);
-var SHA = /^[0-9a-f]{40}$/;
-var vendorSourceSchema = external_exports.object({
-  /** Clone URL. Only https:// is accepted, so a checkout never prompts for a key. */
+var upstreamSourceSchema = external_exports.object({
   repo: external_exports.string().url().startsWith("https://"),
-  /** Full 40-character commit SHA. A branch or tag is rejected: the checkout must be reproducible. */
-  ref: external_exports.string().regex(SHA, "ref must be a full 40-character commit SHA"),
+  /** Full 40-character commit SHA. A branch or tag is rejected: the copy must be traceable. */
+  ref: external_exports.string().regex(/^[0-9a-f]{40}$/, "ref must be a full 40-character commit SHA"),
   license: external_exports.string().min(1),
-  /** File in the checkout holding the licence text, copied into the output. */
-  license_file: external_exports.string().min(1).default("LICENSE"),
+  /** Licence text, relative to knowledge/. */
+  license_file: external_exports.string().min(1),
   copyright: external_exports.string().min(1),
-  /** Directory inside the checkout holding one subdirectory per skill. */
-  path: external_exports.string().min(1),
-  layer: external_exports.enum(["global", "language", "framework"]).default("global"),
-  priority: external_exports.number().int().min(0).max(999)
+  /** Upstream path -> path under knowledge/. The values mark which artifacts are imported. */
+  copy: external_exports.record(external_exports.string().min(1), external_exports.string().min(1))
 });
-var vendorFileSchema = external_exports.object({
+var upstreamFileSchema = external_exports.object({
   version: external_exports.literal(1),
-  sources: external_exports.record(external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/), vendorSourceSchema)
+  sources: external_exports.record(external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/), upstreamSourceSchema)
 });
-var VendorError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "VendorError";
+async function loadUpstream(root) {
+  const raw = await readFile(join(root, "upstream.yaml"), "utf8").catch(() => void 0);
+  if (raw === void 0) return [];
+  const parsed = upstreamFileSchema.safeParse((0, import_yaml.parse)(raw));
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
+    throw new Error(`upstream.yaml: invalid (${issues})`);
   }
-};
-function cacheRoot() {
-  const xdg = process.env["XDG_CACHE_HOME"];
-  return join(xdg && xdg.length > 0 ? xdg : join(homedir(), ".cache"), "open-aidd");
-}
-function checkoutPath(name, source) {
-  return join(cacheRoot(), name, source.ref);
-}
-async function exists(path) {
-  return access(path).then(
-    () => true,
-    () => false
-  );
-}
-async function ensureCheckout(name, source) {
-  const target = checkoutPath(name, source);
-  if (await exists(join(target, ".git"))) {
-    return target;
+  const sources = [];
+  for (const [name, source] of Object.entries(parsed.data.sources)) {
+    const licenseText = await readFile(join(root, source.license_file), "utf8").catch(() => {
+      throw new Error(
+        `upstream.yaml: source "${name}" declares ${source.license} but knowledge/${source.license_file} is missing. Run \`npm run sync\`.`
+      );
+    });
+    sources.push({
+      name,
+      repo: source.repo,
+      ref: source.ref,
+      license: source.license,
+      copyright: source.copyright,
+      licenseText: licenseText.trim(),
+      paths: Object.values(source.copy)
+    });
   }
-  await rm(target, { recursive: true, force: true });
-  await mkdir(target, { recursive: true });
-  const git = async (...args) => {
-    await run("git", ["-C", target, ...args], { timeout: 12e4 });
-  };
-  try {
-    await git("init", "--quiet");
-    await git("remote", "add", "origin", source.repo);
-    await git("fetch", "--quiet", "--depth", "1", "origin", source.ref);
-    await git("checkout", "--quiet", "FETCH_HEAD");
-  } catch (error) {
-    await rm(target, { recursive: true, force: true });
-    const detail = error instanceof Error ? error.message.trim().split("\n").at(-1) : String(error);
-    throw new VendorError(
-      `Could not fetch ${source.repo} at ${source.ref} (vendored source "${name}"): ${detail}
-The pinned commit is required to build the knowledge base. Check network access, then re-run.`
-    );
-  }
-  const { stdout } = await run("git", ["-C", target, "rev-parse", "HEAD"], { timeout: 3e4 });
-  const head = stdout.trim();
-  if (head !== source.ref) {
-    await rm(target, { recursive: true, force: true });
-    throw new VendorError(
-      `Vendored source "${name}" checked out ${head}, expected ${source.ref}.`
-    );
-  }
-  return target;
-}
-async function readLicense(name, source, checkout) {
-  const path = join(checkout, source.license_file);
-  const text = await readFile(path, "utf8").catch(() => void 0);
-  if (text === void 0) {
-    throw new VendorError(
-      `Vendored source "${name}" declares ${source.license} but ${source.license_file} is missing from the checkout.`
-    );
-  }
-  return text.trim();
+  return sources;
 }
 
 // src/catalog.ts
+var LAYER_PRIORITY = { global: 20, language: 30, framework: 40 };
 var FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 function splitFrontMatter(raw) {
   const match = FRONT_MATTER.exec(raw);
   if (!match) {
     return { data: void 0, body: raw };
   }
-  return { data: (0, import_yaml.parse)(match[1] ?? ""), body: raw.slice(match[0].length) };
+  return { data: (0, import_yaml2.parse)(match[1] ?? ""), body: raw.slice(match[0].length) };
 }
 async function listFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true }).catch(
@@ -11714,114 +11674,128 @@ async function listFiles(dir) {
   }
   return files;
 }
-async function loadArtifact(path, root, expected) {
+function isLayer(value) {
+  return value !== void 0 && LAYERS.includes(value);
+}
+function layerFromPath(relativePath, fallback) {
+  const segment = relativePath.split(sep)[1];
+  return isLayer(segment) ? segment : fallback;
+}
+var claudeFrontMatterSchema = external_exports.object({
+  name: external_exports.string().min(1).optional(),
+  description: external_exports.string().min(1)
+});
+async function loadArtifact(path, root, options) {
   const raw = await readFile2(path, "utf8");
   const { data, body } = splitFrontMatter(raw);
   const source = relative(root, path);
   if (data === void 0) {
     throw new Error(`${source}: missing YAML front matter`);
   }
-  const parsed = artifactMetaSchema.safeParse(data);
-  if (!parsed.success) {
-    const issues = parsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
-    throw new Error(`${source}: invalid metadata (${issues})`);
+  const declaresOwnMetadata = typeof data === "object" && data !== null && "id" in data && "type" in data;
+  let meta;
+  if (declaresOwnMetadata) {
+    const parsed = artifactMetaSchema.safeParse(data);
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
+      throw new Error(`${source}: invalid metadata (${issues})`);
+    }
+    if (parsed.data.type !== options.type) {
+      throw new Error(`${source}: expected type "${options.type}", got "${parsed.data.type}"`);
+    }
+    meta = parsed.data;
+  } else {
+    const parsed = claudeFrontMatterSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new Error(
+        `${source}: needs either open-aidd metadata (id, type, ...) or a "description" front matter field`
+      );
+    }
+    const layer = layerFromPath(source, options.fallbackLayer);
+    meta = artifactMetaSchema.parse({
+      id: options.id,
+      name: parsed.data.name ?? options.id,
+      description: parsed.data.description,
+      type: options.type,
+      layer,
+      priority: LAYER_PRIORITY[layer]
+    });
   }
-  if (parsed.data.type !== expected) {
-    throw new Error(`${source}: expected type "${expected}", got "${parsed.data.type}"`);
-  }
+  const attached = options.type === "command" ? [] : (await listFiles(options.dir)).filter((file) => file !== path).map((file) => relative(options.dir, file));
   return {
-    meta: parsed.data,
+    meta: { ...meta, files: meta.files.length > 0 ? meta.files : attached },
     body: body.trim(),
-    dir: dirname(path),
+    dir: options.dir,
     source
   };
 }
-async function loadVendoredSkill(path, checkout, name, source, provenance) {
-  const raw = await readFile2(path, "utf8");
-  const { data, body } = splitFrontMatter(raw);
-  const relativePath = relative(checkout, path);
-  const parsed = external_exports.object({ name: external_exports.string().min(1), description: external_exports.string().min(1) }).safeParse(data);
-  if (!parsed.success) {
-    throw new Error(
-      `${name}:${relativePath}: upstream skill needs "name" and "description" front matter`
+function attachProvenance(artifacts, imported) {
+  for (const artifact of artifacts) {
+    const owner = imported.find(
+      (source) => source.paths.some(
+        (path) => artifact.source === path || artifact.source.startsWith(`${path}${sep}`)
+      )
     );
-  }
-  const dir = dirname(path);
-  const id = basename(dir);
-  const extras = (await listFiles(dir)).filter((file) => file !== path).map((file) => relative(dir, file));
-  return {
-    meta: artifactMetaSchema.parse({
-      id,
-      name: parsed.data.name,
-      description: parsed.data.description,
-      type: "skill",
-      layer: source.layer,
-      priority: source.priority,
-      tags: [name],
-      files: extras
-    }),
-    body: body.trim(),
-    dir,
-    source: `${name}:${relativePath}`,
-    provenance
-  };
-}
-async function loadVendored(root) {
-  const raw = await readFile2(join2(root, "vendor.yaml"), "utf8").catch(() => void 0);
-  if (raw === void 0) {
-    return { skills: [], vendored: [] };
-  }
-  const parsed = vendorFileSchema.safeParse((0, import_yaml.parse)(raw));
-  if (!parsed.success) {
-    const issues = parsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
-    throw new Error(`vendor.yaml: invalid (${issues})`);
-  }
-  const skills = [];
-  const vendored = [];
-  for (const [name, source] of Object.entries(parsed.data.sources)) {
-    const checkout = await ensureCheckout(name, source);
-    const provenance = {
-      source: name,
-      repo: source.repo,
-      ref: source.ref,
-      license: source.license,
-      copyright: source.copyright
-    };
-    vendored.push({ ...provenance, licenseText: await readLicense(name, source, checkout) });
-    const skillRoot = join2(checkout, source.path);
-    const paths = (await listFiles(skillRoot)).filter((p) => basename(p) === "SKILL.md");
-    if (paths.length === 0) {
-      throw new Error(`vendor.yaml: source "${name}" has no SKILL.md under "${source.path}"`);
-    }
-    for (const path of paths) {
-      skills.push(await loadVendoredSkill(path, checkout, name, source, provenance));
+    if (owner) {
+      artifact.provenance = {
+        source: owner.name,
+        repo: owner.repo,
+        ref: owner.ref,
+        license: owner.license,
+        copyright: owner.copyright
+      };
     }
   }
-  return { skills, vendored };
 }
 async function loadKnowledgeBase(root) {
   const catalogPath = join2(root, "catalog.yaml");
   const catalogRaw = await readFile2(catalogPath, "utf8").catch(() => {
     throw new Error(`Knowledge base not found: ${catalogPath}`);
   });
-  const catalogParsed = catalogSchema.safeParse((0, import_yaml.parse)(catalogRaw));
+  const catalogParsed = catalogSchema.safeParse((0, import_yaml2.parse)(catalogRaw));
   if (!catalogParsed.success) {
     const issues = catalogParsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
     throw new Error(`catalog.yaml: invalid (${issues})`);
   }
-  const rulePaths = (await listFiles(join2(root, "rules"))).filter((p) => p.endsWith(".md"));
-  const skillPaths = (await listFiles(join2(root, "skills"))).filter(
-    (p) => basename(p) === "SKILL.md"
+  const rules = await Promise.all(
+    (await listFiles(join2(root, "rules"))).filter((path) => path.endsWith(".md")).map(
+      (path) => loadArtifact(path, root, {
+        type: "rule",
+        dir: dirname(path),
+        id: basename(path, ".md"),
+        fallbackLayer: "global"
+      })
+    )
   );
-  const rules = await Promise.all(rulePaths.map((p) => loadArtifact(p, root, "rule")));
-  const local = await Promise.all(skillPaths.map((p) => loadArtifact(p, root, "skill")));
-  const { skills: imported, vendored } = await loadVendored(root);
+  const skills = await Promise.all(
+    (await listFiles(join2(root, "skills"))).filter((path) => basename(path) === "SKILL.md").map(
+      (path) => loadArtifact(path, root, {
+        type: "skill",
+        dir: dirname(path),
+        id: basename(dirname(path)),
+        fallbackLayer: "global"
+      })
+    )
+  );
+  const commands = await Promise.all(
+    (await listFiles(join2(root, "commands"))).filter((path) => path.endsWith(".md")).map(
+      (path) => loadArtifact(path, root, {
+        type: "command",
+        dir: dirname(path),
+        id: basename(path, ".md"),
+        fallbackLayer: "global"
+      })
+    )
+  );
+  const imported = await loadUpstream(root);
+  attachProvenance([...rules, ...skills, ...commands], imported);
   const kb = {
     root,
     catalog: catalogParsed.data,
     rules,
-    skills: [...local, ...imported],
-    vendored
+    skills,
+    commands,
+    imported
   };
   const problems = lintKnowledgeBase(kb);
   if (problems.length > 0) {
@@ -11833,15 +11807,18 @@ async function loadKnowledgeBase(root) {
 function lintKnowledgeBase(kb) {
   const problems = [];
   const techIds = new Set(Object.keys(kb.catalog.technologies));
-  const artifacts = [...kb.rules, ...kb.skills];
+  const artifacts = [...kb.rules, ...kb.skills, ...kb.commands];
   const byId = /* @__PURE__ */ new Map();
   for (const artifact of artifacts) {
-    const existing = byId.get(artifact.meta.id);
+    const key = `${artifact.meta.type}:${artifact.meta.id}`;
+    const existing = byId.get(key);
     if (existing) {
-      problems.push(`duplicate artifact id "${artifact.meta.id}" (${existing.source}, ${artifact.source})`);
+      problems.push(
+        `duplicate ${artifact.meta.type} id "${artifact.meta.id}" (${existing.source}, ${artifact.source})`
+      );
       continue;
     }
-    byId.set(artifact.meta.id, artifact);
+    byId.set(key, artifact);
   }
   for (const [id, tech] of Object.entries(kb.catalog.technologies)) {
     for (const field of ["requires", "compatible_with", "conflicts_with"]) {
@@ -11855,6 +11832,7 @@ function lintKnowledgeBase(kb) {
       problems.push(`catalog.yaml: ${id} conflicts with itself`);
     }
   }
+  const artifactIds = new Set([...byId.values()].map((artifact) => artifact.meta.id));
   for (const artifact of artifacts) {
     const { meta, source } = artifact;
     if (meta.layer === "global" && meta.applies_to.length > 0) {
@@ -11869,12 +11847,12 @@ function lintKnowledgeBase(kb) {
       }
     }
     for (const dep of meta.dependencies) {
-      if (!byId.has(dep)) {
+      if (!artifactIds.has(dep)) {
         problems.push(`${source}: dependency "${dep}" is not a known artifact`);
       }
     }
     for (const other of meta.conflicts_with) {
-      if (!byId.has(other)) {
+      if (!artifactIds.has(other)) {
         problems.push(`${source}: conflicts_with "${other}" is not a known artifact`);
       }
     }
@@ -11883,9 +11861,10 @@ function lintKnowledgeBase(kb) {
 }
 
 // src/composer.ts
-var import_yaml2 = __toESM(require_dist(), 1);
+var import_yaml3 = __toESM(require_dist(), 1);
 import { join as join3, posix } from "node:path";
 var MANIFEST_PATH = posix.join(".claude", "aidd-manifest.json");
+var NOTICES_PATH = posix.join(".claude", "THIRD-PARTY-NOTICES.md");
 var BEGIN_MARKER = "<!-- aidd:begin - generated by open-aidd, do not edit by hand -->";
 var END_MARKER = "<!-- aidd:end -->";
 function rulePath(entry) {
@@ -11908,16 +11887,41 @@ function ruleFile(entry) {
     ""
   ].join("\n");
 }
+function originComment(entry, noticesPath) {
+  const { provenance, source } = entry.artifact;
+  return provenance ? `<!-- imported from ${provenance.repo} at ${provenance.ref} - ${provenance.license}, ${provenance.copyright}. See ${noticesPath} -->` : `<!-- generated by open-aidd from knowledge/${source} - edit the knowledge base, not this file -->`;
+}
 function skillFile(entry) {
-  const { meta, body, source, provenance } = entry.artifact;
-  const frontMatter = (0, import_yaml2.stringify)({ name: meta.name, description: meta.description }).trim();
-  const origin = provenance ? `<!-- vendored from ${provenance.repo} at ${provenance.ref} - ${provenance.license}, ${provenance.copyright}. See .claude/skills/THIRD-PARTY-NOTICES.md -->` : `<!-- generated by open-aidd from knowledge/${source} - edit the knowledge base, not this file -->`;
-  return ["---", frontMatter, "---", "", origin, "", body, ""].join("\n");
+  const { meta, body } = entry.artifact;
+  const frontMatter = (0, import_yaml3.stringify)({ name: meta.name, description: meta.description }).trim();
+  return [
+    "---",
+    frontMatter,
+    "---",
+    "",
+    originComment(entry, NOTICES_PATH),
+    "",
+    body,
+    ""
+  ].join("\n");
+}
+function commandFile(entry) {
+  const frontMatter = (0, import_yaml3.stringify)({ description: entry.artifact.meta.description }).trim();
+  return [
+    "---",
+    frontMatter,
+    "---",
+    "",
+    originComment(entry, `../${posix.basename(NOTICES_PATH)}`),
+    "",
+    entry.artifact.body,
+    ""
+  ].join("\n");
 }
 function thirdPartyNotices(sources) {
   const sections = sources.map(
     (source) => [
-      `## ${source.source}`,
+      `## ${source.name}`,
       "",
       `Source: ${source.repo}`,
       `Commit: ${source.ref}`,
@@ -11931,8 +11935,8 @@ function thirdPartyNotices(sources) {
   return [
     "# Third-party notices",
     "",
-    "Skills in this directory were imported from the repositories below and are",
-    "distributed under their original licences.",
+    "Skills and commands generated into this project were copied from the",
+    "repositories below and are distributed under their original licences.",
     "",
     ...sections,
     ""
@@ -11966,7 +11970,7 @@ function mergeClaudeMd(existing, block) {
   return `${existing}${separator}${block}
 `;
 }
-function compose(stack, selection, generatorVersion, vendored = []) {
+function compose(stack, selection, generatorVersion, imported = []) {
   const files = [];
   const ruleEntries = selection.rules.map((entry) => ({
     id: entry.artifact.meta.id,
@@ -11988,15 +11992,20 @@ function compose(stack, selection, generatorVersion, vendored = []) {
       });
     }
   }
+  const commandEntries = [];
+  for (const entry of selection.commands) {
+    const path = posix.join(".claude", "commands", `${entry.artifact.meta.id}.md`);
+    files.push({ path, contents: commandFile(entry) });
+    commandEntries.push({ id: entry.artifact.meta.id, path });
+  }
   const usedSources = new Set(
-    selection.skills.map((entry) => entry.artifact.provenance?.source).filter((source) => source !== void 0)
+    [...selection.rules, ...selection.skills, ...selection.commands].map((entry) => entry.artifact.provenance?.source).filter((source) => source !== void 0)
   );
-  const notices = vendored.filter((source) => usedSources.has(source.source));
+  const notices = imported.filter((source) => usedSources.has(source.name));
   const extras = [];
   if (notices.length > 0) {
-    const path = posix.join(".claude", "skills", "THIRD-PARTY-NOTICES.md");
-    files.push({ path, contents: thirdPartyNotices(notices) });
-    extras.push(path);
+    files.push({ path: NOTICES_PATH, contents: thirdPartyNotices(notices) });
+    extras.push(NOTICES_PATH);
   }
   const manifest = {
     generator: `open-aidd@${generatorVersion}`,
@@ -12008,8 +12017,9 @@ function compose(stack, selection, generatorVersion, vendored = []) {
     })),
     rules: ruleEntries.map(({ id, path }) => ({ id, path })),
     skills: skillEntries,
+    commands: commandEntries,
     extras,
-    vendored: notices.map(({ source, repo, ref }) => ({ source, repo, ref }))
+    imported: notices.map(({ name, repo, ref }) => ({ source: name, repo, ref }))
   };
   files.push({ path: MANIFEST_PATH, contents: `${JSON.stringify(manifest, null, 2)}
 ` });
@@ -12017,7 +12027,7 @@ function compose(stack, selection, generatorVersion, vendored = []) {
 }
 
 // src/emit.ts
-import { copyFile, mkdir as mkdir2, readFile as readFile3, rm as rm2, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile as readFile3, rm, writeFile } from "node:fs/promises";
 import { dirname as dirname2, join as join4 } from "node:path";
 async function readPreviousManifest(outDir) {
   const raw = await readFile3(join4(outDir, MANIFEST_PATH), "utf8").catch(() => void 0);
@@ -12032,16 +12042,14 @@ async function planEmit(outDir, composed) {
   const write = [...composed.files.map((file) => file.path), "CLAUDE.md"].sort();
   const previous = await readPreviousManifest(outDir);
   if (!previous) return { write, remove: [] };
-  const next = /* @__PURE__ */ new Set([
-    ...composed.manifest.rules.map((rule) => rule.path),
-    ...composed.manifest.skills.map((skill) => skill.path),
-    ...composed.manifest.extras
-  ]);
-  const remove = [
-    ...previous.rules.map((rule) => rule.path),
-    ...previous.skills.map((skill) => skill.path),
-    ...previous.extras ?? []
-  ].filter((path) => !next.has(path)).sort();
+  const owned = (manifest) => [
+    ...manifest.rules.map((rule) => rule.path),
+    ...manifest.skills.map((skill) => skill.path),
+    ...(manifest.commands ?? []).map((command) => command.path),
+    ...manifest.extras ?? []
+  ];
+  const next = new Set(owned(composed.manifest));
+  const remove = owned(previous).filter((path) => !next.has(path)).sort();
   return { write, remove };
 }
 async function emit(outDir, composed, options) {
@@ -12051,7 +12059,7 @@ async function emit(outDir, composed, options) {
   }
   for (const file of composed.files) {
     const target = join4(outDir, file.path);
-    await mkdir2(dirname2(target), { recursive: true });
+    await mkdir(dirname2(target), { recursive: true });
     if (file.copyFrom) {
       await copyFile(file.copyFrom, target);
     } else {
@@ -12062,7 +12070,7 @@ async function emit(outDir, composed, options) {
   const existing = await readFile3(claudeMdPath, "utf8").catch(() => void 0);
   await writeFile(claudeMdPath, mergeClaudeMd(existing, composed.claudeMdBlock), "utf8");
   for (const path of plan.remove) {
-    await rm2(join4(outDir, path), { recursive: true, force: true });
+    await rm(join4(outDir, path), { recursive: true, force: true });
   }
   return { ...plan, outDir, dryRun: false };
 }
@@ -12197,7 +12205,7 @@ function matches(artifact, stack) {
   return { ok: true, matchedBy };
 }
 function selectArtifacts(kb, stack) {
-  const all = [...kb.rules, ...kb.skills];
+  const all = [...kb.rules, ...kb.skills, ...kb.commands];
   const byId = new Map(all.map((artifact) => [artifact.meta.id, artifact]));
   const selected = /* @__PURE__ */ new Map();
   const skipped = [];
@@ -12242,6 +12250,7 @@ function selectArtifacts(kb, stack) {
   return {
     rules: [...selected.values()].filter((e) => e.artifact.meta.type === "rule").sort(order),
     skills: [...selected.values()].filter((e) => e.artifact.meta.type === "skill").sort(order),
+    commands: [...selected.values()].filter((e) => e.artifact.meta.type === "command").sort(order),
     skipped: skipped.sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
     conflicts,
     uncovered
@@ -12306,6 +12315,7 @@ function validate(stack, selection, acceptedConflicts = []) {
     counts: {
       rules: selection.rules.length,
       skills: selection.skills.length,
+      commands: selection.commands.length,
       technologies: stack.technologies.length
     },
     ok: !findings.some((finding) => finding.severity === "error")
@@ -12410,7 +12420,7 @@ function formatStack(stack) {
     return `  ${tech.id}${version} [${tech.slot}]${via}`;
   });
 }
-async function run2(options) {
+async function run(options) {
   if (options.command === "help") {
     process.stdout.write(USAGE);
     return 0;
@@ -12429,7 +12439,7 @@ async function run2(options) {
       requires: tech.requires,
       conflicts_with: tech.conflicts_with,
       supported_versions: tech.supported_versions,
-      artifacts: [...kb.rules, ...kb.skills].filter((artifact) => artifact.meta.applies_to.some((a) => a.tech === id)).map((artifact) => artifact.meta.id)
+      artifacts: [...kb.rules, ...kb.skills, ...kb.commands].filter((artifact) => artifact.meta.applies_to.some((a) => a.tech === id)).map((artifact) => artifact.meta.id)
     }));
     if (options.json) {
       process.stdout.write(`${JSON.stringify({ technologies }, null, 2)}
@@ -12443,13 +12453,16 @@ async function run2(options) {
       process.stdout.write(`  ${tech.id} [${tech.kind}] - ${coverage}
 `);
     }
-    process.stdout.write(`
-Rules: ${kb.rules.length}  Skills: ${kb.skills.length}
-`);
-    for (const source of kb.vendored) {
-      const count = kb.skills.filter((s) => s.provenance?.source === source.source).length;
+    process.stdout.write(
+      `
+Rules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}
+`
+    );
+    const all = [...kb.rules, ...kb.skills, ...kb.commands];
+    for (const source of kb.imported) {
+      const count = all.filter((a) => a.provenance?.source === source.name).length;
       process.stdout.write(
-        `Vendored: ${source.source} ${count} skill(s) from ${source.repo} at ${source.ref.slice(0, 7)} (${source.license})
+        `Imported: ${source.name} ${count} artifact(s) from ${source.repo} at ${source.ref.slice(0, 7)} (${source.license})
 `
       );
     }
@@ -12476,7 +12489,7 @@ Rules: ${kb.rules.length}  Skills: ${kb.skills.length}
     }
     return report.ok ? 0 : 2;
   }
-  const composed = compose(stack, selection, VERSION, kb.vendored);
+  const composed = compose(stack, selection, VERSION, kb.imported);
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
   if (options.json) {
     process.stdout.write(
@@ -12513,19 +12526,17 @@ ${result.dryRun ? "Would write" : "Wrote"} ${result.write.length} file(s) in ${r
   return report.ok ? 0 : 2;
 }
 function summarize(selection) {
+  const describe = (entries) => entries.map((entry) => ({
+    id: entry.artifact.meta.id,
+    name: entry.artifact.meta.name,
+    layer: entry.artifact.meta.layer,
+    matchedBy: entry.matchedBy,
+    importedFrom: entry.artifact.provenance?.source
+  }));
   return {
-    rules: selection.rules.map((entry) => ({
-      id: entry.artifact.meta.id,
-      name: entry.artifact.meta.name,
-      layer: entry.artifact.meta.layer,
-      matchedBy: entry.matchedBy
-    })),
-    skills: selection.skills.map((entry) => ({
-      id: entry.artifact.meta.id,
-      name: entry.artifact.meta.name,
-      layer: entry.artifact.meta.layer,
-      matchedBy: entry.matchedBy
-    })),
+    rules: describe(selection.rules),
+    skills: describe(selection.skills),
+    commands: describe(selection.commands),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
       reason: entry.reason
@@ -12536,7 +12547,7 @@ function printReport(report) {
   const { counts } = report;
   process.stdout.write(
     `
-Selected ${counts.rules} rule(s) and ${counts.skills} skill(s) for ${counts.technologies} technolog(ies).
+Selected ${counts.rules} rule(s), ${counts.skills} skill(s) and ${counts.commands} command(s) for ${counts.technologies} technolog(ies).
 `
   );
   const errors = report.findings.filter((f) => f.severity === "error");
@@ -12553,7 +12564,7 @@ Selected ${counts.rules} rule(s) and ${counts.skills} skill(s) for ${counts.tech
 }
 var argv = process.argv.slice(2);
 try {
-  process.exitCode = await run2(parseArgs(argv));
+  process.exitCode = await run(parseArgs(argv));
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   if (error instanceof UsageError) {
@@ -12565,10 +12576,6 @@ ${USAGE}`);
     process.stderr.write(`${message}
 `);
     process.exitCode = 65;
-  } else if (error instanceof VendorError) {
-    process.stderr.write(`${message}
-`);
-    process.exitCode = 66;
   } else {
     process.stderr.write(`${message}
 `);

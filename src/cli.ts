@@ -8,7 +8,6 @@ import { resolveStack, UnknownTechnologyError, type ResolvedStack } from './reso
 import { SLOTS, techStackInputSchema, type Slot, type TechStackInput } from './schema.js';
 import { selectArtifacts } from './selector.js';
 import { validate } from './validator.js';
-import { VendorError } from './vendor.js';
 
 const VERSION = '0.1.0';
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -138,7 +137,7 @@ async function run(options: Options): Promise<number> {
       requires: tech.requires,
       conflicts_with: tech.conflicts_with,
       supported_versions: tech.supported_versions,
-      artifacts: [...kb.rules, ...kb.skills]
+      artifacts: [...kb.rules, ...kb.skills, ...kb.commands]
         .filter((artifact) => artifact.meta.applies_to.some((a) => a.tech === id))
         .map((artifact) => artifact.meta.id),
     }));
@@ -151,11 +150,14 @@ async function run(options: Options): Promise<number> {
       const coverage = tech.artifacts.length > 0 ? `${tech.artifacts.length} artifact(s)` : 'no content yet';
       process.stdout.write(`  ${tech.id} [${tech.kind}] - ${coverage}\n`);
     }
-    process.stdout.write(`\nRules: ${kb.rules.length}  Skills: ${kb.skills.length}\n`);
-    for (const source of kb.vendored) {
-      const count = kb.skills.filter((s) => s.provenance?.source === source.source).length;
+    process.stdout.write(
+      `\nRules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}\n`,
+    );
+    const all = [...kb.rules, ...kb.skills, ...kb.commands];
+    for (const source of kb.imported) {
+      const count = all.filter((a) => a.provenance?.source === source.name).length;
       process.stdout.write(
-        `Vendored: ${source.source} ${count} skill(s) from ${source.repo} at ${source.ref.slice(0, 7)} (${source.license})\n`,
+        `Imported: ${source.name} ${count} artifact(s) from ${source.repo} at ${source.ref.slice(0, 7)} (${source.license})\n`,
       );
     }
     return 0;
@@ -182,7 +184,7 @@ async function run(options: Options): Promise<number> {
     return report.ok ? 0 : 2;
   }
 
-  const composed = compose(stack, selection, VERSION, kb.vendored);
+  const composed = compose(stack, selection, VERSION, kb.imported);
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
 
   if (options.json) {
@@ -214,19 +216,19 @@ async function run(options: Options): Promise<number> {
 }
 
 function summarize(selection: ReturnType<typeof selectArtifacts>) {
+  const describe = (entries: typeof selection.rules) =>
+    entries.map((entry) => ({
+      id: entry.artifact.meta.id,
+      name: entry.artifact.meta.name,
+      layer: entry.artifact.meta.layer,
+      matchedBy: entry.matchedBy,
+      importedFrom: entry.artifact.provenance?.source,
+    }));
+
   return {
-    rules: selection.rules.map((entry) => ({
-      id: entry.artifact.meta.id,
-      name: entry.artifact.meta.name,
-      layer: entry.artifact.meta.layer,
-      matchedBy: entry.matchedBy,
-    })),
-    skills: selection.skills.map((entry) => ({
-      id: entry.artifact.meta.id,
-      name: entry.artifact.meta.name,
-      layer: entry.artifact.meta.layer,
-      matchedBy: entry.matchedBy,
-    })),
+    rules: describe(selection.rules),
+    skills: describe(selection.skills),
+    commands: describe(selection.commands),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
       reason: entry.reason,
@@ -237,7 +239,7 @@ function summarize(selection: ReturnType<typeof selectArtifacts>) {
 function printReport(report: ReturnType<typeof validate>): void {
   const { counts } = report;
   process.stdout.write(
-    `\nSelected ${counts.rules} rule(s) and ${counts.skills} skill(s) for ${counts.technologies} technolog(ies).\n`,
+    `\nSelected ${counts.rules} rule(s), ${counts.skills} skill(s) and ${counts.commands} command(s) for ${counts.technologies} technolog(ies).\n`,
   );
   const errors = report.findings.filter((f) => f.severity === 'error');
   const warnings = report.findings.filter((f) => f.severity === 'warning');
@@ -261,9 +263,6 @@ try {
   } else if (error instanceof UnknownTechnologyError) {
     process.stderr.write(`${message}\n`);
     process.exitCode = 65;
-  } else if (error instanceof VendorError) {
-    process.stderr.write(`${message}\n`);
-    process.exitCode = 66;
   } else {
     process.stderr.write(`${message}\n`);
     process.exitCode = 1;

@@ -1,16 +1,18 @@
 import { readdir, readFile } from 'node:fs/promises';
-import { basename, dirname, join, relative } from 'node:path';
+import { basename, dirname, join, relative, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import {
   artifactMetaSchema,
   catalogSchema,
+  LAYERS,
   type ArtifactMeta,
   type Catalog,
+  type Layer,
 } from './schema.js';
-import { ensureCheckout, readLicense, vendorFileSchema, type VendorSource } from './vendor.js';
+import { loadUpstream, type ImportedSource } from './upstream.js';
 
-/** Where an artifact came from, when it was not authored in this repository. */
+/** Where an artifact came from, when it was copied from another repository. */
 export interface Provenance {
   source: string;
   repo: string;
@@ -21,7 +23,7 @@ export interface Provenance {
 
 export interface Artifact {
   meta: ArtifactMeta;
-  /** Markdown body with the metadata front matter stripped. */
+  /** Markdown body with the front matter stripped. */
   body: string;
   /** Directory the artifact was loaded from, for resolving `files`. */
   dir: string;
@@ -30,18 +32,20 @@ export interface Artifact {
   provenance?: Provenance;
 }
 
-export interface VendoredSource extends Provenance {
-  /** Full licence text, copied into the generated output. */
-  licenseText: string;
-}
-
 export interface KnowledgeBase {
   root: string;
   catalog: Catalog;
   rules: Artifact[];
   skills: Artifact[];
-  vendored: VendoredSource[];
+  commands: Artifact[];
+  imported: ImportedSource[];
 }
+
+/**
+ * Priority when an artifact does not declare one — which is the normal case for
+ * imported files, since they are kept byte-for-byte as published upstream.
+ */
+const LAYER_PRIORITY: Record<Layer, number> = { global: 20, language: 30, framework: 40 };
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
@@ -73,10 +77,45 @@ async function listFiles(dir: string): Promise<string[]> {
   return files;
 }
 
+function isLayer(value: string | undefined): value is Layer {
+  return value !== undefined && (LAYERS as readonly string[]).includes(value);
+}
+
+/**
+ * The layer an artifact belongs to, taken from the directory it sits in:
+ * `skills/global/<id>/`, `rules/framework/<id>.md`. Commands are global.
+ */
+function layerFromPath(relativePath: string, fallback: Layer): Layer {
+  const segment = relativePath.split(sep)[1];
+  return isLayer(segment) ? segment : fallback;
+}
+
+const claudeFrontMatterSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().min(1),
+});
+
+interface LoadOptions {
+  type: ArtifactMeta['type'];
+  /** Directory of the artifact; `id` and attached `files` are derived from it. */
+  dir: string;
+  id: string;
+  fallbackLayer: Layer;
+}
+
+/**
+ * Load one artifact.
+ *
+ * A file authored here declares full open-aidd metadata. A file copied from
+ * another repository carries only Claude's own front matter, so the rest is
+ * derived from where it sits: id from the file or directory name, layer from
+ * the directory above it, priority from that layer. Imported files are never
+ * edited to add metadata, so `npm run sync` stays a plain overwrite.
+ */
 async function loadArtifact(
   path: string,
   root: string,
-  expected: ArtifactMeta['type'],
+  options: LoadOptions,
 ): Promise<Artifact> {
   const raw = await readFile(path, 'utf8');
   const { data, body } = splitFrontMatter(raw);
@@ -85,114 +124,72 @@ async function loadArtifact(
     throw new Error(`${source}: missing YAML front matter`);
   }
 
-  const parsed = artifactMetaSchema.safeParse(data);
-  if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
-      .join('; ');
-    throw new Error(`${source}: invalid metadata (${issues})`);
-  }
-  if (parsed.data.type !== expected) {
-    throw new Error(`${source}: expected type "${expected}", got "${parsed.data.type}"`);
+  const declaresOwnMetadata =
+    typeof data === 'object' && data !== null && 'id' in data && 'type' in data;
+
+  let meta: ArtifactMeta;
+  if (declaresOwnMetadata) {
+    const parsed = artifactMetaSchema.safeParse(data);
+    if (!parsed.success) {
+      const issues = parsed.error.issues
+        .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
+        .join('; ');
+      throw new Error(`${source}: invalid metadata (${issues})`);
+    }
+    if (parsed.data.type !== options.type) {
+      throw new Error(`${source}: expected type "${options.type}", got "${parsed.data.type}"`);
+    }
+    meta = parsed.data;
+  } else {
+    const parsed = claudeFrontMatterSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new Error(
+        `${source}: needs either open-aidd metadata (id, type, ...) or a "description" front matter field`,
+      );
+    }
+    const layer = layerFromPath(source, options.fallbackLayer);
+    meta = artifactMetaSchema.parse({
+      id: options.id,
+      name: parsed.data.name ?? options.id,
+      description: parsed.data.description,
+      type: options.type,
+      layer,
+      priority: LAYER_PRIORITY[layer],
+    });
   }
 
+  const attached =
+    options.type === 'command'
+      ? []
+      : (await listFiles(options.dir))
+          .filter((file) => file !== path)
+          .map((file) => relative(options.dir, file));
+
   return {
-    meta: parsed.data,
+    meta: { ...meta, files: meta.files.length > 0 ? meta.files : attached },
     body: body.trim(),
-    dir: dirname(path),
+    dir: options.dir,
     source,
   };
 }
 
-/**
- * A vendored skill carries only Claude's own front matter (`name`,
- * `description`). open-aidd's selection metadata is derived from the source's
- * entry in vendor.yaml, so upstream files are used exactly as published.
- */
-async function loadVendoredSkill(
-  path: string,
-  checkout: string,
-  name: string,
-  source: VendorSource,
-  provenance: Provenance,
-): Promise<Artifact> {
-  const raw = await readFile(path, 'utf8');
-  const { data, body } = splitFrontMatter(raw);
-  const relativePath = relative(checkout, path);
-  const parsed = z
-    .object({ name: z.string().min(1), description: z.string().min(1) })
-    .safeParse(data);
-  if (!parsed.success) {
-    throw new Error(
-      `${name}:${relativePath}: upstream skill needs "name" and "description" front matter`,
+function attachProvenance(artifacts: Artifact[], imported: ImportedSource[]): void {
+  for (const artifact of artifacts) {
+    const owner = imported.find((source) =>
+      source.paths.some(
+        (path) => artifact.source === path || artifact.source.startsWith(`${path}${sep}`),
+      ),
     );
-  }
-
-  const dir = dirname(path);
-  const id = basename(dir);
-  const extras = (await listFiles(dir))
-    .filter((file) => file !== path)
-    .map((file) => relative(dir, file));
-
-  return {
-    meta: artifactMetaSchema.parse({
-      id,
-      name: parsed.data.name,
-      description: parsed.data.description,
-      type: 'skill',
-      layer: source.layer,
-      priority: source.priority,
-      tags: [name],
-      files: extras,
-    }),
-    body: body.trim(),
-    dir,
-    source: `${name}:${relativePath}`,
-    provenance,
-  };
-}
-
-async function loadVendored(
-  root: string,
-): Promise<{ skills: Artifact[]; vendored: VendoredSource[] }> {
-  const raw = await readFile(join(root, 'vendor.yaml'), 'utf8').catch(() => undefined);
-  if (raw === undefined) {
-    return { skills: [], vendored: [] };
-  }
-
-  const parsed = vendorFileSchema.safeParse(parseYaml(raw));
-  if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
-      .join('; ');
-    throw new Error(`vendor.yaml: invalid (${issues})`);
-  }
-
-  const skills: Artifact[] = [];
-  const vendored: VendoredSource[] = [];
-
-  for (const [name, source] of Object.entries(parsed.data.sources)) {
-    const checkout = await ensureCheckout(name, source);
-    const provenance: Provenance = {
-      source: name,
-      repo: source.repo,
-      ref: source.ref,
-      license: source.license,
-      copyright: source.copyright,
-    };
-    vendored.push({ ...provenance, licenseText: await readLicense(name, source, checkout) });
-
-    const skillRoot = join(checkout, source.path);
-    const paths = (await listFiles(skillRoot)).filter((p) => basename(p) === 'SKILL.md');
-    if (paths.length === 0) {
-      throw new Error(`vendor.yaml: source "${name}" has no SKILL.md under "${source.path}"`);
-    }
-    for (const path of paths) {
-      skills.push(await loadVendoredSkill(path, checkout, name, source, provenance));
+    if (owner) {
+      artifact.provenance = {
+        source: owner.name,
+        repo: owner.repo,
+        ref: owner.ref,
+        license: owner.license,
+        copyright: owner.copyright,
+      };
     }
   }
-
-  return { skills, vendored };
 }
 
 export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
@@ -209,21 +206,55 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
     throw new Error(`catalog.yaml: invalid (${issues})`);
   }
 
-  const rulePaths = (await listFiles(join(root, 'rules'))).filter((p) => p.endsWith('.md'));
-  const skillPaths = (await listFiles(join(root, 'skills'))).filter(
-    (p) => basename(p) === 'SKILL.md',
+  const rules = await Promise.all(
+    (await listFiles(join(root, 'rules')))
+      .filter((path) => path.endsWith('.md'))
+      .map((path) =>
+        loadArtifact(path, root, {
+          type: 'rule',
+          dir: dirname(path),
+          id: basename(path, '.md'),
+          fallbackLayer: 'global',
+        }),
+      ),
   );
 
-  const rules = await Promise.all(rulePaths.map((p) => loadArtifact(p, root, 'rule')));
-  const local = await Promise.all(skillPaths.map((p) => loadArtifact(p, root, 'skill')));
-  const { skills: imported, vendored } = await loadVendored(root);
+  const skills = await Promise.all(
+    (await listFiles(join(root, 'skills')))
+      .filter((path) => basename(path) === 'SKILL.md')
+      .map((path) =>
+        loadArtifact(path, root, {
+          type: 'skill',
+          dir: dirname(path),
+          id: basename(dirname(path)),
+          fallbackLayer: 'global',
+        }),
+      ),
+  );
+
+  const commands = await Promise.all(
+    (await listFiles(join(root, 'commands')))
+      .filter((path) => path.endsWith('.md'))
+      .map((path) =>
+        loadArtifact(path, root, {
+          type: 'command',
+          dir: dirname(path),
+          id: basename(path, '.md'),
+          fallbackLayer: 'global',
+        }),
+      ),
+  );
+
+  const imported = await loadUpstream(root);
+  attachProvenance([...rules, ...skills, ...commands], imported);
 
   const kb: KnowledgeBase = {
     root,
     catalog: catalogParsed.data,
     rules,
-    skills: [...local, ...imported],
-    vendored,
+    skills,
+    commands,
+    imported,
   };
   const problems = lintKnowledgeBase(kb);
   if (problems.length > 0) {
@@ -236,16 +267,19 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
 export function lintKnowledgeBase(kb: KnowledgeBase): string[] {
   const problems: string[] = [];
   const techIds = new Set(Object.keys(kb.catalog.technologies));
-  const artifacts = [...kb.rules, ...kb.skills];
+  const artifacts = [...kb.rules, ...kb.skills, ...kb.commands];
   const byId = new Map<string, Artifact>();
 
   for (const artifact of artifacts) {
-    const existing = byId.get(artifact.meta.id);
+    const key = `${artifact.meta.type}:${artifact.meta.id}`;
+    const existing = byId.get(key);
     if (existing) {
-      problems.push(`duplicate artifact id "${artifact.meta.id}" (${existing.source}, ${artifact.source})`);
+      problems.push(
+        `duplicate ${artifact.meta.type} id "${artifact.meta.id}" (${existing.source}, ${artifact.source})`,
+      );
       continue;
     }
-    byId.set(artifact.meta.id, artifact);
+    byId.set(key, artifact);
   }
 
   for (const [id, tech] of Object.entries(kb.catalog.technologies)) {
@@ -261,6 +295,7 @@ export function lintKnowledgeBase(kb: KnowledgeBase): string[] {
     }
   }
 
+  const artifactIds = new Set([...byId.values()].map((artifact) => artifact.meta.id));
   for (const artifact of artifacts) {
     const { meta, source } = artifact;
     if (meta.layer === 'global' && meta.applies_to.length > 0) {
@@ -275,12 +310,12 @@ export function lintKnowledgeBase(kb: KnowledgeBase): string[] {
       }
     }
     for (const dep of meta.dependencies) {
-      if (!byId.has(dep)) {
+      if (!artifactIds.has(dep)) {
         problems.push(`${source}: dependency "${dep}" is not a known artifact`);
       }
     }
     for (const other of meta.conflicts_with) {
-      if (!byId.has(other)) {
+      if (!artifactIds.has(other)) {
         problems.push(`${source}: conflicts_with "${other}" is not a known artifact`);
       }
     }

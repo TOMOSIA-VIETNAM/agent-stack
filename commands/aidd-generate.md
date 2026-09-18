@@ -14,11 +14,10 @@ request into flags, relay conflicts to the user, and report the result. Never wr
 rule or skill file yourself, and never invent content that the knowledge base does
 not contain.
 
-The knowledge base's global layer is imported from another repository, pinned to a
-commit in `knowledge/vendor.yaml`. The first run on a machine fetches that commit
-into `~/.cache/open-aidd`; later runs reuse it. Exit code 66 means the fetch failed —
-report the CLI's message as-is and stop. Do not fall back to generating without those
-skills, and do not fetch the repository yourself.
+The knowledge base's global layer — 25 skills and 9 slash commands — is copied from
+another repository and committed into the plugin, so generating needs no network and
+fetches nothing. Never clone or download anything yourself; keeping that content
+current is `npm run sync`, run by a maintainer of this plugin, not by this command.
 
 ## 1. Map the request to flags
 
@@ -81,11 +80,16 @@ Once the user confirms, re-run the same command with `--write`.
 State:
 
 - the resolved stack, marking which technologies were pulled in as dependencies,
-- how many rules and skills were applied,
+- how many rules, skills and commands were applied,
 - every warning, in full,
-- the files written,
+- the files written, grouped as rules, skills and commands,
 - which selected technologies have no content in the knowledge base yet,
-- that the global skills are imported from their upstream repository at the pinned
-  commit, and that `.claude/skills/THIRD-PARTY-NOTICES.md` carries their licence.
+- that the global skills and commands come from their upstream repository at the
+  pinned commit, and that `.claude/THIRD-PARTY-NOTICES.md` carries their licence.
+
+One caveat worth stating once, if commands were written: the imported commands invoke
+their skills by the upstream plugin name (`agent-skills:<skill>`), which resolves only
+if the project also installs that plugin. The generated skills themselves are
+unaffected.
 
 Then stop. Do not open, summarize, or edit the generated files unless asked.

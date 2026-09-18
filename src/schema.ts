@@ -16,6 +16,11 @@ export const SLOTS = [
 
 export type Slot = (typeof SLOTS)[number];
 
+/** Knowledge base layers, in the order they are applied (idea.md §1). */
+export const LAYERS = ['global', 'language', 'framework'] as const;
+
+export type Layer = (typeof LAYERS)[number];
+
 const idSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]*$/, 'ids are lowercase kebab-case');
@@ -55,8 +60,8 @@ export const artifactMetaSchema = z.object({
   id: idSchema,
   name: z.string().min(1),
   description: z.string().min(1),
-  type: z.enum(['rule', 'skill']),
-  layer: z.enum(['global', 'language', 'framework']),
+  type: z.enum(['rule', 'skill', 'command']),
+  layer: z.enum(LAYERS),
   /**
    * Generalization of idea.md's `language` / `framework` fields: any catalog
    * technology can gate an artifact, with an optional version range.
