@@ -98,7 +98,7 @@ The global layer is copied from other repositories and committed here, pinned to
 - New behaviour needs a test; a bug fix needs a test that fails before it.
 - `tests/pipeline.test.ts` loads the real knowledge base, so a content change that
   breaks an invariant fails the suite.
-- Keep the CLI's `--json` shape stable — `commands/aidd-generate.md` parses it.
+- Keep the CLI's `--json` shape stable — `commands/generate.md` parses it.
 - Rules and skills are advice that will be applied to real code. Prefer guidance that
   has paid off over guidance that sounds right, be specific enough to act on, and say
   *why* when the reason is not obvious.

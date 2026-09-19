@@ -31,7 +31,7 @@ architecture, library.
   closest ids from the catalog and ask the user which they meant.
 - If the user gave no version for a language or framework, ask for it — version
   ranges decide which rules apply, and an unpinned version silently drops them.
-- Dependencies are resolved by the CLI. Do not add `--library activerecord` or
+- Dependencies are resolved by the CLI. Do not add `--language ruby` or
   `--infrastructure docker` yourself because something implies them.
 
 ## 2. Resolve and check
