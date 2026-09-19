@@ -11,73 +11,73 @@
 <h1 align="center">open-aidd</h1>
 
 <p align="center">
-  <strong>AI coding rules and skills for your project — selected, not generated.</strong><br>
-  <strong>Open source. Deterministic. Offline.</strong><br>
-  <sub>A Claude Code plugin that builds <code>CLAUDE.md</code> + <code>.claude/</code> from a curated, version-controlled knowledge base</sub><br>
-  <code>/aidd-generate</code> · <code>/aidd-catalog</code>
+  <strong>Rule và skill AI cho dự án của bạn — được <em>chọn</em>, không phải được sinh ra.</strong><br>
+  <strong>Mã nguồn mở. Tất định. Chạy offline.</strong><br>
+  <sub>Plugin Claude Code dựng <code>CLAUDE.md</code> + <code>.claude/</code> từ một knowledge base có kiểm duyệt, quản lý bằng Git</sub><br>
+  <code>/generate</code> · <code>/catalog</code>
 </p>
 
 <p align="center">
   <a href="https://github.com/TOMOSIA-VIETNAM/open-aidd/releases"><img alt="Release" src="https://img.shields.io/github/v/release/TOMOSIA-VIETNAM/open-aidd?style=flat-square&label=release&color=2ea44f"></a>
   <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/open-aidd?style=flat-square&color=blue"></a>
-  <a href="#develop"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white"></a>
-  <a href="#install"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
-  <a href="#zero-llm-content"><img alt="No LLM-written content" src="https://img.shields.io/badge/rule%20content-0%25%20LLM-6E56CF?style=flat-square"></a>
+  <a href="#phát-triển"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white"></a>
+  <a href="#cài-đặt"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
+  <a href="#không-có-nội-dung-do-llm-viết"><img alt="No LLM-written content" src="https://img.shields.io/badge/rule%20content-0%25%20LLM-6E56CF?style=flat-square"></a>
 </p>
 
-<!-- MEMO(i18n): if README.vi-VN.md / README.ja-JP.md are added later, uncomment this language switcher.
+<!-- MEMO(i18n): if README.en.md / README.ja-JP.md are added later, uncomment this language switcher.
 <p align="center">
-  <a href="./README.vi-VN.md">Tiếng Việt</a> · <strong>English</strong> · <a href="./README.ja-JP.md">日本語</a>
+  <strong>Tiếng Việt</strong> · <a href="./README.en.md">English</a> · <a href="./README.ja-JP.md">日本語</a>
 </p>
 -->
 
-Every new repository starts the same way: someone copies a `CLAUDE.md` from the last project, deletes the parts that no longer apply, and forgets to update the rest. Within a month each project carries its own slightly-wrong dialect of the same conventions.
+Repository mới nào cũng bắt đầu giống nhau: ai đó copy `CLAUDE.md` từ dự án trước, xoá phần không còn đúng, rồi quên cập nhật phần còn lại. Sau một tháng, mỗi dự án mang một phương ngữ hơi sai lệch của cùng một bộ quy ước.
 
-**`open-aidd` turns that copy-paste into a build step.** You name the tech stack; it selects the matching rules, skills and commands from a knowledge base kept in Git, resolves dependencies, stops on conflicts, and writes the result into the project.
+**`open-aidd` biến việc copy-paste đó thành một build step.** Bạn khai tech stack; nó chọn đúng rule, skill và command từ knowledge base nằm trong Git, phân giải dependency, dừng lại khi có xung đột, rồi ghi kết quả vào dự án.
 
 ```
-Select  →  Resolve  →  Compose  →  Validate
+Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 ```
 
-<!-- MEMO(image): terminal screenshot of `/aidd-generate ruby 3.3, rails 7.1, postgres, rspec` showing the conflict prompt and the file preview. Save as ./docs/images/generate-demo.png (width ~680) and uncomment.
+<!-- MEMO(image): terminal screenshot of `/generate ruby 3.3, rails 7.1, postgres, rspec` showing the conflict prompt and the file preview. Save as ./docs/images/generate-demo.png (width ~680) and uncomment.
 <p align="center">
   <img src="./docs/images/generate-demo.png" width="680" alt="A generate run: resolved stack, conflict prompt, and the file list written into the project">
 </p>
 -->
 
-- **Content is never written by a model** — rules come from files a human reviewed and committed
-- **The same stack always generates the same output** — resolution, version matching and composition run in TypeScript
-- **Conflicts stop the run** — the generator names the conflict and the flag that waives it; it never picks a winner
-- **Works offline** — the knowledge base is committed, so a generate run touches no network
-- **Non-destructive** — `CLAUDE.md` is merged inside markers; only files from the previous run's manifest are ever removed
+- **Nội dung không bao giờ do model viết** — rule đến từ file do con người review và commit
+- **Cùng một stack luôn cho cùng một kết quả** — phân giải, so khớp version và kết hợp đều chạy bằng TypeScript
+- **Xung đột làm dừng cả lần chạy** — generator nêu tên xung đột và cờ để bỏ qua; nó không tự chọn bên thắng
+- **Chạy offline** — knowledge base đã được commit, nên lúc generate không đụng network
+- **Không phá gì** — `CLAUDE.md` được merge trong cặp marker; chỉ file nằm trong manifest của lần chạy trước mới bị xoá
 
-## Table of contents
+## Mục lục
 
-- [Install](#install)
-- [Quick start](#quick-start)
-- [Why selection beats generation](#why-selection-beats-generation)
-- [What it writes](#what-it-writes)
-- [Commands](#commands)
-- [CLI reference](#cli-reference)
+- [Cài đặt](#cài-đặt)
+- [Bắt đầu nhanh](#bắt-đầu-nhanh)
+- [Vì sao chọn lại hơn sinh](#vì-sao-chọn-lại-hơn-sinh)
+- [Nó ghi ra những gì](#nó-ghi-ra-những-gì)
+- [Command và agent](#command-và-agent)
+- [Tham chiếu CLI](#tham-chiếu-cli)
 - [Knowledge base](#knowledge-base)
-- [Coverage](#coverage)
-- [Develop](#develop)
-- [Contributing](#contributing)
-- [Licence](#licence)
+- [Phạm vi hiện có](#phạm-vi-hiện-có)
+- [Đóng góp: thêm một stack mới](#đóng-góp-thêm-một-stack-mới)
+- [Phát triển](#phát-triển)
+- [Giấy phép](#giấy-phép)
 
-## Install
+## Cài đặt
 
-Requires [Node 20+](https://nodejs.org/) and [Claude Code](https://claude.ai/code).
+Cần [Node 20+](https://nodejs.org/) và [Claude Code](https://claude.ai/code).
 
 ```bash
 /plugin marketplace add TOMOSIA-VIETNAM/open-aidd
 /plugin install open-aidd@open-aidd
 ```
 
-The repository is both the marketplace and the plugin. `dist/aidd.mjs` is committed, so the plugin runs on any machine with Node 20+ — no `npm install`, no build step.
+Repository này vừa là marketplace vừa là plugin. `dist/aidd.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build.
 
 <details>
-<summary>Install from a local clone</summary>
+<summary>Cài từ bản clone local</summary>
 
 ```bash
 git clone https://github.com/TOMOSIA-VIETNAM/open-aidd.git
@@ -90,64 +90,83 @@ git clone https://github.com/TOMOSIA-VIETNAM/open-aidd.git
 
 </details>
 
-## Quick start
+## Bắt đầu nhanh
 
-In the project you want configured:
-
-```
-/aidd-generate ruby 3.3, rails 7.1, postgres, sidekiq, rspec
-```
-
-The command maps your request to catalog ids, resolves dependencies, stops on any conflict to ask you, previews the file list, and only then writes.
-
-To see what the knowledge base covers before you commit to a stack:
+Trong dự án bạn muốn cấu hình:
 
 ```
-/aidd-catalog
+/generate ruby 3.3, rails 7.1, postgres, sidekiq, rspec
 ```
 
-## Why selection beats generation
+Command này ánh xạ yêu cầu của bạn sang id trong catalog, phân giải dependency, dừng lại hỏi khi có xung đột, xem trước danh sách file, rồi mới ghi.
 
-Most "generate my AI rules" tools ask a model to write the rules. The output reads well and drifts every run — different wording, different strictness, conventions the team never agreed to.
+Muốn biết knowledge base đang có gì trước khi chốt stack:
 
-| Model-written rules | `open-aidd` |
+```
+/catalog
+```
+
+## Vì sao chọn lại hơn sinh
+
+Phần lớn công cụ "sinh rule AI cho tôi" đều nhờ một model viết rule. Kết quả đọc thì xuôi nhưng mỗi lần chạy lại lệch đi — khác câu chữ, khác mức độ nghiêm ngặt, và kèm những quy ước cả team chưa từng thống nhất.
+
+| Rule do model viết | `open-aidd` |
 | --- | --- |
-| Each run produces different text for the same stack | Same stack in, same files out — byte for byte |
-| Rules sound right but were never reviewed by anyone | Every line is a committed file with an author and a diff |
-| Two incompatible choices get quietly reconciled | The run **stops**, names the conflict, prints the waiver flag |
-| Improving a rule means re-prompting, per project | Improve the file once; every project picks it up on re-run |
-| Needs a network call and a token budget to scaffold | Generating is offline and free |
+| Cùng một stack, mỗi lần chạy ra văn bản khác nhau | Cùng stack vào, cùng file ra — giống tới từng byte |
+| Rule nghe hợp lý nhưng chưa ai review | Mỗi dòng là một file đã commit, có tác giả và có diff |
+| Hai lựa chọn xung khắc bị âm thầm hoà giải | Lần chạy **dừng lại**, nêu tên xung đột, in ra cờ bỏ qua |
+| Muốn cải thiện một rule phải prompt lại, từng dự án một | Sửa file một lần; mọi dự án nhận được khi chạy lại |
+| Cần gọi network và tốn token để scaffold | Generate là offline và miễn phí |
 
-### Zero-LLM content
+### Không có nội dung do LLM viết
 
-<a name="zero-llm-content"></a>
+<a name="không-có-nội-dung-do-llm-viết"></a>
 
-The model in the loop has exactly two jobs: turn a sentence into CLI flags, and relay a conflict to you. It decides nothing else and writes no rule content. Everything downstream — dependency expansion, version-range matching, selection, composition, validation — is TypeScript under `src/`, covered by tests that load the real knowledge base.
+Model trong vòng lặp chỉ có đúng hai việc: biến một câu tiếng người thành cờ CLI, và chuyển tiếp xung đột cho bạn. Ngoài ra nó không quyết định gì và không viết một dòng nội dung rule nào. Toàn bộ phần sau — mở rộng dependency, so khớp version range, chọn artifact, kết hợp, kiểm tra — là TypeScript trong `src/`, có test nạp knowledge base thật.
 
-## What it writes
+## Nó ghi ra những gì
 
 ```
-CLAUDE.md                        global guidance and @-imports, inside aidd markers
-.claude/rules/NN-<id>.md         one file per selected rule, priority-ordered
-.claude/skills/<id>/SKILL.md     one directory per selected skill, with its files
-.claude/commands/<id>.md         one file per selected command
-.claude/aidd-manifest.json       what this run generated, and where it was copied from
+CLAUDE.md                        hướng dẫn chung và các @-import, nằm trong cặp marker aidd
+.claude/rules/NN-<id>.md         mỗi rule được chọn một file, sắp theo priority
+.claude/skills/<id>/SKILL.md     mỗi skill được chọn một thư mục, kèm file của nó
+.claude/commands/<id>.md         mỗi command được chọn một file
+.claude/aidd-manifest.json       lần chạy này sinh ra gì, và copy từ đâu
 ```
 
-`CLAUDE.md` holds the global guidance inline, then `@`-imports the stack-specific rules. It is **merged, never replaced**: text outside the `aidd:begin` / `aidd:end` markers is left alone.
+`CLAUDE.md` giữ phần hướng dẫn chung dạng inline, rồi `@`-import các rule riêng cho stack. Nó được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `aidd:begin` / `aidd:end` được giữ nguyên.
 
-On a re-run, files listed in the previous manifest that are no longer selected are removed — and nothing else is ever deleted. Anything outside the manifest belongs to you.
+Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
 
-## Commands
+## Command và agent
 
-| Command | What it does |
+| Command | Làm gì |
 | --- | --- |
-| `/aidd-generate <stack>` | Resolves the stack, previews the file list, then writes `CLAUDE.md` and `.claude/`. Stops on any conflict and asks |
-| `/aidd-catalog` | Lists the technologies, rules, skills and commands the knowledge base covers — and the gaps |
+| `/generate <stack>` | Phân giải stack, xem trước danh sách file, rồi ghi `CLAUDE.md` và `.claude/`. Gặp xung đột thì dừng và hỏi |
+| `/catalog` | Liệt kê technology, rule, skill và command mà knowledge base đang phủ — và cả những chỗ còn trống |
 
-## CLI reference
+Khi bạn chưa biết — hoặc chưa muốn gõ — stack của dự án, dùng agent:
 
-The plugin is a thin wrapper over a CLI you can run directly, in CI or by hand:
+| Agent | Làm gì |
+| --- | --- |
+| `agent-stack` | Đọc manifest và lockfile của repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng của `/generate` |
+
+Khác biệt nằm ở **ai xác định stack**:
+
+| | Đầu vào | Ai xác định stack |
+| --- | --- | --- |
+| `/generate ruby 3.3, rails 7.1` | Bạn gõ stack | Bạn |
+| `agent-stack` | Không cần gõ gì | Agent đọc repo và suy ra, bạn duyệt lại |
+
+`agent-stack` đọc `Gemfile.lock`, `composer.lock`, `package.json`, `Dockerfile`, `docker-compose.yml`, `.github/workflows/`, `config/database.yml`. Nó lấy version đã resolve trong lockfile chứ không lấy khoảng version trong manifest — `Gemfile` ghi `~> 7.1` là một khoảng, `Gemfile.lock` ghi `rails (7.1.3.2)` mới là thứ đang chạy.
+
+Mỗi dòng nó tìm được đều gắn nhãn `found` (đọc từ lockfile), `uncertain` (suy từ tín hiệu yếu) hay `missing`. Mọi dòng không phải `found` đều phải hỏi lại bạn trước khi generate. Hai thứ nó **không bao giờ tự suy**: kiến trúc (`monolith` / `microservices`) vì không file nào nói ra điều đó, và hạ tầng (`aws`, `ecs`, `rds`) trừ khi có config deploy nêu đích danh.
+
+Việc chạy trong subagent có lý do: đọc cả chục file manifest là việc tản mát và ồn, kết quả đó không nên đổ vào context chính. Thứ trả về chỉ là stack bạn đã duyệt và báo cáo những gì đã sinh ra.
+
+## Tham chiếu CLI
+
+Plugin chỉ là lớp mỏng bọc một CLI mà bạn chạy trực tiếp được, trong CI hoặc bằng tay:
 
 ```bash
 node dist/aidd.mjs catalog  [--json]
@@ -155,45 +174,57 @@ node dist/aidd.mjs resolve  --language ruby@3.3 --framework rails@7.1 [--json]
 node dist/aidd.mjs generate --language ruby@3.3 --framework rails@7.1 --out . [--write]
 ```
 
-**Stack slots** — each repeatable, each taking `tech` or `tech@version`:
+**Các slot của stack** — mỗi cờ lặp lại được, nhận `tech` hoặc `tech@version`:
 
 `--language` · `--framework` · `--frontend` · `--database` · `--cache` · `--testing` · `--infrastructure` · `--architecture` · `--library`
 
-**Exit codes:**
+**Tuỳ chọn khác:**
 
-| Code | Meaning |
+| Cờ | Ý nghĩa |
 | --- | --- |
-| `0` | Success |
-| `2` | Validation errors |
-| `64` | Bad usage |
-| `65` | Unknown technology |
+| `--out <dir>` | Thư mục dự án đích (mặc định: thư mục hiện tại) |
+| `--write` | Ghi file thật; không có cờ này thì chỉ xem trước |
+| `--accept-conflict <id>` | Chấp nhận đúng một xung đột, theo id mà CLI in ra |
+| `--knowledge <dir>` | Dùng knowledge base ở chỗ khác (mặc định: bản đi kèm) |
+| `--json` | Xuất dạng máy đọc |
 
-`--json` output is a stable contract — `commands/aidd-generate.md` parses it, and so can your CI.
+**Exit code:**
+
+| Code | Ý nghĩa |
+| --- | --- |
+| `0` | Thành công |
+| `2` | Có lỗi ở bước kiểm tra |
+| `64` | Sai cách dùng |
+| `65` | Technology không tồn tại |
+
+Đầu ra `--json` là một hợp đồng ổn định — `commands/generate.md` parse nó, và CI của bạn cũng parse được.
 
 ## Knowledge base
 
-`knowledge/` is the product. See [knowledge/README.md](knowledge/README.md) for the metadata schema and how to add a rule, a skill or a technology.
+`knowledge/` chính là sản phẩm. Xem [knowledge/README.md](knowledge/README.md) để biết schema metadata và cách thêm rule, skill hay technology.
 
 ```
 knowledge/
-├── catalog.yaml            technology graph: requires / conflicts_with / versions
-├── upstream.yaml           where imported content came from, pinned to a commit
+├── catalog.yaml            đồ thị technology: requires / conflicts_with / versions
+├── upstream.yaml           nội dung import lấy từ đâu, ghim theo commit
 ├── rules/<layer>/<id>.md
 ├── skills/<layer>/<id>/SKILL.md
 ├── commands/<id>.md
-└── claude-md/<id>.md       inlined into the project's CLAUDE.md, not emitted as a file
+└── claude-md/<id>.md       nội dung inline vào CLAUDE.md, không sinh ra file riêng
 ```
 
-The directory decides the layer (`global`, `language`, `framework`); the file or directory name decides the id.
+**Thư mục quyết định layer** (`global`, `language`, `framework`); tên file hoặc tên thư mục quyết định id.
 
-Four kinds of content, and the distinction matters:
+Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 
-| Kind | It is | When it loads |
+| Loại | Nó là gì | Nạp khi nào |
 | --- | --- | --- |
-| **Rule** | A convention — *how code must be written* | Always in context, via `@`-import |
-| **Skill** | A procedure — *how to carry out task X*, in steps | When that task comes up |
-| **Command** | Something the developer types | On demand |
-| **CLAUDE.md fragment** | Guidance every project needs inline | From the first token |
+| **Rule** | Một quy ước — *code phải viết thế nào* | Luôn ở trong context, qua `@`-import |
+| **Skill** | Một quy trình — *làm việc X theo các bước nào* | Khi gặp đúng việc đó |
+| **Command** | Thứ developer gõ ra | Khi được gọi |
+| **Đoạn CLAUDE.md** | Hướng dẫn mọi dự án đều cần sẵn inline | Ngay từ token đầu tiên |
+
+> Nếu bạn đang viết các bước được đánh số thì đó là **skill**, không phải rule.
 
 <!-- MEMO(image): a layer diagram — Layer 1 global / Layer 2 language / Layer 3 framework, with the resolver pulling a slice down each column. Save as ./docs/images/layers.svg (+ layers-dark.svg) and uncomment.
 <p align="center">
@@ -204,65 +235,312 @@ Four kinds of content, and the distinction matters:
 </p>
 -->
 
-## Coverage
+## Phạm vi hiện có
 
-**Layer 1 — global.** Copied from two MIT projects at the commits pinned in `upstream.yaml`: 25 skills and 9 commands from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), and the behavioural guidelines from [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), inlined directly into every project's `CLAUDE.md`. They are committed here, so generating needs no network. `npm run sync` re-copies them at the pinned commit — see [knowledge/README.md](knowledge/README.md#imported-content).
+**Layer 1 — global.** Copy từ hai dự án MIT tại commit được ghim trong `upstream.yaml`: 25 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), và bộ hướng dẫn hành vi từ [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), được inline thẳng vào `CLAUDE.md` của mọi dự án. Tất cả đã commit ở đây, nên generate không cần network. `npm run sync` copy lại tại commit đã ghim — xem [knowledge/README.md](knowledge/README.md#imported-content).
 
-**Layers 2 and 3 — authored here.** Ruby, Rails, Active Record, RSpec.
+**Layer 2 và 3 — tự viết trong repo này.** Ruby, Rails, Active Record, RSpec.
 
-**The technology graph** covers 21 technologies across nine slots — Ruby, PHP, Node, Rails, Laravel, NestJS, Active Record, Sidekiq, Stimulus, React, PostgreSQL, MySQL, Redis, RSpec, Minitest, Docker, AWS, ECS, RDS, monolith, microservices. Each resolves and conflict-checks correctly; the ones without content yet are reported by the validator as `uncovered-technology` rather than failing the run.
+**Đồ thị technology** phủ 20 technology trên chín slot — Ruby, PHP, Node, Rails, Laravel, NestJS, Sidekiq, Stimulus, React, PostgreSQL, MySQL, Redis, RSpec, Minitest, Docker, AWS, ECS, RDS, monolith, microservices. Tất cả đều phân giải và kiểm tra xung đột đúng; những cái chưa có nội dung được validator báo là `uncovered-technology` chứ không làm hỏng lần chạy.
 
 > [!NOTE]
-> A technology in the catalog with no rules attached is a documented gap, not a bug. Adding content for it is the highest-value contribution — see [CONTRIBUTING.md](CONTRIBUTING.md).
+> Một technology có trong catalog mà chưa có rule nào là **khoảng trống đã được ghi nhận, không phải bug**. Bổ sung nội dung cho nó là đóng góp có giá trị nhất — phần dưới đây hướng dẫn từng bước.
 
-## Develop
+## Đóng góp: thêm một stack mới
+
+Phần này đi hết một ví dụ chạy được thật: bổ sung nội dung Laravel. Laravel đã có sẵn trong catalog nhưng chưa có rule hay skill nào, nên hiện tại `/generate php 8.3, laravel 11` chỉ ra được layer global.
+
+Đọc [knowledge/README.md](knowledge/README.md) trước — nó là nguồn chuẩn cho các trường metadata. Phần này cho biết thứ tự làm và những chỗ dễ sai.
+
+### Bước 0 — Chuẩn bị
 
 ```bash
 npm install
-npm run check      # typecheck + tests + bundle — before every push
-npm run sync       # re-copy imported content at the pinned commit
-npm run try        # generate into .aidd-try/ to read the output for real
+npm run check     # typecheck + test + bundle; phải xanh trước khi bạn bắt đầu
 ```
 
-`npm run try` runs the plugin against a scratch project inside this repository, so you can read the generated tree instead of guessing at it. It takes the same stack flags as the CLI, and `--clean` removes the directory:
+### Bước 1 — Khai báo technology trong `catalog.yaml`
 
-```bash
-npm run try -- --language node@22
-npm run try -- --clean
+Laravel đã có sẵn, nên xem nó như bản mẫu:
+
+```yaml
+  laravel:
+    name: Laravel
+    kind: framework
+    requires: [php]
+    compatible_with: [postgresql, mysql, redis, docker]
+    supported_versions: ">=10 <13"
 ```
 
-`.aidd-try/` is gitignored.
+| Trường | Ý nghĩa |
+| --- | --- |
+| `kind` | Quyết định slot CLI. `framework` → `--framework laravel@11` |
+| `aliases` | Tên khác mà người dùng có thể gõ, ví dụ `["lumen"]` |
+| `requires` | Kéo vào **tự động, theo chiều lên**. `laravel` kéo `php` |
+| `conflicts_with` | Báo cáo, **không bao giờ tự hoà giải**. Lần chạy dừng lại |
+| `compatible_with` | Chỉ để tài liệu, không được kiểm tra |
+| `supported_versions` | Khoảng version mà repo này thực sự có nội dung |
+
+Nếu stack của bạn cần một technology chưa tồn tại — ví dụ Pest, test framework của PHP — thì thêm mới. Pest và PHPUnit loại trừ nhau, nên khai `conflicts_with` để operator buộc phải chọn:
+
+```yaml
+  pest:
+    name: Pest
+    kind: testing
+    requires: [php]
+    conflicts_with: [phpunit]
+    supported_versions: ">=2 <4"
+
+  phpunit:
+    name: PHPUnit
+    kind: testing
+    requires: [php]
+    conflicts_with: [pest]
+    supported_versions: ">=10 <12"
+```
+
+> [!WARNING]
+> **`requires` chỉ chạy theo một chiều: lên trên.** `laravel requires php` nghĩa là chọn Laravel sẽ kéo PHP vào — **không** phải ngược lại. Đừng tạo một technology con kiểu `eloquent` rồi gate rule Eloquent bằng nó: operator không có lý do gì để gõ `--library eloquent`, và toàn bộ rule Eloquent sẽ biến mất khỏi một stack Laravel bình thường mà không báo gì. Eloquent đi kèm Laravel, nên rule của nó phải gate bằng `tech: laravel`. Lỗi này từng xảy ra thật với Active Record.
+
+Nguyên tắc rút gọn:
+
+- Thứ **luôn đi kèm** framework (Eloquent, Blade, Artisan) → **không** tạo technology riêng; gate bằng `tech: laravel`.
+- Thứ **thay thế lẫn nhau hoặc là lựa chọn** (Pest vs PHPUnit, Livewire vs Inertia) → technology riêng, có `conflicts_with`, để operator tự chọn.
+
+### Bước 2 — Viết rule
+
+Rule là một quy ước: *code phải viết thế nào*. Luôn nằm trong context.
+
+Tạo `knowledge/rules/framework/laravel.md`:
+
+```markdown
+---
+id: laravel-conventions
+name: Laravel Conventions
+description: Quy ước phân tầng, controller và cấu hình cho ứng dụng Laravel.
+type: rule
+layer: framework
+priority: 40
+applies_to:
+  - tech: laravel
+    versions: ">=10 <13"
+tags: [laravel, architecture]
+---
+
+## Phân tầng
+
+- Controller đọc request, gọi đúng một object, rồi trả response. Không chứa
+  business logic, không orchestrate nhiều bước, không viết chuỗi query trực tiếp.
+- Form Request giữ toàn bộ validation. Controller không gọi `$request->validate()`.
+
+## Eloquent
+
+- Eager-load quan hệ mà bạn sẽ render bằng `with()`. N+1 query trong list view là
+  một defect, không phải chuyện style.
+- Dùng `chunkById()` cho bất cứ tập dữ liệu nào có thể vượt vài nghìn dòng.
+```
+
+**Thư mục quyết định layer**, nên file phải nằm trong `rules/framework/`. Tên file không quyết định gì cả — `id` trong front matter mới là thứ thành tên file đầu ra (`.claude/rules/40-laravel-conventions.md`).
+
+Các trường bắt buộc:
+
+| Trường | Ghi chú |
+| --- | --- |
+| `id` | Duy nhất theo từng `type`, kebab-case |
+| `name` | Tiêu đề cho người đọc. Với skill, dùng chính id kebab-case vì Claude nhìn thấy nó |
+| `description` | Một dòng. Với skill, đây là thứ Claude dùng để khớp task |
+| `type` | `rule`, `skill`, `command`, hoặc `claude-md` |
+| `layer` | Phải khớp thư mục, nếu không lint sẽ báo lỗi |
+| `priority` | 0–999. Mặc định theo layer: global 20, language 30, framework 40 |
+| `applies_to` | Bắt buộc khi `layer` khác `global`; **cấm** khai khi là `global` |
+
+`applies_to` là **phép AND**: mọi mục đều phải khớp. Muốn một rule chỉ áp dụng cho Laravel *và* PostgreSQL thì khai cả hai:
+
+```yaml
+applies_to:
+  - tech: laravel
+  - tech: postgresql
+```
+
+Cú pháp version range:
+
+| Range | Khớp |
+| --- | --- |
+| `*` hoặc bỏ trống | mọi version |
+| `11` | `>=11.0.0 <12.0.0` |
+| `11.x` | `>=11.0.0 <12.0.0` |
+| `>=10 <13` | nhiều comparator, tất cả phải đúng |
+| `^10.1` / `~10.1` | `>=10.1 <11` / `>=10.1 <10.2` |
+| `10 - 12.x` | bao gồm hai đầu |
 
 > [!IMPORTANT]
-> `dist/aidd.mjs` is committed so the plugin runs without an install step. **Rebuild and commit it with any change under `src/`** — `npm run check` does the rebuild.
+> `applies_to` **có** `versions` sẽ không bao giờ khớp nếu operator không pin version. Validator báo lỗi `missing-version` và hỏi lại, chứ không đoán. Đây là chủ ý — nhưng nghĩa là nếu bạn gắn `versions` thì `/generate laravel` (không có số) sẽ **không** ra rule của bạn. Chỉ gắn `versions` khi nội dung thật sự phụ thuộc version.
+
+### Bước 3 — Viết skill
+
+Skill là một quy trình có các bước, chỉ nạp khi gặp đúng việc đó.
+
+Tạo `knowledge/skills/framework/laravel-feature/SKILL.md`:
+
+```markdown
+---
+id: laravel-feature
+name: laravel-feature
+description: Thêm một feature end-to-end vào ứng dụng Laravel — route, Form Request, action, view và test. Dùng khi bắt đầu một màn hình hoặc endpoint mới.
+type: skill
+layer: framework
+priority: 41
+applies_to:
+  - tech: laravel
+    versions: ">=10 <13"
+tags: [laravel, feature, workflow]
+---
+
+Làm theo thứ tự. Mỗi bước chạy được trước khi sang bước sau.
+
+1. Khai route trong `routes/web.php` hoặc `routes/api.php`, trỏ tới một
+   controller đơn lẻ.
+2. ...
+```
+
+Với skill, `description` là thứ Claude đọc để quyết định có nạp hay không — viết rõ **nó làm gì** *và* **khi nào dùng**. `name` nên trùng id kebab-case.
+
+Giữ `SKILL.md` dưới ~500 dòng. Tài liệu tham chiếu dài để ra file riêng trong cùng thư mục; mọi file khác trong thư mục đó được copy tự động.
+
+> [!WARNING]
+> **`dependencies` không vượt qua được version gate.** Nếu `laravel-feature` khai `dependencies: [laravel-conventions]` mà hai artifact có `versions` khác nhau, cái bị loại vì lệch version sẽ **không** được kéo vào — nó được báo là `unmet-dependency`. Hãy cho dependency và artifact phụ thuộc nó **cùng một range**.
+
+### Bước 4 — Viết test
+
+Mọi hành vi mới cần test; mọi bug fix cần một test fail trước khi sửa. `tests/pipeline.test.ts` nạp knowledge base thật, nên một thay đổi nội dung phá vỡ invariant sẽ làm suite đỏ.
+
+Thêm vào `tests/pipeline.test.ts`:
+
+```ts
+it('selects the Laravel layer for a PHP stack', async () => {
+  const { selection, report } = await run({
+    language: [{ tech: 'php', version: '8.3' }],
+    framework: [{ tech: 'laravel', version: '11' }],
+  });
+  const ruleIds = selection.rules.map((entry) => entry.artifact.meta.id);
+  expect(ruleIds).toContain('laravel-conventions');
+  expect(selection.skills.map((entry) => entry.artifact.meta.id)).toContain('laravel-feature');
+  expect(report.ok).toBe(true);
+});
+```
+
+Có sẵn một test chặn đúng cái bẫy ở Bước 1 — `emits every Rails artifact from the framework alone`. Khi thêm stack mới, nên viết một bản tương tự: lọc mọi artifact có `applies_to.tech === 'laravel'` rồi khẳng định tất cả đều được chọn chỉ từ `--framework laravel`.
+
+Lưu ý test `flags a technology the knowledge base does not cover yet` đang dùng chính PHP/Laravel làm ví dụ về khoảng trống. Khi bạn lấp khoảng trống đó, hãy đổi nó sang một technology khác còn trống.
+
+### Bước 5 — Chạy thử bằng mắt
+
+```bash
+npm run check
+npm run try -- --language php@8.3 --framework laravel@11
+```
+
+`npm run try` generate vào `.aidd-try/` (đã gitignore) để bạn đọc cây file thật thay vì đoán. Script seed sẵn một `CLAUDE.md` viết tay, nên mỗi lần chạy cũng chứng minh luôn rằng generator merge đúng block của nó mà không đụng chữ xung quanh.
+
+```bash
+npm run try -- --clean      # xoá thư mục thử
+```
+
+Mở `.aidd-try/` bằng Claude Code nếu muốn thấy rule và skill thực sự được nạp.
+
+### Bước 6 — Mở PR
+
+Checklist trước khi push:
+
+- [ ] `npm run check` xanh (typecheck + test + bundle)
+- [ ] Đã commit `dist/aidd.mjs` nếu có sửa gì trong `src/` — `npm run check` tự rebuild
+- [ ] Có test mới cho hành vi mới, hoặc test fail-trước-khi-sửa cho bug fix
+- [ ] Đã đọc output của `npm run try` bằng mắt, không chỉ tin test
+- [ ] `applies_to` gate bằng technology mà operator **thực sự gõ**, không phải technology con
+- [ ] Không sửa hay thêm file nào nằm dưới đường dẫn mà `upstream.yaml` ánh xạ tới
+- [ ] Commit theo Conventional Commits, tiêu đề ở thể mệnh lệnh, dưới 72 ký tự; phần body giải thích **vì sao**
+
+Ví dụ commit:
+
+```
+feat(knowledge): add Laravel conventions and feature skill
+
+Laravel resolved but generated nothing beyond the global layer. Gate both
+artifacts on `tech: laravel` so a plain `--framework laravel` run emits them.
+```
+
+### Những lỗi lint hay gặp
+
+`npm run check` nạp knowledge base thật và fail sớm. Các thông báo bạn có thể gặp:
+
+| Thông báo | Nguyên nhân |
+| --- | --- |
+| `global artifacts must not declare applies_to` | File trong `*/global/` mà có `applies_to` |
+| `<layer> artifacts must declare applies_to` | File ngoài `global` mà thiếu `applies_to` |
+| `applies_to references unknown technology "x"` | Chưa thêm `x` vào `catalog.yaml` |
+| `dependency "x" is not a known artifact` | `dependencies` trỏ tới `id` không tồn tại |
+| `duplicate <type> id "x"` | Hai file cùng `type` trùng `id` |
+| `catalog.yaml: x conflicts with itself` | `conflicts_with` chứa chính nó |
+
+### Nội dung import — đừng đụng vào
+
+Layer global được copy từ repo khác và ghim theo SHA 40 ký tự.
+
+- **Không sửa file nào nằm dưới đường dẫn mà `upstream.yaml` ánh xạ tới.** Lần sync sau sẽ ghi đè.
+- **Cũng không tạo file mới ở đó.** Lần sync sau sẽ xoá.
+- Dời pin là một commit cần review: `npm run sync -- --ref <sha>`, rồi đọc diff xem nó mang gì vào.
+
+Thứ một file import thiếu — description, layer — được khai trong `upstream.yaml` hoặc suy ra từ đường dẫn, chứ không thêm vào file đã copy.
+
+## Phát triển
+
+```bash
+npm install
+npm run check      # typecheck + test + bundle — chạy trước mỗi lần push
+npm run sync       # copy lại nội dung import tại commit đã ghim
+npm run try        # generate vào .aidd-try/ để đọc kết quả thật
+```
+
+> [!IMPORTANT]
+> `dist/aidd.mjs` được commit để plugin chạy mà không cần cài đặt gì. **Rebuild và commit nó cùng mọi thay đổi trong `src/`** — `npm run check` lo phần rebuild.
 
 ### Pipeline
 
-One concern per module:
+Mỗi module một mối quan tâm. Sửa gì thì đặt vào đúng chỗ mối quan tâm đó đang sống:
 
-| Module | Owns |
+| Module | Sở hữu |
 | --- | --- |
-| `catalog.ts` | Loading the knowledge base, deriving metadata, lint |
-| `upstream.ts` | What was copied from where, and under which licence |
-| `resolver.ts` | Expanding the technology graph over `requires`, reporting conflicts |
-| `selector.ts` | Which artifacts apply to a resolved stack |
-| `version.ts` | Version-range matching |
-| `composer.ts` | Building the output in memory, merging the `CLAUDE.md` block |
-| `validator.ts` | Completeness and consistency findings |
-| `emit.ts` | The only module that writes or deletes |
-| `cli.ts` | Flags, human and `--json` output |
+| `catalog.ts` | Nạp knowledge base, suy ra metadata, lint |
+| `upstream.ts` | Cái gì copy từ đâu, theo giấy phép nào |
+| `resolver.ts` | Mở rộng đồ thị technology qua `requires`, báo cáo xung đột |
+| `selector.ts` | Artifact nào áp dụng cho một stack đã phân giải |
+| `version.ts` | So khớp version range |
+| `composer.ts` | Dựng output trong bộ nhớ, merge block `CLAUDE.md` |
+| `validator.ts` | Các phát hiện về tính đầy đủ và nhất quán |
+| `emit.ts` | Module **duy nhất** được ghi hoặc xoá |
+| `cli.ts` | Cờ dòng lệnh, output cho người và `--json` |
 
-## Contributing
+> [!CAUTION]
+> `emit.ts` chỉ được xoá những đường dẫn có trong manifest của lần chạy trước. Không bao giờ nới rộng phạm vi đó. Mọi thứ ngoài manifest thuộc về người dùng.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md) for reporting a vulnerability privately.
+### Hai invariant
 
-New behaviour needs a test; a bug fix needs a test that fails before it. `tests/pipeline.test.ts` loads the real knowledge base, so a content change that breaks an invariant fails the suite.
+Mọi thứ ở đây xoay quanh hai điều này. Thay đổi nào làm yếu một trong hai phải nói thẳng ra, không được lách qua:
 
-## Licence
+1. **Việc chọn là tất định.** Phân giải, kiểm tra tương thích, so khớp version, kết hợp và kiểm tra đều chạy bằng TypeScript trong `src/`. Model chỉ ánh xạ yêu cầu sang cờ CLI và chuyển tiếp xung đột cho operator. Ngoài ra nó không quyết định gì và không viết nội dung.
+2. **Xung đột không bao giờ được hoà giải âm thầm.** Khi hai technology được chọn bị khai là không tương thích, lần chạy dừng lại, nêu tên xung đột, và in ra cờ để bỏ qua. Generator không tự chọn bên thắng.
+
+Điều thứ ba đúng với knowledge base: **generate là offline.** Một lần generate chỉ đọc repository này và ghi vào thư mục đích. Chỉ `npm run sync`, chạy có chủ đích, mới đụng network.
+
+### Tài liệu liên quan
+
+[CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [SECURITY.md](SECURITY.md) để báo lỗ hổng bảo mật riêng tư, không qua issue công khai.
+
+## Giấy phép
 
 [Apache-2.0](LICENSE) · Copyright 2026 TOMOSIA VIETNAM.
 
-Content under `knowledge/` copied from other projects keeps its own licence; see [NOTICE](NOTICE). Generated projects record the attribution in `.claude/aidd-manifest.json`.
+Nội dung trong `knowledge/` copy từ dự án khác giữ giấy phép riêng của nó; xem [NOTICE](NOTICE). Dự án được generate ghi lại phần ghi công trong `.claude/aidd-manifest.json`.
 
 ---
 
@@ -276,5 +554,5 @@ Content under `knowledge/` copied from other projects keeps its own licence; see
 -->
 
 <p align="center">
-  <sub>Built by <a href="https://github.com/TOMOSIA-VIETNAM">TOMOSIA VIETNAM</a> · See also <a href="https://github.com/TOMOSIA-VIETNAM/open-pr">open-pr</a>, AI code review that lands on your PR</sub>
+  <sub>Thực hiện bởi <a href="https://github.com/TOMOSIA-VIETNAM">TOMOSIA VIETNAM</a> · Xem thêm <a href="https://github.com/TOMOSIA-VIETNAM/open-pr">open-pr</a>, AI code review chạy thẳng trên PR của bạn</sub>
 </p>
