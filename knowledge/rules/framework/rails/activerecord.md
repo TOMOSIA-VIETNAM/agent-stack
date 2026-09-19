@@ -1,16 +1,4 @@
----
-id: activerecord-conventions
-name: Active Record Conventions
-description: Query, migration, and data-integrity rules for Active Record.
-type: rule
-layer: framework
-priority: 42
-applies_to:
-  - tech: rails
-    versions: ">=7 <9"
-dependencies: [rails-conventions]
-tags: [rails, database, performance]
----
+# Active Record Conventions
 
 ## Queries
 

@@ -3,8 +3,8 @@
  * Run the plugin against a scratch project inside this repository, to see what a
  * generated `.claude` tree actually looks like.
  *
- *   npm run try                                   a Rails stack, the default
- *   npm run try -- --language node@22             any stack flags the CLI takes
+ *   npm run try                                   Rails, the default
+ *   npm run try -- --framework laravel            any framework the catalog has
  *   npm run try -- --clean                        delete the scratch directory
  *
  * Output goes to .agent-stack-try/, which is gitignored. This is a development aid, not
@@ -20,19 +20,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TARGET = join(ROOT, '.agent-stack-try');
 const CLI = join(ROOT, 'dist', 'agent-stack.mjs');
 
-/** A stack that exercises every layer: global, language and framework. */
-const DEFAULT_STACK = [
-  '--language',
-  'ruby@3.3',
-  '--framework',
-  'rails@7.1',
-  '--library',
-  'activerecord',
-  '--testing',
-  'rspec',
-  '--database',
-  'postgresql@16',
-];
+/** Rails exercises every layer: global, language (via `requires`) and framework. */
+const DEFAULT_STACK = ['--framework', 'rails'];
 
 const argv = process.argv.slice(2);
 

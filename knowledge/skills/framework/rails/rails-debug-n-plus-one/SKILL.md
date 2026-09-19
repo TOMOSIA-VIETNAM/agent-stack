@@ -1,14 +1,6 @@
 ---
-id: rails-debug-n-plus-one
 name: rails-debug-n-plus-one
 description: Diagnose and fix slow Rails endpoints caused by repeated queries, missing indexes, or unbounded loads. Use when a page or API call is slow, when logs show repeated identical queries, or when a list view degrades as data grows.
-type: skill
-layer: framework
-priority: 43
-applies_to:
-  - tech: rails
-    versions: ">=7 <9"
-tags: [rails, performance, debugging]
 ---
 
 Measure before changing anything. A guessed `includes` often fixes nothing and hides

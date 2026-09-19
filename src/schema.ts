@@ -1,44 +1,43 @@
 import { z } from 'zod';
-import { isValidRange } from './version.js';
 
-/** Slots of the tech-stack input model (idea.md §2). */
-export const SLOTS = [
-  'language',
-  'framework',
-  'frontend',
-  'database',
-  'cache',
-  'testing',
-  'infrastructure',
-  'architecture',
-  'library',
-] as const;
-
-export type Slot = (typeof SLOTS)[number];
-
-/** Knowledge base layers, in the order they are applied (idea.md §1). */
-export const LAYERS = ['global', 'language', 'framework'] as const;
+/**
+ * Knowledge base layers, in the order they are applied (idea.md §1).
+ *
+ * Two, not three: every catalog entry is a framework, so there is no language
+ * to gate a layer of its own on. Ruby style rules are Rails rules here.
+ */
+export const LAYERS = ['global', 'framework'] as const;
 
 export type Layer = (typeof LAYERS)[number];
+
+/**
+ * `claude-md` is the one type that is not copied as a file: its content is
+ * spliced into the project's own CLAUDE.md, which is agent-stack's document to
+ * compose. Files are copied; that block is built.
+ */
+export const ARTIFACT_TYPES = ['rule', 'skill', 'command', 'claude-md'] as const;
+
+export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
 
 const idSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]*$/, 'ids are lowercase kebab-case');
 
-const rangeSchema = z
-  .string()
-  .refine(isValidRange, (value) => ({ message: `invalid version range: "${value}"` }));
-
+/**
+ * A framework. The catalog holds nothing else: it is the only thing an operator
+ * selects, so a `kind` field would be the same word on every row.
+ */
 export const technologySchema = z.object({
   name: z.string().min(1),
-  kind: z.enum(SLOTS),
   aliases: z.array(z.string().min(1)).default([]),
-  /** Transitively pulled in when this technology is selected (idea.md §3). */
+  /**
+   * Transitively pulled in when this framework is selected (idea.md §3). No
+   * entry uses it today; it stays because the graph, not the current catalog,
+   * is what the resolver is for.
+   */
   requires: z.array(idSchema).default([]),
   compatible_with: z.array(idSchema).default([]),
   conflicts_with: z.array(idSchema).default([]),
-  /** Versions the knowledge base is curated for; outside it the validator warns. */
-  supported_versions: rangeSchema.optional(),
 });
 
 export type Technology = z.infer<typeof technologySchema>;
@@ -50,52 +49,37 @@ export const catalogSchema = z.object({
 
 export type Catalog = z.infer<typeof catalogSchema>;
 
-/** A technology the artifact applies to, optionally narrowed to a version range. */
-export const appliesToSchema = z.object({
-  tech: idSchema,
-  versions: rangeSchema.optional(),
-});
+/**
+ * Everything agent-stack knows about an artifact — four fields, all read off
+ * its path under `knowledge/`.
+ *
+ * There is no schema, because nothing is parsed. A knowledge file belongs to
+ * the operator and is copied into the project byte for byte; whatever front
+ * matter it carries is for Claude to read, not for this generator to rewrite.
+ */
+export interface ArtifactMeta {
+  /** The emitted filename, derived from the path — see `metaFromPath`. */
+  id: string;
+  type: ArtifactType;
+  layer: Layer;
+  /** Frameworks that must all be in the stack; empty for the global layer. */
+  applies_to: string[];
+}
 
-export const artifactMetaSchema = z.object({
-  id: idSchema,
-  name: z.string().min(1),
-  description: z.string().min(1),
-  type: z.enum(['rule', 'skill', 'command', 'claude-md']),
-  layer: z.enum(LAYERS),
-  /**
-   * Generalization of idea.md's `language` / `framework` fields: any catalog
-   * technology can gate an artifact, with an optional version range.
-   * Empty means the artifact always applies (the global layer).
-   */
-  applies_to: z.array(appliesToSchema).default([]),
-  /** Other artifact ids that must be emitted alongside this one. */
-  dependencies: z.array(idSchema).default([]),
-  conflicts_with: z.array(idSchema).default([]),
-  compatible_with: z.array(idSchema).default([]),
-  tags: z.array(z.string().min(1)).default([]),
-  /** Lower sorts first, and becomes the numeric prefix of emitted rule files. */
-  priority: z.number().int().min(0).max(999),
-  /** Extra files copied next to SKILL.md, relative to the artifact directory. */
-  files: z.array(z.string().min(1)).default([]),
-});
-
-export type ArtifactMeta = z.infer<typeof artifactMetaSchema>;
-
-export const stackSelectionSchema = z.object({
-  tech: idSchema,
-  version: z.string().min(1).optional(),
-});
-
+/**
+ * The whole tech-stack input: the frameworks the project is built on. A
+ * framework is the one thing an operator always knows.
+ *
+ * Entries are names as typed, not catalog ids: the resolver canonicalizes an
+ * alias and rejects an unknown one with a suggestion.
+ */
 export const techStackInputSchema = z.object({
-  language: z.array(stackSelectionSchema).default([]),
-  framework: z.array(stackSelectionSchema).default([]),
-  frontend: z.array(stackSelectionSchema).default([]),
-  database: z.array(stackSelectionSchema).default([]),
-  cache: z.array(stackSelectionSchema).default([]),
-  testing: z.array(stackSelectionSchema).default([]),
-  infrastructure: z.array(stackSelectionSchema).default([]),
-  architecture: z.array(stackSelectionSchema).default([]),
-  library: z.array(stackSelectionSchema).default([]),
+  framework: z.array(z.string().min(1)).default([]),
 });
 
 export type TechStackInput = z.infer<typeof techStackInputSchema>;
+
+/** An id has to survive becoming a filename under `.claude/`. */
+export function isValidId(value: string): boolean {
+  return idSchema.safeParse(value).success;
+}

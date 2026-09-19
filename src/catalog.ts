@@ -1,12 +1,12 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { z } from 'zod';
 import {
-  artifactMetaSchema,
   catalogSchema,
+  isValidId,
   LAYERS,
   type ArtifactMeta,
+  type ArtifactType,
   type Catalog,
   type Layer,
 } from './schema.js';
@@ -24,12 +24,16 @@ export interface Provenance {
 
 export interface Artifact {
   meta: ArtifactMeta;
-  /** Markdown body with the front matter stripped. */
-  body: string;
-  /** Directory the artifact was loaded from, for resolving `files`. */
+  /** The file itself, absolute. Copied into the project unchanged. */
+  path: string;
+  /** Loaded only for `claude-md`, which is inlined rather than copied. */
+  contents?: string;
+  /** Directory the file sits in; for a skill, the root of the whole skill. */
   dir: string;
   /** Path relative to the knowledge root, used in diagnostics. */
   source: string;
+  /** Other files in a skill's directory, relative to `dir`. Copied alongside. */
+  files: string[];
   provenance?: Provenance;
 }
 
@@ -39,25 +43,9 @@ export interface KnowledgeBase {
   rules: Artifact[];
   skills: Artifact[];
   commands: Artifact[];
-  /** Fragments inlined into the project's CLAUDE.md rather than emitted as files. */
+  /** Inlined into the project's CLAUDE.md; nothing is emitted for these. */
   claudeMd: Artifact[];
   imported: ImportedSource[];
-}
-
-/**
- * Priority when an artifact does not declare one — which is the normal case for
- * imported files, since they are kept byte-for-byte as published upstream.
- */
-const LAYER_PRIORITY: Record<Layer, number> = { global: 20, language: 30, framework: 40 };
-
-const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
-
-export function splitFrontMatter(raw: string): { data: unknown; body: string } {
-  const match = FRONT_MATTER.exec(raw);
-  if (!match) {
-    return { data: undefined, body: raw };
-  }
-  return { data: parseYaml(match[1] ?? ''), body: raw.slice(match[0].length) };
 }
 
 async function listFiles(dir: string): Promise<string[]> {
@@ -84,102 +72,74 @@ function isLayer(value: string | undefined): value is Layer {
   return value !== undefined && (LAYERS as readonly string[]).includes(value);
 }
 
-/**
- * The layer an artifact belongs to, taken from the directory it sits in:
- * `skills/global/<id>/`, `rules/framework/<id>.md`. Commands are global.
- */
-function layerFromPath(relativePath: string, fallback: Layer): Layer {
-  const segment = relativePath.split(sep)[1];
-  return isLayer(segment) ? segment : fallback;
-}
-
-const claudeFrontMatterSchema = z.object({
-  name: z.string().min(1).optional(),
-  description: z.string().min(1),
-});
-
-interface LoadOptions {
-  type: ArtifactMeta['type'];
-  /** Directory of the artifact; `id` and attached `files` are derived from it. */
-  dir: string;
-  id: string;
-  fallbackLayer: Layer;
-  /** Descriptions declared in upstream.yaml, keyed by path under knowledge/. */
-  descriptions: Record<string, string>;
-}
+export class ArtifactPathError extends Error {}
 
 /**
- * Load one artifact.
+ * Read an artifact's metadata off its path.
  *
- * A file authored here declares full agent-stack metadata. A file copied from
- * another repository carries only Claude's own front matter, so the rest is
- * derived from where it sits: id from the file or directory name, layer from
- * the directory above it, priority from that layer. Imported files are never
- * edited to add metadata, so `npm run sync` stays a plain overwrite.
+ * This is the only place metadata comes from. Nothing inside the file is
+ * parsed, so there is no second declaration that can drift out of step with
+ * where the file sits — and the file itself stays the operator's to write.
+ *
+ *   rules/framework/rails/security.md              framework, [rails], id rails-security
+ *   rules/framework/rails/db/indexes.md            framework, [rails], id rails-db-indexes
+ *   rules/global/karpathy-guidelines.md            global,    [],      id karpathy-guidelines
+ *   commands/test.md                               global,    [],      id test
+ *   skills/framework/rails/rails-feature/SKILL.md  framework, [rails], id rails-feature
+ *
+ * A skill's id is its own directory name rather than the joined path: skill
+ * names are a flat namespace Claude matches a task against, so `rails-feature`
+ * inside `rails/` must not become `rails-rails-feature`.
  */
-async function loadArtifact(
-  path: string,
-  root: string,
-  options: LoadOptions,
-): Promise<Artifact> {
-  const raw = await readFile(path, 'utf8');
-  const { data, body } = splitFrontMatter(raw);
-  const source = relative(root, path);
-  const declared = options.descriptions[source];
-  if (data === undefined && declared === undefined) {
-    throw new Error(
-      `${source}: missing YAML front matter, and upstream.yaml declares no description for it`,
+export function metaFromPath(relativePath: string, type: ArtifactType): ArtifactMeta {
+  const segments = relativePath.split(sep);
+  // Drop the leading `rules/` | `skills/` | `commands/`, and a skill's SKILL.md.
+  const rest = type === 'skill' ? segments.slice(1, -1) : segments.slice(1);
+
+  let layer: Layer = 'global';
+  let appliesTo: string[] = [];
+  let tail = rest;
+
+  if (isLayer(rest[0])) {
+    layer = rest[0];
+    tail = rest.slice(1);
+    if (layer === 'framework') {
+      const framework = tail[0];
+      if (framework === undefined || tail.length < 2) {
+        throw new ArtifactPathError(
+          `${relativePath}: a framework artifact lives under <type>/framework/<framework>/, so that the directory says which framework it applies to`,
+        );
+      }
+      // The framework directory stays in `tail`: it gates the artifact *and*
+      // prefixes its name, so `rails/security.md` is `rails-security.md`.
+      appliesTo = [framework];
+    }
+  }
+
+  const id =
+    type === 'skill' ? (tail[tail.length - 1] ?? '') : tail.join('-').replace(/\.md$/, '');
+
+  if (!isValidId(id)) {
+    throw new ArtifactPathError(
+      `${relativePath}: "${id}" cannot be a filename under .claude/ — name every path segment in lowercase kebab-case, because the path is what is emitted`,
     );
   }
 
-  const declaresOwnMetadata =
-    typeof data === 'object' && data !== null && 'id' in data && 'type' in data;
+  return { id, type, layer, applies_to: appliesTo };
+}
 
-  let meta: ArtifactMeta;
-  if (declaresOwnMetadata) {
-    const parsed = artifactMetaSchema.safeParse(data);
-    if (!parsed.success) {
-      const issues = parsed.error.issues
-        .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
-        .join('; ');
-      throw new Error(`${source}: invalid metadata (${issues})`);
-    }
-    if (parsed.data.type !== options.type) {
-      throw new Error(`${source}: expected type "${options.type}", got "${parsed.data.type}"`);
-    }
-    meta = parsed.data;
-  } else {
-    const parsed = claudeFrontMatterSchema.safeParse(data ?? {});
-    const description = parsed.success ? parsed.data.description : declared;
-    if (description === undefined) {
-      throw new Error(
-        `${source}: needs either agent-stack metadata (id, type, ...), a "description" front matter field, or a description in upstream.yaml`,
-      );
-    }
-    const layer = layerFromPath(source, options.fallbackLayer);
-    meta = artifactMetaSchema.parse({
-      id: options.id,
-      name: (parsed.success ? parsed.data.name : undefined) ?? options.id,
-      description,
-      type: options.type,
-      layer,
-      priority: LAYER_PRIORITY[layer],
-    });
-  }
+async function loadArtifact(path: string, root: string, type: ArtifactType): Promise<Artifact> {
+  const source = relative(root, path);
+  const dir = dirname(path);
+  const files =
+    type === 'skill'
+      ? (await listFiles(dir)).filter((file) => file !== path).map((file) => relative(dir, file))
+      : [];
+  // Only a fragment's text is read. Every other type is copied without ever
+  // being opened.
+  const contents = type === 'claude-md' ? await readFile(path, 'utf8') : undefined;
 
-  const attached =
-    options.type === 'command' || options.type === 'claude-md'
-      ? []
-      : (await listFiles(options.dir))
-          .filter((file) => file !== path)
-          .map((file) => relative(options.dir, file));
-
-  return {
-    meta: { ...meta, files: meta.files.length > 0 ? meta.files : attached },
-    body: body.trim(),
-    dir: options.dir,
-    source,
-  };
+  return { meta: metaFromPath(source, type), path, dir, source, files, contents };
 }
 
 function attachProvenance(artifacts: Artifact[], imported: ImportedSource[]): void {
@@ -217,66 +177,16 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
   }
 
   const imported = await loadUpstream(root);
-  const descriptions = Object.assign({}, ...imported.map((source) => source.descriptions)) as Record<
-    string,
-    string
-  >;
 
-  const rules = await Promise.all(
-    (await listFiles(join(root, 'rules')))
-      .filter((path) => path.endsWith('.md'))
-      .map((path) =>
-        loadArtifact(path, root, {
-          type: 'rule',
-          dir: dirname(path),
-          id: basename(path, '.md'),
-          fallbackLayer: 'global',
-          descriptions,
-        }),
-      ),
-  );
+  const collect = (dirName: string, type: ArtifactType, keep: (path: string) => boolean) =>
+    listFiles(join(root, dirName)).then((paths) =>
+      Promise.all(paths.filter(keep).map((path) => loadArtifact(path, root, type))),
+    );
 
-  const skills = await Promise.all(
-    (await listFiles(join(root, 'skills')))
-      .filter((path) => basename(path) === 'SKILL.md')
-      .map((path) =>
-        loadArtifact(path, root, {
-          type: 'skill',
-          dir: dirname(path),
-          id: basename(dirname(path)),
-          fallbackLayer: 'global',
-          descriptions,
-        }),
-      ),
-  );
-
-  const claudeMd = await Promise.all(
-    (await listFiles(join(root, 'claude-md')))
-      .filter((path) => path.endsWith('.md'))
-      .map((path) =>
-        loadArtifact(path, root, {
-          type: 'claude-md',
-          dir: dirname(path),
-          id: basename(path, '.md'),
-          fallbackLayer: 'global',
-          descriptions,
-        }),
-      ),
-  );
-
-  const commands = await Promise.all(
-    (await listFiles(join(root, 'commands')))
-      .filter((path) => path.endsWith('.md'))
-      .map((path) =>
-        loadArtifact(path, root, {
-          type: 'command',
-          dir: dirname(path),
-          id: basename(path, '.md'),
-          fallbackLayer: 'global',
-          descriptions,
-        }),
-      ),
-  );
+  const rules = await collect('rules', 'rule', (path) => path.endsWith('.md'));
+  const skills = await collect('skills', 'skill', (path) => basename(path) === 'SKILL.md');
+  const commands = await collect('commands', 'command', (path) => path.endsWith('.md'));
+  const claudeMd = await collect('claude-md', 'claude-md', (path) => path.endsWith('.md'));
 
   attachProvenance([...rules, ...skills, ...commands, ...claudeMd], imported);
 
@@ -328,28 +238,12 @@ export function lintKnowledgeBase(kb: KnowledgeBase): string[] {
     }
   }
 
-  const artifactIds = new Set([...byId.values()].map((artifact) => artifact.meta.id));
-  for (const artifact of artifacts) {
-    const { meta, source } = artifact;
-    if (meta.layer === 'global' && meta.applies_to.length > 0) {
-      problems.push(`${source}: global artifacts must not declare applies_to`);
-    }
-    if (meta.layer !== 'global' && meta.applies_to.length === 0) {
-      problems.push(`${source}: ${meta.layer} artifacts must declare applies_to`);
-    }
+  // Layer and gate are structural now, so the one thing left to check is that a
+  // directory claiming to name a framework actually names one.
+  for (const { meta, source } of artifacts) {
     for (const applies of meta.applies_to) {
-      if (!techIds.has(applies.tech)) {
-        problems.push(`${source}: applies_to references unknown technology "${applies.tech}"`);
-      }
-    }
-    for (const dep of meta.dependencies) {
-      if (!artifactIds.has(dep)) {
-        problems.push(`${source}: dependency "${dep}" is not a known artifact`);
-      }
-    }
-    for (const other of meta.conflicts_with) {
-      if (!artifactIds.has(other)) {
-        problems.push(`${source}: conflicts_with "${other}" is not a known artifact`);
+      if (!techIds.has(applies)) {
+        problems.push(`${source}: the directory "${applies}" is not a framework in catalog.yaml`);
       }
     }
   }

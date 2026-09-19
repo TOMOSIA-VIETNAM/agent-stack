@@ -10,18 +10,6 @@ import { z } from 'zod';
  * record exists to say where they came from, to carry the licence obligations
  * into the generated output, and to tell `npm run sync` what to copy.
  */
-/**
- * One upstream path copied under knowledge/.
- *
- * `description` supplies the one field Claude needs that an upstream file may not
- * carry — a repository's own CLAUDE.md has no front matter at all. It is written
- * here rather than added to the copied file, so syncing stays a plain overwrite.
- */
-const copyEntrySchema = z.union([
-  z.string().min(1),
-  z.object({ to: z.string().min(1), description: z.string().min(1).optional() }),
-]);
-
 export const upstreamSourceSchema = z.object({
   repo: z.string().url().startsWith('https://'),
   /** Full 40-character commit SHA. A branch or tag is rejected: the copy must be traceable. */
@@ -31,7 +19,7 @@ export const upstreamSourceSchema = z.object({
   license_url: z.string().url(),
   copyright: z.string().min(1),
   /** Upstream path -> path under knowledge/. The targets mark which artifacts are imported. */
-  copy: z.record(z.string().min(1), copyEntrySchema),
+  copy: z.record(z.string().min(1), z.string().min(1)),
 });
 
 export type UpstreamSource = z.infer<typeof upstreamSourceSchema>;
@@ -50,12 +38,10 @@ export interface ImportedSource {
   copyright: string;
   /** Paths under knowledge/ that hold this source's files. */
   paths: string[];
-  /** Description for a copied file that carries no front matter, keyed by that path. */
-  descriptions: Record<string, string>;
 }
 
-export function copyTarget(entry: z.infer<typeof copyEntrySchema>): string {
-  return typeof entry === 'string' ? entry : entry.to;
+export function copyTarget(entry: string): string {
+  return entry;
 }
 
 export async function loadUpstream(root: string): Promise<ImportedSource[]> {
@@ -72,13 +58,6 @@ export async function loadUpstream(root: string): Promise<ImportedSource[]> {
 
   const sources: ImportedSource[] = [];
   for (const [name, source] of Object.entries(parsed.data.sources)) {
-    const descriptions: Record<string, string> = {};
-    for (const entry of Object.values(source.copy)) {
-      if (typeof entry !== 'string' && entry.description) {
-        descriptions[entry.to] = entry.description;
-      }
-    }
-
     sources.push({
       name,
       repo: source.repo,
@@ -86,8 +65,7 @@ export async function loadUpstream(root: string): Promise<ImportedSource[]> {
       license: source.license,
       licenseUrl: source.license_url,
       copyright: source.copyright,
-      paths: Object.values(source.copy).map(copyTarget),
-      descriptions,
+      paths: Object.values(source.copy),
     });
   }
   return sources;

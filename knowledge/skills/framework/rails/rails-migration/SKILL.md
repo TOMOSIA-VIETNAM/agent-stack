@@ -1,14 +1,6 @@
 ---
-id: rails-migration
 name: rails-migration
 description: Change a Rails database schema safely — add, backfill, rename, or drop a column or table without downtime or data loss. Use when writing a migration, planning a backfill, or splitting a destructive schema change across deploys.
-type: skill
-layer: framework
-priority: 42
-applies_to:
-  - tech: rails
-    versions: ">=7 <9"
-tags: [rails, database, migration, safety]
 ---
 
 A migration runs against production data while the old code is still serving

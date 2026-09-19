@@ -37,8 +37,8 @@ does the rebuild for you.
 Try it against a scratch project inside the repository rather than a real one:
 
 ```bash
-npm run try                          # a Rails stack, exercising every layer
-npm run try -- --language node@22    # any stack flags the CLI takes
+npm run try                          # Rails, exercising every layer
+npm run try -- --framework laravel   # any framework the catalog has
 npm run try -- --clean               # remove the scratch directory
 ```
 
@@ -51,7 +51,7 @@ To drive the CLI directly, point `--out` wherever you like. Without `--write` it
 previews what it would do:
 
 ```bash
-node dist/agent-stack.mjs generate --language ruby@3.3 --framework rails@7.1 --out /tmp/scratch
+node dist/agent-stack.mjs generate --framework rails --out /tmp/scratch
 ```
 
 ## Where things live
@@ -67,8 +67,8 @@ node dist/agent-stack.mjs generate --language ruby@3.3 --framework rails@7.1 --o
 
 ## Changing the knowledge base
 
-Read [knowledge/README.md](knowledge/README.md) first — it defines the layer
-convention, the metadata fields and the version-range syntax.
+Read the **Knowledge base** section of [CLAUDE.md](CLAUDE.md) first — it defines the
+layer convention and what each directory in a path means.
 
 The short version:
 

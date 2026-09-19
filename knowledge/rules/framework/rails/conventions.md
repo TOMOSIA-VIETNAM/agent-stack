@@ -1,16 +1,4 @@
----
-id: rails-conventions
-name: Rails Conventions
-description: Layering, controller, and configuration rules for a Rails application.
-type: rule
-layer: framework
-priority: 40
-applies_to:
-  - tech: rails
-    versions: ">=7 <9"
-dependencies: [ruby-conventions]
-tags: [rails, architecture]
----
+# Rails Conventions
 
 ## Layering
 

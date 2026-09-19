@@ -3999,10 +3999,10 @@ var require_resolve_block_map = __commonJS({
       let offset = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key, sep: sep2, value } = collItem;
+        const { start, key, sep: sep3, value } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
-          next: key ?? sep2?.[0],
+          next: key ?? sep3?.[0],
           offset,
           onError,
           parentIndent: bm.indent,
@@ -4016,7 +4016,7 @@ var require_resolve_block_map = __commonJS({
             else if ("indent" in key && key.indent !== bm.indent)
               onError(offset, "BAD_INDENT", startColMsg);
           }
-          if (!keyProps.anchor && !keyProps.tag && !sep2) {
+          if (!keyProps.anchor && !keyProps.tag && !sep3) {
             commentEnd = keyProps.end;
             if (keyProps.comment) {
               if (map.comment)
@@ -4040,7 +4040,7 @@ var require_resolve_block_map = __commonJS({
         ctx.atKey = false;
         if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
-        const valueProps = resolveProps.resolveProps(sep2 ?? [], {
+        const valueProps = resolveProps.resolveProps(sep3 ?? [], {
           indicator: "map-value-ind",
           next: value,
           offset: keyNode.range[2],
@@ -4056,7 +4056,7 @@ var require_resolve_block_map = __commonJS({
             if (ctx.options.strict && keyProps.start < valueProps.found.offset - 1024)
               onError(keyNode.range, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit block mapping key");
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep2, null, valueProps, onError);
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep3, null, valueProps, onError);
           if (ctx.schema.compat)
             utilFlowIndentCheck.flowIndentCheck(bm.indent, value, onError);
           offset = valueNode.range[2];
@@ -4147,7 +4147,7 @@ var require_resolve_end = __commonJS({
       let comment = "";
       if (end) {
         let hasSpace = false;
-        let sep2 = "";
+        let sep3 = "";
         for (const token of end) {
           const { source, type } = token;
           switch (type) {
@@ -4161,13 +4161,13 @@ var require_resolve_end = __commonJS({
               if (!comment)
                 comment = cb;
               else
-                comment += sep2 + cb;
-              sep2 = "";
+                comment += sep3 + cb;
+              sep3 = "";
               break;
             }
             case "newline":
               if (comment)
-                sep2 += source;
+                sep3 += source;
               hasSpace = true;
               break;
             default:
@@ -4210,18 +4210,18 @@ var require_resolve_flow_collection = __commonJS({
       let offset = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key, sep: sep2, value } = collItem;
+        const { start, key, sep: sep3, value } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
-          next: key ?? sep2?.[0],
+          next: key ?? sep3?.[0],
           offset,
           onError,
           parentIndent: fc.indent,
           startOnNewline: false
         });
         if (!props.found) {
-          if (!props.anchor && !props.tag && !sep2 && !value) {
+          if (!props.anchor && !props.tag && !sep3 && !value) {
             if (i === 0 && props.comma)
               onError(props.comma, "UNEXPECTED_TOKEN", `Unexpected , in ${fcName}`);
             else if (i < fc.items.length - 1)
@@ -4275,8 +4275,8 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap && !sep2 && !props.found) {
-          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep2, null, props, onError);
+        if (!isMap && !sep3 && !props.found) {
+          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep3, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
           if (isBlock(value))
@@ -4288,7 +4288,7 @@ var require_resolve_flow_collection = __commonJS({
           if (isBlock(key))
             onError(keyNode.range, "BLOCK_IN_FLOW", blockMsg);
           ctx.atKey = false;
-          const valueProps = resolveProps.resolveProps(sep2 ?? [], {
+          const valueProps = resolveProps.resolveProps(sep3 ?? [], {
             flow: fcName,
             indicator: "map-value-ind",
             next: value,
@@ -4299,8 +4299,8 @@ var require_resolve_flow_collection = __commonJS({
           });
           if (valueProps.found) {
             if (!isMap && !props.found && ctx.options.strict) {
-              if (sep2)
-                for (const st of sep2) {
+              if (sep3)
+                for (const st of sep3) {
                   if (st === valueProps.found)
                     break;
                   if (st.type === "newline") {
@@ -4317,7 +4317,7 @@ var require_resolve_flow_collection = __commonJS({
             else
               onError(valueProps.start, "MISSING_CHAR", `Missing , or : between ${fcName} items`);
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep2, null, valueProps, onError) : null;
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep3, null, valueProps, onError) : null;
           if (valueNode) {
             if (isBlock(value))
               onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
@@ -4497,7 +4497,7 @@ var require_resolve_block_scalar = __commonJS({
           chompStart = i + 1;
       }
       let value = "";
-      let sep2 = "";
+      let sep3 = "";
       let prevMoreIndented = false;
       for (let i = 0; i < contentStart; ++i)
         value += lines[i][0].slice(trimIndent) + "\n";
@@ -4514,24 +4514,24 @@ var require_resolve_block_scalar = __commonJS({
           indent = "";
         }
         if (type === Scalar.Scalar.BLOCK_LITERAL) {
-          value += sep2 + indent.slice(trimIndent) + content;
-          sep2 = "\n";
+          value += sep3 + indent.slice(trimIndent) + content;
+          sep3 = "\n";
         } else if (indent.length > trimIndent || content[0] === "	") {
-          if (sep2 === " ")
-            sep2 = "\n";
-          else if (!prevMoreIndented && sep2 === "\n")
-            sep2 = "\n\n";
-          value += sep2 + indent.slice(trimIndent) + content;
-          sep2 = "\n";
+          if (sep3 === " ")
+            sep3 = "\n";
+          else if (!prevMoreIndented && sep3 === "\n")
+            sep3 = "\n\n";
+          value += sep3 + indent.slice(trimIndent) + content;
+          sep3 = "\n";
           prevMoreIndented = true;
         } else if (content === "") {
-          if (sep2 === "\n")
+          if (sep3 === "\n")
             value += "\n";
           else
-            sep2 = "\n";
+            sep3 = "\n";
         } else {
-          value += sep2 + content;
-          sep2 = " ";
+          value += sep3 + content;
+          sep3 = " ";
           prevMoreIndented = false;
         }
       }
@@ -4714,25 +4714,25 @@ var require_resolve_flow_scalar = __commonJS({
         trimBoth = /^[ \t]+|[ \t]+$/g;
       }
       let res = match[1].replace(trimEnd, "");
-      let sep2 = " ";
+      let sep3 = " ";
       let pos = line.lastIndex;
       while (match = line.exec(source)) {
         const lm = match[1].replace(trimBoth, "");
         if (lm === "") {
-          if (sep2 === "\n")
-            res += sep2;
+          if (sep3 === "\n")
+            res += sep3;
           else
-            sep2 = "\n";
+            sep3 = "\n";
         } else {
-          res += sep2 + lm;
-          sep2 = " ";
+          res += sep3 + lm;
+          sep3 = " ";
         }
         pos = line.lastIndex;
       }
       const last = /[ \t]*(.*)/sy;
       last.lastIndex = pos;
       match = last.exec(source);
-      return res + sep2 + (match?.[1] ?? "");
+      return res + sep3 + (match?.[1] ?? "");
     }
     function doubleQuotedValue(source, onError) {
       let res = "";
@@ -5542,14 +5542,14 @@ var require_cst_stringify = __commonJS({
         }
       }
     }
-    function stringifyItem({ start, key, sep: sep2, value }) {
+    function stringifyItem({ start, key, sep: sep3, value }) {
       let res = "";
       for (const st of start)
         res += st.source;
       if (key)
         res += stringifyToken(key);
-      if (sep2)
-        for (const st of sep2)
+      if (sep3)
+        for (const st of sep3)
           res += st.source;
       if (value)
         res += stringifyToken(value);
@@ -6716,18 +6716,18 @@ var require_parser = __commonJS({
         if (this.type === "map-value-ind") {
           const prev = getPrevProps(this.peek(2));
           const start = getFirstKeyStartProps(prev);
-          let sep2;
+          let sep3;
           if (scalar.end) {
-            sep2 = scalar.end;
-            sep2.push(this.sourceToken);
+            sep3 = scalar.end;
+            sep3.push(this.sourceToken);
             delete scalar.end;
           } else
-            sep2 = [this.sourceToken];
+            sep3 = [this.sourceToken];
           const map = {
             type: "block-map",
             offset: scalar.offset,
             indent: scalar.indent,
-            items: [{ start, key: scalar, sep: sep2 }]
+            items: [{ start, key: scalar, sep: sep3 }]
           };
           this.onKeyLine = true;
           this.stack[this.stack.length - 1] = map;
@@ -6880,15 +6880,15 @@ var require_parser = __commonJS({
                 } else if (isFlowToken(it.key) && !includesToken(it.sep, "newline")) {
                   const start2 = getFirstKeyStartProps(it.start);
                   const key = it.key;
-                  const sep2 = it.sep;
-                  sep2.push(this.sourceToken);
+                  const sep3 = it.sep;
+                  sep3.push(this.sourceToken);
                   delete it.key;
                   delete it.sep;
                   this.stack.push({
                     type: "block-map",
                     offset: this.offset,
                     indent: this.indent,
-                    items: [{ start: start2, key, sep: sep2 }]
+                    items: [{ start: start2, key, sep: sep3 }]
                   });
                 } else if (start.length > 0) {
                   it.sep = it.sep.concat(start, this.sourceToken);
@@ -7082,13 +7082,13 @@ var require_parser = __commonJS({
             const prev = getPrevProps(parent);
             const start = getFirstKeyStartProps(prev);
             fixFlowSeqItems(fc);
-            const sep2 = fc.end.splice(1, fc.end.length);
-            sep2.push(this.sourceToken);
+            const sep3 = fc.end.splice(1, fc.end.length);
+            sep3.push(this.sourceToken);
             const map = {
               type: "block-map",
               offset: fc.offset,
               indent: fc.indent,
-              items: [{ start, key: fc, sep: sep2 }]
+              items: [{ start, key: fc, sep: sep3 }]
             };
             this.onKeyLine = true;
             this.stack[this.stack.length - 1] = map;
@@ -11416,197 +11416,36 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// src/version.ts
-var WILDCARD = /^[*x]$/i;
-function parseVersion(input) {
-  const core = input.trim().replace(/^v/i, "").split(/[-+]/, 1)[0] ?? "";
-  const parts = core.split(".");
-  const out = [];
-  for (const part of parts) {
-    if (WILDCARD.test(part)) break;
-    const n = Number.parseInt(part, 10);
-    if (Number.isNaN(n)) {
-      throw new Error(`Invalid version: "${input}"`);
-    }
-    out.push(n);
-  }
-  if (out.length === 0) {
-    throw new Error(`Invalid version: "${input}"`);
-  }
-  return out;
-}
-function significantLength(input) {
-  const core = input.trim().replace(/^v/i, "").split(/[-+]/, 1)[0] ?? "";
-  const parts = core.split(".");
-  let n = 0;
-  for (const part of parts) {
-    if (WILDCARD.test(part)) break;
-    n += 1;
-  }
-  return n;
-}
-function compareVersions(a, b) {
-  const len = Math.max(a.length, b.length);
-  for (let i = 0; i < len; i += 1) {
-    const diff = (a[i] ?? 0) - (b[i] ?? 0);
-    if (diff !== 0) return diff < 0 ? -1 : 1;
-  }
-  return 0;
-}
-function nextPrefix(version) {
-  const out = version.slice();
-  const last = out.length - 1;
-  out[last] = (out[last] ?? 0) + 1;
-  return out;
-}
-function caretUpper(version) {
-  if ((version[0] ?? 0) > 0 || version.length === 1) {
-    return [(version[0] ?? 0) + 1];
-  }
-  if ((version[1] ?? 0) > 0 || version.length === 2) {
-    return [version[0] ?? 0, (version[1] ?? 0) + 1];
-  }
-  return [version[0] ?? 0, version[1] ?? 0, (version[2] ?? 0) + 1];
-}
-function comparator(token) {
-  if (WILDCARD.test(token)) return () => true;
-  const operatorMatch = /^(>=|<=|>|<|=)\s*(.+)$/.exec(token);
-  if (operatorMatch) {
-    const [, op, raw] = operatorMatch;
-    const bound2 = parseVersion(raw);
-    switch (op) {
-      case ">=":
-        return (v) => compareVersions(v, bound2) >= 0;
-      case ">":
-        return (v) => compareVersions(v, bound2) > 0;
-      case "<=":
-        return (v) => compareVersions(v, bound2) <= 0;
-      case "<":
-        return (v) => compareVersions(v, bound2) < 0;
-      default:
-        return (v) => compareVersions(v, bound2) === 0;
-    }
-  }
-  if (token.startsWith("^") || token.startsWith("~")) {
-    const bound2 = parseVersion(token.slice(1));
-    const upper2 = token.startsWith("^") ? caretUpper(bound2) : nextPrefix(bound2.slice(0, 2));
-    return (v) => compareVersions(v, bound2) >= 0 && compareVersions(v, upper2) < 0;
-  }
-  const bound = parseVersion(token);
-  const explicit = significantLength(token);
-  const isFull = explicit >= 3 && !/[*x]/i.test(token);
-  if (isFull) {
-    return (v) => compareVersions(v, bound) === 0;
-  }
-  const upper = nextPrefix(bound);
-  return (v) => compareVersions(v, bound) >= 0 && compareVersions(v, upper) < 0;
-}
-function satisfies(version, range) {
-  if (!range || WILDCARD.test(range.trim())) return true;
-  if (!version) {
-    return false;
-  }
-  const v = parseVersion(version);
-  const hyphen = range.split(/\s+-\s+/);
-  if (hyphen.length === 2) {
-    const [rawLower, rawUpper] = hyphen;
-    const lower = parseVersion(rawLower);
-    const upperBound = parseVersion(rawUpper);
-    const upperIsFull = significantLength(rawUpper) >= 3 && !/[*x]/i.test(rawUpper);
-    const upper = upperIsFull ? upperBound : nextPrefix(upperBound);
-    return compareVersions(v, lower) >= 0 && (upperIsFull ? compareVersions(v, upper) <= 0 : compareVersions(v, upper) < 0);
-  }
-  return range.trim().split(/\s+/).every((token) => comparator(token)(v));
-}
-function isValidRange(range) {
-  try {
-    satisfies("1.0.0", range);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // src/schema.ts
-var SLOTS = [
-  "language",
-  "framework",
-  "frontend",
-  "database",
-  "cache",
-  "testing",
-  "infrastructure",
-  "architecture",
-  "library"
-];
-var LAYERS = ["global", "language", "framework"];
+var LAYERS = ["global", "framework"];
 var idSchema = external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/, "ids are lowercase kebab-case");
-var rangeSchema = external_exports.string().refine(isValidRange, (value) => ({ message: `invalid version range: "${value}"` }));
 var technologySchema = external_exports.object({
   name: external_exports.string().min(1),
-  kind: external_exports.enum(SLOTS),
   aliases: external_exports.array(external_exports.string().min(1)).default([]),
-  /** Transitively pulled in when this technology is selected (idea.md §3). */
+  /**
+   * Transitively pulled in when this framework is selected (idea.md §3). No
+   * entry uses it today; it stays because the graph, not the current catalog,
+   * is what the resolver is for.
+   */
   requires: external_exports.array(idSchema).default([]),
   compatible_with: external_exports.array(idSchema).default([]),
-  conflicts_with: external_exports.array(idSchema).default([]),
-  /** Versions the knowledge base is curated for; outside it the validator warns. */
-  supported_versions: rangeSchema.optional()
+  conflicts_with: external_exports.array(idSchema).default([])
 });
 var catalogSchema = external_exports.object({
   version: external_exports.literal(1),
   technologies: external_exports.record(idSchema, technologySchema)
 });
-var appliesToSchema = external_exports.object({
-  tech: idSchema,
-  versions: rangeSchema.optional()
-});
-var artifactMetaSchema = external_exports.object({
-  id: idSchema,
-  name: external_exports.string().min(1),
-  description: external_exports.string().min(1),
-  type: external_exports.enum(["rule", "skill", "command", "claude-md"]),
-  layer: external_exports.enum(LAYERS),
-  /**
-   * Generalization of idea.md's `language` / `framework` fields: any catalog
-   * technology can gate an artifact, with an optional version range.
-   * Empty means the artifact always applies (the global layer).
-   */
-  applies_to: external_exports.array(appliesToSchema).default([]),
-  /** Other artifact ids that must be emitted alongside this one. */
-  dependencies: external_exports.array(idSchema).default([]),
-  conflicts_with: external_exports.array(idSchema).default([]),
-  compatible_with: external_exports.array(idSchema).default([]),
-  tags: external_exports.array(external_exports.string().min(1)).default([]),
-  /** Lower sorts first, and becomes the numeric prefix of emitted rule files. */
-  priority: external_exports.number().int().min(0).max(999),
-  /** Extra files copied next to SKILL.md, relative to the artifact directory. */
-  files: external_exports.array(external_exports.string().min(1)).default([])
-});
-var stackSelectionSchema = external_exports.object({
-  tech: idSchema,
-  version: external_exports.string().min(1).optional()
-});
 var techStackInputSchema = external_exports.object({
-  language: external_exports.array(stackSelectionSchema).default([]),
-  framework: external_exports.array(stackSelectionSchema).default([]),
-  frontend: external_exports.array(stackSelectionSchema).default([]),
-  database: external_exports.array(stackSelectionSchema).default([]),
-  cache: external_exports.array(stackSelectionSchema).default([]),
-  testing: external_exports.array(stackSelectionSchema).default([]),
-  infrastructure: external_exports.array(stackSelectionSchema).default([]),
-  architecture: external_exports.array(stackSelectionSchema).default([]),
-  library: external_exports.array(stackSelectionSchema).default([])
+  framework: external_exports.array(external_exports.string().min(1)).default([])
 });
+function isValidId(value) {
+  return idSchema.safeParse(value).success;
+}
 
 // src/upstream.ts
 var import_yaml = __toESM(require_dist(), 1);
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-var copyEntrySchema = external_exports.union([
-  external_exports.string().min(1),
-  external_exports.object({ to: external_exports.string().min(1), description: external_exports.string().min(1).optional() })
-]);
 var upstreamSourceSchema = external_exports.object({
   repo: external_exports.string().url().startsWith("https://"),
   /** Full 40-character commit SHA. A branch or tag is rejected: the copy must be traceable. */
@@ -11616,15 +11455,12 @@ var upstreamSourceSchema = external_exports.object({
   license_url: external_exports.string().url(),
   copyright: external_exports.string().min(1),
   /** Upstream path -> path under knowledge/. The targets mark which artifacts are imported. */
-  copy: external_exports.record(external_exports.string().min(1), copyEntrySchema)
+  copy: external_exports.record(external_exports.string().min(1), external_exports.string().min(1))
 });
 var upstreamFileSchema = external_exports.object({
   version: external_exports.literal(1),
   sources: external_exports.record(external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/), upstreamSourceSchema)
 });
-function copyTarget(entry) {
-  return typeof entry === "string" ? entry : entry.to;
-}
 async function loadUpstream(root) {
   const raw = await readFile(join(root, "upstream.yaml"), "utf8").catch(() => void 0);
   if (raw === void 0) return [];
@@ -11635,12 +11471,6 @@ async function loadUpstream(root) {
   }
   const sources = [];
   for (const [name, source] of Object.entries(parsed.data.sources)) {
-    const descriptions = {};
-    for (const entry of Object.values(source.copy)) {
-      if (typeof entry !== "string" && entry.description) {
-        descriptions[entry.to] = entry.description;
-      }
-    }
     sources.push({
       name,
       repo: source.repo,
@@ -11648,23 +11478,13 @@ async function loadUpstream(root) {
       license: source.license,
       licenseUrl: source.license_url,
       copyright: source.copyright,
-      paths: Object.values(source.copy).map(copyTarget),
-      descriptions
+      paths: Object.values(source.copy)
     });
   }
   return sources;
 }
 
 // src/catalog.ts
-var LAYER_PRIORITY = { global: 20, language: 30, framework: 40 };
-var FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
-function splitFrontMatter(raw) {
-  const match = FRONT_MATTER.exec(raw);
-  if (!match) {
-    return { data: void 0, body: raw };
-  }
-  return { data: (0, import_yaml2.parse)(match[1] ?? ""), body: raw.slice(match[0].length) };
-}
 async function listFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true }).catch(
     (error) => {
@@ -11686,61 +11506,41 @@ async function listFiles(dir) {
 function isLayer(value) {
   return value !== void 0 && LAYERS.includes(value);
 }
-function layerFromPath(relativePath, fallback) {
-  const segment = relativePath.split(sep)[1];
-  return isLayer(segment) ? segment : fallback;
-}
-var claudeFrontMatterSchema = external_exports.object({
-  name: external_exports.string().min(1).optional(),
-  description: external_exports.string().min(1)
-});
-async function loadArtifact(path, root, options) {
-  const raw = await readFile2(path, "utf8");
-  const { data, body } = splitFrontMatter(raw);
-  const source = relative(root, path);
-  const declared = options.descriptions[source];
-  if (data === void 0 && declared === void 0) {
-    throw new Error(
-      `${source}: missing YAML front matter, and upstream.yaml declares no description for it`
+var ArtifactPathError = class extends Error {
+};
+function metaFromPath(relativePath, type) {
+  const segments = relativePath.split(sep);
+  const rest = type === "skill" ? segments.slice(1, -1) : segments.slice(1);
+  let layer = "global";
+  let appliesTo = [];
+  let tail = rest;
+  if (isLayer(rest[0])) {
+    layer = rest[0];
+    tail = rest.slice(1);
+    if (layer === "framework") {
+      const framework = tail[0];
+      if (framework === void 0 || tail.length < 2) {
+        throw new ArtifactPathError(
+          `${relativePath}: a framework artifact lives under <type>/framework/<framework>/, so that the directory says which framework it applies to`
+        );
+      }
+      appliesTo = [framework];
+    }
+  }
+  const id = type === "skill" ? tail[tail.length - 1] ?? "" : tail.join("-").replace(/\.md$/, "");
+  if (!isValidId(id)) {
+    throw new ArtifactPathError(
+      `${relativePath}: "${id}" cannot be a filename under .claude/ \u2014 name every path segment in lowercase kebab-case, because the path is what is emitted`
     );
   }
-  const declaresOwnMetadata = typeof data === "object" && data !== null && "id" in data && "type" in data;
-  let meta;
-  if (declaresOwnMetadata) {
-    const parsed = artifactMetaSchema.safeParse(data);
-    if (!parsed.success) {
-      const issues = parsed.error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
-      throw new Error(`${source}: invalid metadata (${issues})`);
-    }
-    if (parsed.data.type !== options.type) {
-      throw new Error(`${source}: expected type "${options.type}", got "${parsed.data.type}"`);
-    }
-    meta = parsed.data;
-  } else {
-    const parsed = claudeFrontMatterSchema.safeParse(data ?? {});
-    const description = parsed.success ? parsed.data.description : declared;
-    if (description === void 0) {
-      throw new Error(
-        `${source}: needs either agent-stack metadata (id, type, ...), a "description" front matter field, or a description in upstream.yaml`
-      );
-    }
-    const layer = layerFromPath(source, options.fallbackLayer);
-    meta = artifactMetaSchema.parse({
-      id: options.id,
-      name: (parsed.success ? parsed.data.name : void 0) ?? options.id,
-      description,
-      type: options.type,
-      layer,
-      priority: LAYER_PRIORITY[layer]
-    });
-  }
-  const attached = options.type === "command" || options.type === "claude-md" ? [] : (await listFiles(options.dir)).filter((file) => file !== path).map((file) => relative(options.dir, file));
-  return {
-    meta: { ...meta, files: meta.files.length > 0 ? meta.files : attached },
-    body: body.trim(),
-    dir: options.dir,
-    source
-  };
+  return { id, type, layer, applies_to: appliesTo };
+}
+async function loadArtifact(path, root, type) {
+  const source = relative(root, path);
+  const dir = dirname(path);
+  const files = type === "skill" ? (await listFiles(dir)).filter((file) => file !== path).map((file) => relative(dir, file)) : [];
+  const contents = type === "claude-md" ? await readFile2(path, "utf8") : void 0;
+  return { meta: metaFromPath(source, type), path, dir, source, files, contents };
 }
 function attachProvenance(artifacts, imported) {
   for (const artifact of artifacts) {
@@ -11772,51 +11572,13 @@ async function loadKnowledgeBase(root) {
     throw new Error(`catalog.yaml: invalid (${issues})`);
   }
   const imported = await loadUpstream(root);
-  const descriptions = Object.assign({}, ...imported.map((source) => source.descriptions));
-  const rules = await Promise.all(
-    (await listFiles(join2(root, "rules"))).filter((path) => path.endsWith(".md")).map(
-      (path) => loadArtifact(path, root, {
-        type: "rule",
-        dir: dirname(path),
-        id: basename(path, ".md"),
-        fallbackLayer: "global",
-        descriptions
-      })
-    )
+  const collect = (dirName, type, keep) => listFiles(join2(root, dirName)).then(
+    (paths) => Promise.all(paths.filter(keep).map((path) => loadArtifact(path, root, type)))
   );
-  const skills = await Promise.all(
-    (await listFiles(join2(root, "skills"))).filter((path) => basename(path) === "SKILL.md").map(
-      (path) => loadArtifact(path, root, {
-        type: "skill",
-        dir: dirname(path),
-        id: basename(dirname(path)),
-        fallbackLayer: "global",
-        descriptions
-      })
-    )
-  );
-  const claudeMd = await Promise.all(
-    (await listFiles(join2(root, "claude-md"))).filter((path) => path.endsWith(".md")).map(
-      (path) => loadArtifact(path, root, {
-        type: "claude-md",
-        dir: dirname(path),
-        id: basename(path, ".md"),
-        fallbackLayer: "global",
-        descriptions
-      })
-    )
-  );
-  const commands = await Promise.all(
-    (await listFiles(join2(root, "commands"))).filter((path) => path.endsWith(".md")).map(
-      (path) => loadArtifact(path, root, {
-        type: "command",
-        dir: dirname(path),
-        id: basename(path, ".md"),
-        fallbackLayer: "global",
-        descriptions
-      })
-    )
-  );
+  const rules = await collect("rules", "rule", (path) => path.endsWith(".md"));
+  const skills = await collect("skills", "skill", (path) => basename(path) === "SKILL.md");
+  const commands = await collect("commands", "command", (path) => path.endsWith(".md"));
+  const claudeMd = await collect("claude-md", "claude-md", (path) => path.endsWith(".md"));
   attachProvenance([...rules, ...skills, ...commands, ...claudeMd], imported);
   const kb = {
     root,
@@ -11862,28 +11624,10 @@ function lintKnowledgeBase(kb) {
       problems.push(`catalog.yaml: ${id} conflicts with itself`);
     }
   }
-  const artifactIds = new Set([...byId.values()].map((artifact) => artifact.meta.id));
-  for (const artifact of artifacts) {
-    const { meta, source } = artifact;
-    if (meta.layer === "global" && meta.applies_to.length > 0) {
-      problems.push(`${source}: global artifacts must not declare applies_to`);
-    }
-    if (meta.layer !== "global" && meta.applies_to.length === 0) {
-      problems.push(`${source}: ${meta.layer} artifacts must declare applies_to`);
-    }
+  for (const { meta, source } of artifacts) {
     for (const applies of meta.applies_to) {
-      if (!techIds.has(applies.tech)) {
-        problems.push(`${source}: applies_to references unknown technology "${applies.tech}"`);
-      }
-    }
-    for (const dep of meta.dependencies) {
-      if (!artifactIds.has(dep)) {
-        problems.push(`${source}: dependency "${dep}" is not a known artifact`);
-      }
-    }
-    for (const other of meta.conflicts_with) {
-      if (!artifactIds.has(other)) {
-        problems.push(`${source}: conflicts_with "${other}" is not a known artifact`);
+      if (!techIds.has(applies)) {
+        problems.push(`${source}: the directory "${applies}" is not a framework in catalog.yaml`);
       }
     }
   }
@@ -11891,69 +11635,28 @@ function lintKnowledgeBase(kb) {
 }
 
 // src/composer.ts
-var import_yaml3 = __toESM(require_dist(), 1);
-import { join as join3, posix } from "node:path";
+import { join as join3, posix, sep as sep2 } from "node:path";
 var MANIFEST_PATH = posix.join(".claude", "agent-stack-manifest.json");
 var BEGIN_MARKER = "<!-- agent-stack:begin - generated by agent-stack, do not edit by hand -->";
 var END_MARKER = "<!-- agent-stack:end -->";
 function rulePath(entry) {
-  const prefix = String(entry.artifact.meta.priority).padStart(2, "0");
-  return posix.join(".claude", "rules", `${prefix}-${entry.artifact.meta.id}.md`);
+  return posix.join(".claude", "rules", `${entry.artifact.meta.id}.md`);
 }
 function skillDir(entry) {
   return posix.join(".claude", "skills", entry.artifact.meta.id);
 }
-function ruleFile(entry) {
-  const { meta, body } = entry.artifact;
-  const applies = entry.matchedBy.length > 0 ? `applies to: ${entry.matchedBy.join(", ")}` : "applies to: all projects";
-  const heading = body.startsWith("# ") ? [] : [`# ${meta.name}`, ""];
-  return [
-    originComment(entry),
-    `<!-- ${applies} -->`,
-    "",
-    ...heading,
-    body,
-    ""
-  ].join("\n");
+function commandPath(entry) {
+  return posix.join(".claude", "commands", `${entry.artifact.meta.id}.md`);
 }
-function originComment(entry) {
-  return `<!-- generated by agent-stack from knowledge/${entry.artifact.source} - edit the knowledge base, not this file -->`;
-}
-function skillFile(entry) {
-  const { meta, body } = entry.artifact;
-  const frontMatter = (0, import_yaml3.stringify)({ name: meta.name, description: meta.description }).trim();
-  return [
-    "---",
-    frontMatter,
-    "---",
-    "",
-    originComment(entry),
-    "",
-    body,
-    ""
-  ].join("\n");
-}
-function commandFile(entry) {
-  const frontMatter = (0, import_yaml3.stringify)({ description: entry.artifact.meta.description }).trim();
-  return [
-    "---",
-    frontMatter,
-    "---",
-    "",
-    originComment(entry),
-    "",
-    entry.artifact.body,
-    ""
-  ].join("\n");
-}
-function stripLeadingTitle(body) {
+function inlineFragment(contents) {
+  const withoutFrontMatter = contents.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+  const body = withoutFrontMatter.trim();
   return body.startsWith("# ") ? body.slice(body.indexOf("\n") + 1).trimStart() : body;
 }
 function claudeMdBlock(fragments, rules) {
   const lines = [BEGIN_MARKER, ""];
   for (const fragment of fragments) {
-    lines.push(originComment(fragment), "");
-    lines.push(stripLeadingTitle(fragment.artifact.body), "");
+    lines.push(inlineFragment(fragment.artifact.contents ?? ""), "");
   }
   if (rules.length > 0) {
     lines.push("## Project rules", "", ...rules.map((rule) => `@${rule.path}`), "");
@@ -11981,29 +11684,27 @@ function compose(stack, selection, generatorVersion, imported = []) {
   const files = [];
   const ruleEntries = selection.rules.map((entry) => ({
     id: entry.artifact.meta.id,
-    name: entry.artifact.meta.name,
     path: rulePath(entry)
   }));
   for (const entry of selection.rules) {
-    files.push({ path: rulePath(entry), contents: ruleFile(entry) });
+    files.push({ path: rulePath(entry), copyFrom: entry.artifact.path });
   }
   const skillEntries = [];
   for (const entry of selection.skills) {
     const dir = skillDir(entry);
-    files.push({ path: posix.join(dir, "SKILL.md"), contents: skillFile(entry) });
+    files.push({ path: posix.join(dir, "SKILL.md"), copyFrom: entry.artifact.path });
     skillEntries.push({ id: entry.artifact.meta.id, path: dir });
-    for (const extra of entry.artifact.meta.files) {
+    for (const extra of entry.artifact.files) {
       files.push({
-        path: posix.join(dir, extra),
+        path: posix.join(dir, extra.split(sep2).join("/")),
         copyFrom: join3(entry.artifact.dir, extra)
       });
     }
   }
   const commandEntries = [];
   for (const entry of selection.commands) {
-    const path = posix.join(".claude", "commands", `${entry.artifact.meta.id}.md`);
-    files.push({ path, contents: commandFile(entry) });
-    commandEntries.push({ id: entry.artifact.meta.id, path });
+    files.push({ path: commandPath(entry), copyFrom: entry.artifact.path });
+    commandEntries.push({ id: entry.artifact.meta.id, path: commandPath(entry) });
   }
   const usedSources = new Set(
     [...selection.rules, ...selection.skills, ...selection.commands, ...selection.claudeMd].map((entry) => entry.artifact.provenance?.source).filter((source) => source !== void 0)
@@ -12012,11 +11713,7 @@ function compose(stack, selection, generatorVersion, imported = []) {
   const manifest = {
     generator: `agent-stack@${generatorVersion}`,
     generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    stack: stack.technologies.map((tech) => ({
-      id: tech.id,
-      version: tech.version,
-      origin: tech.origin
-    })),
+    stack: stack.technologies.map((tech) => ({ id: tech.id, origin: tech.origin })),
     rules: ruleEntries.map(({ id, path }) => ({ id, path })),
     skills: skillEntries,
     commands: commandEntries,
@@ -12032,11 +11729,7 @@ function compose(stack, selection, generatorVersion, imported = []) {
   };
   files.push({ path: MANIFEST_PATH, contents: `${JSON.stringify(manifest, null, 2)}
 ` });
-  return {
-    files,
-    manifest,
-    claudeMdBlock: claudeMdBlock(selection.claudeMd, ruleEntries)
-  };
+  return { files, manifest, claudeMdBlock: claudeMdBlock(selection.claudeMd, ruleEntries) };
 }
 
 // src/emit.ts
@@ -12116,52 +11809,24 @@ function suggestions(catalog, name) {
 function resolveStack(catalog, input) {
   const resolved = /* @__PURE__ */ new Map();
   const warnings = [];
-  const add = (rawId, version, origin, requiredBy) => {
+  const add = (rawId, origin, requiredBy) => {
     const id = canonicalize(catalog, rawId);
-    if (!id) {
-      throw new UnknownTechnologyError(rawId, suggestions(catalog, rawId));
-    }
-    const tech = catalog.technologies[id];
-    if (!tech) {
+    const tech = id ? catalog.technologies[id] : void 0;
+    if (!id || !tech) {
       throw new UnknownTechnologyError(rawId, suggestions(catalog, rawId));
     }
     const existing = resolved.get(id);
     if (existing) {
       if (origin === "input") existing.origin = "input";
-      if (version && !existing.version) existing.version = version;
-      if (version && existing.version && existing.version !== version) {
-        warnings.push(
-          `${id}: version "${existing.version}" already selected, ignoring "${version}"`
-        );
-      }
       return;
     }
-    if (version && tech.supported_versions && !satisfies(version, tech.supported_versions)) {
-      warnings.push(
-        `${id} ${version} is outside the curated range "${tech.supported_versions}" \u2014 rules may not match this version`
-      );
-    }
-    resolved.set(id, {
-      id,
-      name: tech.name,
-      slot: tech.kind,
-      version,
-      origin,
-      requiredBy
-    });
+    resolved.set(id, { id, name: tech.name, origin, requiredBy });
     for (const required of tech.requires) {
-      add(required, void 0, "dependency", [id, ...requiredBy]);
+      add(required, "dependency", [id, ...requiredBy]);
     }
   };
-  for (const [slot, selections] of Object.entries(input)) {
-    for (const selection of selections) {
-      add(selection.tech, selection.version, "input", []);
-      const id = canonicalize(catalog, selection.tech);
-      const tech = id ? catalog.technologies[id] : void 0;
-      if (tech && tech.kind !== slot) {
-        warnings.push(`${id} is a ${tech.kind}, but was given as --${slot}`);
-      }
-    }
+  for (const name of input.framework) {
+    add(name, "input", []);
   }
   const ids = [...resolved.keys()].sort();
   const seen = /* @__PURE__ */ new Set();
@@ -12194,90 +11859,37 @@ function matches(artifact, stack) {
     return { ok: true, matchedBy: [] };
   }
   const matchedBy = [];
-  for (const entry of appliesTo) {
-    const tech = stack.technologies.find((t) => t.id === entry.tech);
-    if (!tech) {
-      return { ok: false, code: "absent", reason: `${entry.tech} is not in the stack` };
+  for (const id of appliesTo) {
+    if (!stack.technologies.some((tech) => tech.id === id)) {
+      return { ok: false, reason: `${id} is not in the stack` };
     }
-    if (entry.versions) {
-      if (!tech.version) {
-        return {
-          ok: false,
-          code: "unpinned",
-          reason: `${entry.tech} has no version pinned, but this artifact targets "${entry.versions}"`
-        };
-      }
-      if (!satisfies(tech.version, entry.versions)) {
-        return {
-          ok: false,
-          code: "out-of-range",
-          reason: `${entry.tech} ${tech.version} is outside "${entry.versions}"`
-        };
-      }
-    }
-    matchedBy.push(tech.id);
+    matchedBy.push(id);
   }
   return { ok: true, matchedBy };
 }
 function selectArtifacts(kb, stack) {
   const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
-  const byId = new Map(all.map((artifact) => [artifact.meta.id, artifact]));
   const selected = /* @__PURE__ */ new Map();
   const skipped = [];
   for (const artifact of all) {
     const result = matches(artifact, stack);
     if (result.ok) {
-      selected.set(artifact.meta.id, { artifact, origin: "matched", matchedBy: result.matchedBy });
+      selected.set(artifact.meta.id, { artifact, matchedBy: result.matchedBy });
     } else {
-      skipped.push({ artifact, code: result.code, reason: result.reason });
-    }
-  }
-  const unmetDependencies = [];
-  const queue = [...selected.values()].flatMap(
-    (entry) => entry.artifact.meta.dependencies.map((id) => ({ id, from: entry.artifact.meta.id }))
-  );
-  while (queue.length > 0) {
-    const { id, from } = queue.shift();
-    if (selected.has(id)) continue;
-    const artifact = byId.get(id);
-    if (!artifact) continue;
-    const index = skipped.findIndex((entry) => entry.artifact.meta.id === id);
-    const blocked = index >= 0 ? skipped[index] : void 0;
-    if (blocked && blocked.code !== "absent") {
-      unmetDependencies.push({ artifact: from, dependency: id, reason: blocked.reason });
-      continue;
-    }
-    selected.set(id, { artifact, origin: "dependency", matchedBy: [] });
-    if (index >= 0) skipped.splice(index, 1);
-    queue.push(...artifact.meta.dependencies.map((next) => ({ id: next, from: id })));
-  }
-  const conflicts = [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const { artifact } of selected.values()) {
-    for (const other of artifact.meta.conflicts_with) {
-      if (!selected.has(other)) continue;
-      const key = [artifact.meta.id, other].sort().join("+");
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const [left, right] = key.split("+");
-      conflicts.push({ left, right });
+      skipped.push({ artifact, reason: result.reason });
     }
   }
   const covered = new Set(
-    [...selected.values()].flatMap(
-      (entry) => entry.artifact.meta.applies_to.map((applies) => applies.tech)
-    )
+    [...selected.values()].flatMap((entry) => entry.artifact.meta.applies_to)
   );
   const uncovered = stack.technologies.filter((tech) => !covered.has(tech.id));
-  const order = (a, b) => a.artifact.meta.priority - b.artifact.meta.priority || a.artifact.meta.id.localeCompare(b.artifact.meta.id);
+  const order = (a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id);
   return {
     rules: [...selected.values()].filter((e) => e.artifact.meta.type === "rule").sort(order),
     skills: [...selected.values()].filter((e) => e.artifact.meta.type === "skill").sort(order),
     commands: [...selected.values()].filter((e) => e.artifact.meta.type === "command").sort(order),
     claudeMd: [...selected.values()].filter((e) => e.artifact.meta.type === "claude-md").sort(order),
     skipped: skipped.sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
-    unmetDependencies,
-    conflicts,
     uncovered
   };
 }
@@ -12289,40 +11901,11 @@ function validate(stack, selection, acceptedConflicts = []) {
   for (const conflict of stack.conflicts) {
     findings.push(conflictFinding(conflict, accepted.has(conflict.id)));
   }
-  for (const { left, right } of selection.conflicts) {
-    const id = [left, right].sort().join("+");
-    findings.push({
-      severity: accepted.has(id) ? "warning" : "error",
-      code: "artifact-conflict",
-      conflict: id,
-      message: `Rules "${left}" and "${right}" are declared incompatible${accepted.has(id) ? " (accepted)" : ""}`
-    });
-  }
-  if (!stack.technologies.some((tech) => tech.slot === "language")) {
+  if (stack.technologies.length === 0) {
     findings.push({
       severity: "error",
-      code: "missing-language",
-      message: "No language selected \u2014 the stack needs at least one (e.g. --language ruby@3.3)."
-    });
-  }
-  for (const tech of stack.technologies) {
-    if (tech.version) continue;
-    const blocked = selection.skipped.filter(
-      (entry) => entry.code === "unpinned" && entry.artifact.meta.applies_to.some((applies) => applies.tech === tech.id)
-    );
-    if (blocked.length > 0) {
-      findings.push({
-        severity: "error",
-        code: "missing-version",
-        message: `${tech.id} has no version pinned, so ${blocked.length} version-specific artifact(s) were skipped: ${blocked.map((entry) => entry.artifact.meta.id).join(", ")}. Pass ${tech.id}@<version>.`
-      });
-    }
-  }
-  for (const unmet of selection.unmetDependencies) {
-    findings.push({
-      severity: "warning",
-      code: "unmet-dependency",
-      message: `"${unmet.artifact}" depends on "${unmet.dependency}", which does not apply to this stack (${unmet.reason}) \u2014 it was not emitted.`
+      code: "missing-framework",
+      message: "No framework selected \u2014 the stack needs at least one (e.g. --framework rails)."
     });
   }
   for (const tech of selection.uncovered) {
@@ -12374,8 +11957,9 @@ Usage:
   agent-stack resolve <stack flags> [--json]         resolve dependencies, report conflicts
   agent-stack generate <stack flags> [options]       compose and write the output
 
-Stack flags (repeatable, "tech" or "tech@version"):
-${SLOTS.map((slot) => `  --${slot} <tech[@version]>`).join("\n")}
+Stack flags:
+  --framework <id>            the framework the project is built on (repeatable).
+                              It is the only input: nothing else is selectable.
 
 Options:
   --out <dir>                 target project directory (default: cwd)
@@ -12387,20 +11971,14 @@ Options:
 `;
 var UsageError = class extends Error {
 };
-function parseSelection(value) {
-  const at = value.lastIndexOf("@");
-  if (at <= 0) return { tech: value };
-  return { tech: value.slice(0, at), version: value.slice(at + 1) };
-}
 function parseArgs(argv2) {
-  const stack = {};
+  const framework = [];
   const acceptConflicts = [];
   let command = "";
   let out = process.cwd();
   let knowledge = DEFAULT_KNOWLEDGE;
   let write = false;
   let json = false;
-  const slots = new Set(SLOTS);
   for (let i = 0; i < argv2.length; i += 1) {
     const arg = argv2[i];
     const next = () => {
@@ -12426,10 +12004,10 @@ function parseArgs(argv2) {
       knowledge = isAbsolute(value) ? value : resolve(value);
     } else if (arg === "--accept-conflict") {
       acceptConflicts.push(next());
+    } else if (arg === "--framework") {
+      framework.push(next());
     } else if (arg.startsWith("--")) {
-      const slot = arg.slice(2);
-      if (!slots.has(slot)) throw new UsageError(`Unknown flag: ${arg}`);
-      (stack[slot] ??= []).push(parseSelection(next()));
+      throw new UsageError(`Unknown flag: ${arg}`);
     } else if (!command) {
       command = arg;
     } else {
@@ -12438,7 +12016,7 @@ function parseArgs(argv2) {
   }
   return {
     command: command || "help",
-    stack: techStackInputSchema.parse(stack),
+    stack: techStackInputSchema.parse({ framework }),
     out,
     write,
     json,
@@ -12448,9 +12026,8 @@ function parseArgs(argv2) {
 }
 function formatStack(stack) {
   return stack.technologies.map((tech) => {
-    const version = tech.version ? ` ${tech.version}` : "";
     const via = tech.origin === "dependency" ? ` (required by ${tech.requiredBy[0] ?? "unknown"})` : "";
-    return `  ${tech.id}${version} [${tech.slot}]${via}`;
+    return `  ${tech.id}${via}`;
   });
 }
 async function run(options) {
@@ -12468,22 +12045,20 @@ async function run(options) {
     const technologies = Object.entries(kb.catalog.technologies).map(([id, tech]) => ({
       id,
       name: tech.name,
-      kind: tech.kind,
       requires: tech.requires,
       conflicts_with: tech.conflicts_with,
-      supported_versions: tech.supported_versions,
-      artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd].filter((artifact) => artifact.meta.applies_to.some((a) => a.tech === id)).map((artifact) => artifact.meta.id)
+      artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd].filter((artifact) => artifact.meta.applies_to.includes(id)).map((artifact) => artifact.meta.id)
     }));
     if (options.json) {
       process.stdout.write(`${JSON.stringify({ technologies }, null, 2)}
 `);
       return 0;
     }
-    process.stdout.write(`Technologies (${technologies.length}):
+    process.stdout.write(`Frameworks (${technologies.length}):
 `);
     for (const tech of technologies) {
       const coverage = tech.artifacts.length > 0 ? `${tech.artifacts.length} artifact(s)` : "no content yet";
-      process.stdout.write(`  ${tech.id} [${tech.kind}] - ${coverage}
+      process.stdout.write(`  ${tech.id} - ${coverage}
 `);
     }
     process.stdout.write(
@@ -12561,7 +12136,7 @@ ${result.dryRun ? "Would write" : "Wrote"} ${result.write.length} file(s) in ${r
 function summarize(selection) {
   const describe = (entries) => entries.map((entry) => ({
     id: entry.artifact.meta.id,
-    name: entry.artifact.meta.name,
+    source: entry.artifact.source,
     layer: entry.artifact.meta.layer,
     matchedBy: entry.matchedBy,
     importedFrom: entry.artifact.provenance?.source
@@ -12573,17 +12148,15 @@ function summarize(selection) {
     claudeMd: describe(selection.claudeMd),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
-      code: entry.code,
       reason: entry.reason
-    })),
-    unmetDependencies: selection.unmetDependencies
+    }))
   };
 }
 function printReport(report) {
   const { counts } = report;
   process.stdout.write(
     `
-Selected ${counts.rules} rule(s), ${counts.skills} skill(s), ${counts.commands} command(s) and ${counts.claudeMd} CLAUDE.md fragment(s) for ${counts.technologies} technolog(ies).
+Selected ${counts.rules} rule(s), ${counts.skills} skill(s), ${counts.commands} command(s) and ${counts.claudeMd} CLAUDE.md fragment(s) for ${counts.technologies} framework(s).
 `
   );
   const errors = report.findings.filter((f) => f.severity === "error");

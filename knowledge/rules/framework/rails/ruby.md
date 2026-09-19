@@ -1,15 +1,4 @@
----
-id: ruby-conventions
-name: Ruby Conventions
-description: Style and idiom rules for Ruby code.
-type: rule
-layer: language
-priority: 30
-applies_to:
-  - tech: ruby
-    versions: ">=3.1 <4"
-tags: [ruby, style]
----
+# Ruby Conventions
 
 ## Style
 

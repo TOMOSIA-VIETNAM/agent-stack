@@ -1,141 +1,24 @@
-# Technology graph for agent-stack.
+# Framework graph for agent-stack.
 #
-# Every technology declares what it pulls in (`requires`) and what it cannot be
-# combined with (`conflicts_with`). The resolver expands `requires` transitively;
-# it never resolves a conflict on its own.
+# Every entry here is a framework, because a framework is the only thing an
+# operator selects (idea.md §2). There is no `kind` field: it would be the same
+# word on every row.
 #
-# A technology listed here without any rule or skill in knowledge/ is still
+# A framework listed here without any rule or skill in knowledge/ is still
 # valid: the validator reports it as "no content yet" instead of failing.
+#
+# Versions are deliberately absent. Selection is by framework alone, so a rule
+# applies to a framework, not to one of its releases.
+#
+# `requires` and `conflicts_with` still exist and are still enforced — the
+# resolver expands the first transitively and never settles the second on its
+# own — but no entry needs them yet.
 version: 1
 
 technologies:
-  # ---------------------------------------------------------------- languages
-  ruby:
-    name: Ruby
-    kind: language
-    aliases: [rb]
-    supported_versions: ">=3.1 <4"
-
-  php:
-    name: PHP
-    kind: language
-    supported_versions: ">=8.1 <9"
-
-  node:
-    name: Node.js
-    kind: language
-    aliases: [nodejs, javascript, typescript]
-    supported_versions: ">=20 <25"
-
-  # --------------------------------------------------------------- frameworks
   rails:
     name: Ruby on Rails
-    kind: framework
     aliases: [ror, "ruby-on-rails"]
-    requires: [ruby]
-    compatible_with: [postgresql, mysql, redis, sidekiq, stimulus, react, docker]
-    supported_versions: ">=7 <9"
 
   laravel:
     name: Laravel
-    kind: framework
-    requires: [php]
-    compatible_with: [postgresql, mysql, redis, docker]
-    supported_versions: ">=10 <13"
-
-  nestjs:
-    name: NestJS
-    kind: framework
-    aliases: [nest]
-    requires: [node]
-    compatible_with: [postgresql, mysql, redis, docker]
-    supported_versions: ">=10 <12"
-
-  # ------------------------------------------------------------------ libraries
-  # Active Record is not a technology here. It ships with Rails, so a separate
-  # entry would only let a stack select Rails without it and silently drop the
-  # Active Record rules; those declare `applies_to: rails` instead.
-  sidekiq:
-    name: Sidekiq
-    kind: library
-    requires: [ruby, redis]
-
-  # ------------------------------------------------------------------ frontend
-  # Rails ships Hotwire by default; a React SPA replaces that layer rather than
-  # living beside it, so the two are declared incompatible and the operator is
-  # asked which one the project actually uses (idea.md §4).
-  stimulus:
-    name: Stimulus
-    kind: frontend
-    aliases: [hotwire]
-    requires: [rails]
-    conflicts_with: [react]
-
-  react:
-    name: React
-    kind: frontend
-    requires: [node]
-    conflicts_with: [stimulus]
-
-  # ------------------------------------------------------------------ database
-  postgresql:
-    name: PostgreSQL
-    kind: database
-    aliases: [postgres, pg]
-    conflicts_with: [mysql]
-    supported_versions: ">=14 <18"
-
-  mysql:
-    name: MySQL
-    kind: database
-    conflicts_with: [postgresql]
-    supported_versions: ">=8 <9"
-
-  # --------------------------------------------------------------------- cache
-  redis:
-    name: Redis
-    kind: cache
-    supported_versions: ">=6 <9"
-
-  # ------------------------------------------------------------------- testing
-  rspec:
-    name: RSpec
-    kind: testing
-    requires: [ruby]
-    conflicts_with: [minitest]
-
-  minitest:
-    name: Minitest
-    kind: testing
-    requires: [ruby]
-    conflicts_with: [rspec]
-
-  # ------------------------------------------------------------ infrastructure
-  docker:
-    name: Docker
-    kind: infrastructure
-
-  aws:
-    name: AWS
-    kind: infrastructure
-
-  ecs:
-    name: Amazon ECS
-    kind: infrastructure
-    requires: [aws, docker]
-
-  rds:
-    name: Amazon RDS
-    kind: infrastructure
-    requires: [aws]
-
-  # -------------------------------------------------------------- architecture
-  monolith:
-    name: Monolith
-    kind: architecture
-    conflicts_with: [microservices]
-
-  microservices:
-    name: Microservices
-    kind: architecture
-    conflicts_with: [monolith]

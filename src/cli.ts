@@ -5,7 +5,7 @@ import { loadKnowledgeBase } from './catalog.js';
 import { compose } from './composer.js';
 import { emit } from './emit.js';
 import { resolveStack, UnknownTechnologyError, type ResolvedStack } from './resolver.js';
-import { SLOTS, techStackInputSchema, type Slot, type TechStackInput } from './schema.js';
+import { techStackInputSchema, type TechStackInput } from './schema.js';
 import { selectArtifacts } from './selector.js';
 import { validate } from './validator.js';
 
@@ -20,8 +20,9 @@ Usage:
   agent-stack resolve <stack flags> [--json]         resolve dependencies, report conflicts
   agent-stack generate <stack flags> [options]       compose and write the output
 
-Stack flags (repeatable, "tech" or "tech@version"):
-${SLOTS.map((slot) => `  --${slot} <tech[@version]>`).join('\n')}
+Stack flags:
+  --framework <id>            the framework the project is built on (repeatable).
+                              It is the only input: nothing else is selectable.
 
 Options:
   --out <dir>                 target project directory (default: cwd)
@@ -44,14 +45,8 @@ interface Options {
   acceptConflicts: string[];
 }
 
-function parseSelection(value: string): { tech: string; version?: string } {
-  const at = value.lastIndexOf('@');
-  if (at <= 0) return { tech: value };
-  return { tech: value.slice(0, at), version: value.slice(at + 1) };
-}
-
 function parseArgs(argv: string[]): Options {
-  const stack: Record<string, { tech: string; version?: string }[]> = {};
+  const framework: string[] = [];
   const acceptConflicts: string[] = [];
   let command = '';
   let out = process.cwd();
@@ -59,7 +54,6 @@ function parseArgs(argv: string[]): Options {
   let write = false;
   let json = false;
 
-  const slots = new Set<string>(SLOTS);
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -86,10 +80,10 @@ function parseArgs(argv: string[]): Options {
       knowledge = isAbsolute(value) ? value : resolve(value);
     } else if (arg === '--accept-conflict') {
       acceptConflicts.push(next());
+    } else if (arg === '--framework') {
+      framework.push(next());
     } else if (arg.startsWith('--')) {
-      const slot = arg.slice(2);
-      if (!slots.has(slot)) throw new UsageError(`Unknown flag: ${arg}`);
-      (stack[slot] ??= []).push(parseSelection(next()));
+      throw new UsageError(`Unknown flag: ${arg}`);
     } else if (!command) {
       command = arg;
     } else {
@@ -99,7 +93,7 @@ function parseArgs(argv: string[]): Options {
 
   return {
     command: command || 'help',
-    stack: techStackInputSchema.parse(stack),
+    stack: techStackInputSchema.parse({ framework }),
     out,
     write,
     json,
@@ -110,10 +104,9 @@ function parseArgs(argv: string[]): Options {
 
 function formatStack(stack: ResolvedStack): string[] {
   return stack.technologies.map((tech) => {
-    const version = tech.version ? ` ${tech.version}` : '';
     const via =
       tech.origin === 'dependency' ? ` (required by ${tech.requiredBy[0] ?? 'unknown'})` : '';
-    return `  ${tech.id}${version} [${tech.slot}]${via}`;
+    return `  ${tech.id}${via}`;
   });
 }
 
@@ -133,22 +126,20 @@ async function run(options: Options): Promise<number> {
     const technologies = Object.entries(kb.catalog.technologies).map(([id, tech]) => ({
       id,
       name: tech.name,
-      kind: tech.kind,
       requires: tech.requires,
       conflicts_with: tech.conflicts_with,
-      supported_versions: tech.supported_versions,
       artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd]
-        .filter((artifact) => artifact.meta.applies_to.some((a) => a.tech === id))
+        .filter((artifact) => artifact.meta.applies_to.includes(id))
         .map((artifact) => artifact.meta.id),
     }));
     if (options.json) {
       process.stdout.write(`${JSON.stringify({ technologies }, null, 2)}\n`);
       return 0;
     }
-    process.stdout.write(`Technologies (${technologies.length}):\n`);
+    process.stdout.write(`Frameworks (${technologies.length}):\n`);
     for (const tech of technologies) {
       const coverage = tech.artifacts.length > 0 ? `${tech.artifacts.length} artifact(s)` : 'no content yet';
-      process.stdout.write(`  ${tech.id} [${tech.kind}] - ${coverage}\n`);
+      process.stdout.write(`  ${tech.id} - ${coverage}\n`);
     }
     process.stdout.write(
       `\nRules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}  CLAUDE.md fragments: ${kb.claudeMd.length}\n`,
@@ -219,7 +210,7 @@ function summarize(selection: ReturnType<typeof selectArtifacts>) {
   const describe = (entries: typeof selection.rules) =>
     entries.map((entry) => ({
       id: entry.artifact.meta.id,
-      name: entry.artifact.meta.name,
+      source: entry.artifact.source,
       layer: entry.artifact.meta.layer,
       matchedBy: entry.matchedBy,
       importedFrom: entry.artifact.provenance?.source,
@@ -232,17 +223,15 @@ function summarize(selection: ReturnType<typeof selectArtifacts>) {
     claudeMd: describe(selection.claudeMd),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
-      code: entry.code,
       reason: entry.reason,
     })),
-    unmetDependencies: selection.unmetDependencies,
   };
 }
 
 function printReport(report: ReturnType<typeof validate>): void {
   const { counts } = report;
   process.stdout.write(
-    `\nSelected ${counts.rules} rule(s), ${counts.skills} skill(s), ${counts.commands} command(s) and ${counts.claudeMd} CLAUDE.md fragment(s) for ${counts.technologies} technolog(ies).\n`,
+    `\nSelected ${counts.rules} rule(s), ${counts.skills} skill(s), ${counts.commands} command(s) and ${counts.claudeMd} CLAUDE.md fragment(s) for ${counts.technologies} framework(s).\n`,
   );
   const errors = report.findings.filter((f) => f.severity === 'error');
   const warnings = report.findings.filter((f) => f.severity === 'warning');

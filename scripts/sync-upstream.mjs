@@ -75,8 +75,7 @@ for (const name of names) {
     console.log(`${name}: fetching ${source.repo} at ${ref}`);
     await checkout(source.repo, ref, work);
 
-    for (const [from, entry] of Object.entries(source.copy)) {
-      const to = typeof entry === 'string' ? entry : entry.to;
+    for (const [from, to] of Object.entries(source.copy)) {
       const target = join(KNOWLEDGE, to);
       await rm(target, { recursive: true, force: true });
       await mkdir(dirname(target), { recursive: true });

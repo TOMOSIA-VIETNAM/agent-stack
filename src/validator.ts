@@ -5,10 +5,7 @@ export interface Finding {
   severity: 'error' | 'warning';
   code:
     | 'stack-conflict'
-    | 'artifact-conflict'
-    | 'missing-language'
-    | 'missing-version'
-    | 'unmet-dependency'
+    | 'missing-framework'
     | 'uncovered-technology'
     | 'empty-output'
     | 'stack-warning';
@@ -46,49 +43,11 @@ export function validate(
     findings.push(conflictFinding(conflict, accepted.has(conflict.id)));
   }
 
-  for (const { left, right } of selection.conflicts) {
-    const id = [left, right].sort().join('+');
-    findings.push({
-      severity: accepted.has(id) ? 'warning' : 'error',
-      code: 'artifact-conflict',
-      conflict: id,
-      message: `Rules "${left}" and "${right}" are declared incompatible${
-        accepted.has(id) ? ' (accepted)' : ''
-      }`,
-    });
-  }
-
-  if (!stack.technologies.some((tech) => tech.slot === 'language')) {
+  if (stack.technologies.length === 0) {
     findings.push({
       severity: 'error',
-      code: 'missing-language',
-      message: 'No language selected — the stack needs at least one (e.g. --language ruby@3.3).',
-    });
-  }
-
-  for (const tech of stack.technologies) {
-    if (tech.version) continue;
-    const blocked = selection.skipped.filter(
-      (entry) =>
-        entry.code === 'unpinned' &&
-        entry.artifact.meta.applies_to.some((applies) => applies.tech === tech.id),
-    );
-    if (blocked.length > 0) {
-      findings.push({
-        severity: 'error',
-        code: 'missing-version',
-        message: `${tech.id} has no version pinned, so ${blocked.length} version-specific artifact(s) were skipped: ${blocked
-          .map((entry) => entry.artifact.meta.id)
-          .join(', ')}. Pass ${tech.id}@<version>.`,
-      });
-    }
-  }
-
-  for (const unmet of selection.unmetDependencies) {
-    findings.push({
-      severity: 'warning',
-      code: 'unmet-dependency',
-      message: `"${unmet.artifact}" depends on "${unmet.dependency}", which does not apply to this stack (${unmet.reason}) — it was not emitted.`,
+      code: 'missing-framework',
+      message: 'No framework selected — the stack needs at least one (e.g. --framework rails).',
     });
   }
 

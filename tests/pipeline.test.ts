@@ -13,11 +13,22 @@ import { upstreamSourceSchema } from '../src/upstream.js';
 
 const KNOWLEDGE = resolve(import.meta.dirname, '..', 'knowledge');
 
-async function run(input: Record<string, { tech: string; version?: string }[]>) {
+async function run(...framework: string[]) {
   const kb = await loadKnowledgeBase(KNOWLEDGE);
-  const stack = resolveStack(kb.catalog, techStackInputSchema.parse(input) as TechStackInput);
+  const stack = resolveStack(
+    kb.catalog,
+    techStackInputSchema.parse({ framework }) as TechStackInput,
+  );
   const selection = selectArtifacts(kb, stack);
   return { kb, stack, selection, report: validate(stack, selection) };
+}
+
+/** Generate into a fresh directory and hand back where it landed. */
+async function generate(...framework: string[]) {
+  const { kb, stack, selection, report } = await run(...framework);
+  const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+  await emit(out, compose(stack, selection, 'test', kb.imported), { dryRun: false });
+  return { kb, stack, selection, report, out };
 }
 
 describe('knowledge base', () => {
@@ -30,42 +41,37 @@ describe('knowledge base', () => {
 
 describe('selection', () => {
   it('always applies the global layer, which is imported', async () => {
-    const { selection } = await run({ language: [{ tech: 'ruby', version: '3.3' }] });
+    const { selection } = await run('rails');
     const global = selection.skills.filter((entry) => entry.artifact.meta.layer === 'global');
     expect(global.length).toBeGreaterThan(20);
     expect(global.map((entry) => entry.artifact.meta.id)).toContain('test-driven-development');
     expect(global.every((entry) => entry.artifact.provenance?.license === 'MIT')).toBe(true);
   });
 
-  it('selects language and framework layers for a Rails stack', async () => {
-    const { selection, report } = await run({
-      language: [{ tech: 'ruby', version: '3.3' }],
-      framework: [{ tech: 'rails', version: '7.1' }],
-      testing: [{ tech: 'rspec' }],
-    });
+  // The framework is the whole input, and the whole catalog: `--framework rails`
+  // is the only thing an operator types to get every Rails artifact.
+  it('selects the framework layer from the framework alone', async () => {
+    const { stack, selection, report } = await run('rails');
+    expect(stack.technologies.map((tech) => tech.id)).toEqual(['rails']);
+
     const ruleIds = selection.rules.map((entry) => entry.artifact.meta.id);
-    expect(ruleIds).toContain('ruby-conventions');
+    expect(ruleIds).toContain('rails-ruby');
     expect(ruleIds).toContain('rails-conventions');
-    expect(ruleIds).toContain('activerecord-conventions');
-    expect(ruleIds).toContain('rspec-conventions');
+    expect(ruleIds).toContain('rails-activerecord');
     expect(selection.skills.map((entry) => entry.artifact.meta.id)).toContain('rails-feature');
     expect(report.ok).toBe(true);
   });
 
-  // Picking a framework must bring everything the knowledge base knows about
-  // it. An artifact gated on a sub-technology the operator was never told to
-  // ask for drops out of the run silently, which is how the Active Record
-  // rules used to disappear from a plain Rails stack.
   it('emits every Rails artifact from the framework alone', async () => {
-    const { kb, selection } = await run({ framework: [{ tech: 'rails', version: '7.1' }] });
+    const { kb, selection } = await run('rails');
 
-    const railsArtifacts = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd]
-      .filter((artifact) => artifact.meta.applies_to.some((applies) => applies.tech === 'rails'))
+    const railsArtifacts = [...kb.rules, ...kb.skills, ...kb.commands]
+      .filter((artifact) => artifact.meta.applies_to.includes('rails'))
       .map((artifact) => artifact.meta.id);
     expect(railsArtifacts.length).toBeGreaterThan(1);
 
     const selectedIds = new Set(
-      [...selection.rules, ...selection.skills, ...selection.commands, ...selection.claudeMd].map(
+      [...selection.rules, ...selection.skills, ...selection.commands].map(
         (entry) => entry.artifact.meta.id,
       ),
     );
@@ -74,108 +80,104 @@ describe('selection', () => {
     }
   });
 
-  it('leaves an optional technology out until it is selected', async () => {
-    const { selection } = await run({ framework: [{ tech: 'rails', version: '7.1' }] });
-    expect(selection.rules.map((entry) => entry.artifact.meta.id)).not.toContain(
-      'rspec-conventions',
-    );
-  });
-
-  it('skips a framework rule whose version range does not match', async () => {
-    const { selection } = await run({
-      language: [{ tech: 'ruby', version: '3.3' }],
-      framework: [{ tech: 'rails', version: '6.1' }],
-    });
-    expect(selection.rules.map((entry) => entry.artifact.meta.id)).not.toContain(
+  it("leaves another framework's content out", async () => {
+    const { selection } = await run('laravel');
+    const ids = selection.rules.map((entry) => entry.artifact.meta.id);
+    expect(ids).not.toContain('rails-conventions');
+    expect(selection.skipped.map((entry) => entry.artifact.meta.id)).toContain(
       'rails-conventions',
     );
-    expect(selection.skipped.map((entry) => entry.reason).join(' ')).toContain('outside');
-  });
-
-  it('reports an unpinned version as an error instead of guessing', async () => {
-    const { report } = await run({
-      language: [{ tech: 'ruby' }],
-      framework: [{ tech: 'rails' }],
-    });
-    expect(report.ok).toBe(false);
-    expect(report.findings.map((f) => f.code)).toContain('missing-version');
   });
 });
 
 describe('validation', () => {
-  it('blocks on a declared conflict and names the waiver', async () => {
-    const { report } = await run({
-      language: [{ tech: 'ruby', version: '3.3' }],
-      framework: [{ tech: 'rails', version: '7.1' }],
-      frontend: [{ tech: 'stimulus' }, { tech: 'react' }],
-    });
+  it('blocks when no framework was given', async () => {
+    const { report } = await run();
     expect(report.ok).toBe(false);
-    const conflict = report.findings.find((f) => f.code === 'stack-conflict');
-    expect(conflict?.conflict).toBe('react+stimulus');
+    expect(report.findings.map((f) => f.code)).toContain('missing-framework');
   });
 
-  it('downgrades an accepted conflict to a warning', async () => {
+  it('blocks on a declared conflict and names the waiver', async () => {
     const kb = await loadKnowledgeBase(KNOWLEDGE);
+    // No catalog entry declares a conflict today, so declare one here: what is
+    // under test is that the run stops and names the waiver, not the pairing.
+    const catalog = {
+      ...kb.catalog,
+      technologies: {
+        ...kb.catalog.technologies,
+        rails: { ...kb.catalog.technologies.rails!, conflicts_with: ['laravel'] },
+      },
+    };
     const stack = resolveStack(
-      kb.catalog,
-      techStackInputSchema.parse({
-        language: [{ tech: 'ruby', version: '3.3' }],
-        framework: [{ tech: 'rails', version: '7.1' }],
-        frontend: [{ tech: 'stimulus' }, { tech: 'react' }],
-      }),
+      catalog,
+      techStackInputSchema.parse({ framework: ['rails', 'laravel'] }),
     );
     const selection = selectArtifacts(kb, stack);
-    const report = validate(stack, selection, ['react+stimulus']);
-    expect(report.ok).toBe(true);
-    expect(report.findings.some((f) => f.severity === 'warning' && f.code === 'stack-conflict')).toBe(
-      true,
+
+    const blocked = validate(stack, selection);
+    expect(blocked.ok).toBe(false);
+    expect(blocked.findings.find((f) => f.code === 'stack-conflict')?.conflict).toBe(
+      'laravel+rails',
     );
+
+    const accepted = validate(stack, selection, ['laravel+rails']);
+    expect(accepted.ok).toBe(true);
+    expect(
+      accepted.findings.some((f) => f.severity === 'warning' && f.code === 'stack-conflict'),
+    ).toBe(true);
   });
 
-  it('flags a technology the knowledge base does not cover yet', async () => {
-    const { report } = await run({
-      language: [{ tech: 'php', version: '8.2' }],
-      framework: [{ tech: 'laravel', version: '11' }],
-    });
+  it('flags a framework the knowledge base does not cover yet', async () => {
+    const { report } = await run('laravel');
     expect(report.findings.filter((f) => f.code === 'uncovered-technology').length).toBeGreaterThan(
       0,
     );
   });
 });
 
+// The whole point of the generator: a knowledge file is the operator's, and the
+// project gets a copy of it, not a rewrite of it.
+describe('emitted files are byte-for-byte copies', () => {
+  it('copies a rule, a skill, a skill attachment and a command unchanged', async () => {
+    const { out } = await generate('rails');
+
+    const pairs: [string, string][] = [
+      ['rules/framework/rails/conventions.md', '.claude/rules/rails-conventions.md'],
+      ['skills/framework/rails/rails-feature/SKILL.md', '.claude/skills/rails-feature/SKILL.md'],
+      ['skills/global/idea-refine/SKILL.md', '.claude/skills/idea-refine/SKILL.md'],
+      ['skills/global/idea-refine/frameworks.md', '.claude/skills/idea-refine/frameworks.md'],
+      ['commands/test.md', '.claude/commands/test.md'],
+    ];
+
+    for (const [source, emitted] of pairs) {
+      expect(await readFile(join(out, emitted), 'utf8')).toBe(
+        await readFile(join(KNOWLEDGE, source), 'utf8'),
+      );
+    }
+  });
+
+  it('adds no generator comment, heading or front matter of its own', async () => {
+    const { out } = await generate('rails');
+    const rule = await readFile(join(out, '.claude/rules/rails-conventions.md'), 'utf8');
+    expect(rule).not.toContain('generated by agent-stack');
+  });
+});
+
 describe('emit', () => {
-  const stackInput = {
-    language: [{ tech: 'ruby', version: '3.3' }],
-    framework: [{ tech: 'rails', version: '7.1' }],
-  };
-
   it('writes rules, skills, a manifest, and a CLAUDE.md block', async () => {
-    const { stack, selection } = await run(stackInput);
-    const composed = compose(stack, selection, 'test');
-    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
-
-    const result = await emit(out, composed, { dryRun: false });
-    expect(result.dryRun).toBe(false);
+    const { out, selection } = await generate('rails');
 
     const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
-    expect(claudeMd).toContain('@.claude/rules/30-ruby-conventions.md');
-    expect(claudeMd).toContain('@.claude/rules/40-rails-conventions.md');
-
-    const rule = await readFile(join(out, '.claude/rules/40-rails-conventions.md'), 'utf8');
-    expect(rule).not.toContain('applies_to:');
-    expect(rule).toContain('# Rails Conventions');
-
-    const skill = await readFile(join(out, '.claude/skills/rails-feature/SKILL.md'), 'utf8');
-    expect(skill).toContain('name: rails-feature');
-    expect(skill).not.toContain('priority:');
+    expect(claudeMd).toContain('@.claude/rules/rails-conventions.md');
+    expect(claudeMd).toContain('@.claude/rules/rails-ruby.md');
 
     const manifest = JSON.parse(await readFile(join(out, '.claude/agent-stack-manifest.json'), 'utf8'));
     expect(manifest.rules.length).toBe(selection.rules.length);
   });
 
   it('dry run writes nothing', async () => {
-    const { stack, selection } = await run(stackInput);
-    const composed = compose(stack, selection, 'test');
+    const { kb, stack, selection } = await run('rails');
+    const composed = compose(stack, selection, 'test', kb.imported);
     const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
 
     const result = await emit(out, composed, { dryRun: true });
@@ -188,99 +190,64 @@ describe('emit', () => {
     const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
     await writeFile(join(out, 'CLAUDE.md'), '# My project\n\nHand written notes.\n', 'utf8');
 
-    const wide = await run(stackInput);
+    const wide = await run('rails');
     await emit(out, compose(wide.stack, wide.selection, 'test'), { dryRun: false });
-    expect(
-      await readFile(join(out, '.claude/rules/42-activerecord-conventions.md'), 'utf8'),
-    ).toContain('Active Record');
+    expect(await readFile(join(out, '.claude/rules/rails-activerecord.md'), 'utf8')).toContain(
+      'Active Record',
+    );
 
-    const narrow = await run({ language: [{ tech: 'ruby', version: '3.3' }] });
+    const narrow = await run('laravel');
     const result = await emit(out, compose(narrow.stack, narrow.selection, 'test'), {
       dryRun: false,
     });
 
-    expect(result.remove).toContain('.claude/rules/42-activerecord-conventions.md');
+    expect(result.remove).toContain('.claude/rules/rails-activerecord.md');
     await expect(
-      readFile(join(out, '.claude/rules/42-activerecord-conventions.md'), 'utf8'),
+      readFile(join(out, '.claude/rules/rails-activerecord.md'), 'utf8'),
     ).rejects.toThrow();
 
     const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
     expect(claudeMd).toContain('Hand written notes.');
-    expect(claudeMd).not.toContain('40-rails-conventions');
+    expect(claudeMd).not.toContain('rails-conventions');
   });
 });
 
 describe('imported content', () => {
-  it('emits an upstream skill and command with provenance and a licence notice', async () => {
-    const { kb, stack, selection } = await run({
-      language: [{ tech: 'ruby', version: '3.3' }],
-    });
-    const composed = compose(stack, selection, 'test', kb.imported);
-    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
-    await emit(out, composed, { dryRun: false });
+  it('records provenance in the manifest rather than on every file', async () => {
+    const { out } = await generate('rails');
 
-    const skill = await readFile(
-      join(out, '.claude/skills/test-driven-development/SKILL.md'),
-      'utf8',
-    );
-    expect(skill).toContain('name: test-driven-development');
+    const skill = await readFile(join(out, '.claude/skills/test-driven-development/SKILL.md'), 'utf8');
     expect(skill).not.toContain('Copyright');
-
-    const command = await readFile(join(out, '.claude/commands/test.md'), 'utf8');
-    expect(command).toContain('description:');
-    expect(command).not.toContain('Copyright');
 
     const manifest = JSON.parse(await readFile(join(out, '.claude/agent-stack-manifest.json'), 'utf8'));
     expect(manifest.commands.map((c: { id: string }) => c.id)).toContain('test');
     expect(manifest.imported[0].ref).toMatch(/^[0-9a-f]{40}$/);
-    // Attribution lives once, in the manifest, rather than on every file.
     expect(manifest.imported[0].licenseUrl).toMatch(/^https:/);
     expect(manifest.imported[0].copyright).toContain('Copyright');
     expect(manifest.imported[0].license).toBe('MIT');
-  });
-
-  it('copies the files a skill references', async () => {
-    const { kb, stack, selection } = await run({
-      language: [{ tech: 'ruby', version: '3.3' }],
-    });
-    const composed = compose(stack, selection, 'test', kb.imported);
-    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
-    await emit(out, composed, { dryRun: false });
-
-    const referenced = await readFile(
-      join(out, '.claude/skills/idea-refine/frameworks.md'),
-      'utf8',
-    );
-    expect(referenced.length).toBeGreaterThan(0);
   });
 
   it('derives metadata from the directory, leaving upstream files untouched', async () => {
     const kb = await loadKnowledgeBase(KNOWLEDGE);
     const imported = kb.skills.find((s) => s.meta.id === 'test-driven-development');
     expect(imported?.meta.layer).toBe('global');
-    expect(imported?.meta.priority).toBe(20);
     expect(imported?.meta.applies_to).toEqual([]);
     expect(imported?.provenance?.license).toBe('MIT');
-
-    const onDisk = await readFile(
-      join(KNOWLEDGE, 'skills/global/test-driven-development/SKILL.md'),
-      'utf8',
-    );
-    expect(onDisk).not.toContain('priority:');
-    expect(onDisk).not.toContain('layer:');
   });
 
+  // The one type that is inlined rather than copied: it becomes part of the
+  // project's own CLAUDE.md, which is agent-stack's document to compose.
   it('inlines the imported guidelines into CLAUDE.md instead of a rule file', async () => {
-    const { kb, stack, selection } = await run({ language: [{ tech: 'ruby', version: '3.3' }] });
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await writeFile(join(out, 'CLAUDE.md'), '# My project\n\nHand written.\n', 'utf8');
+
+    const { kb, stack, selection } = await run('rails');
     const fragment = selection.claudeMd.find(
       (entry) => entry.artifact.meta.id === 'karpathy-guidelines',
     );
     expect(fragment?.artifact.meta.layer).toBe('global');
-    expect(fragment?.artifact.meta.description).toContain('assumptions');
     expect(fragment?.artifact.provenance?.license).toBe('MIT');
 
-    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
-    await writeFile(join(out, 'CLAUDE.md'), '# My project\n\nHand written.\n', 'utf8');
     const composed = compose(stack, selection, 'test', kb.imported);
     await emit(out, composed, { dryRun: false });
 
@@ -290,9 +257,9 @@ describe('imported content', () => {
     expect(claudeMd).not.toContain('Copyright');
     // The fragment's own title is dropped, so the project keeps a single h1.
     expect(claudeMd.match(/^# /gm)?.length).toBe(1);
-    expect(claudeMd).not.toContain('@.claude/rules/20-karpathy-guidelines.md');
+    expect(claudeMd).not.toContain('@.claude/rules/karpathy-guidelines.md');
 
-    // Nothing is emitted for it, and the manifest records where it came from.
+    // Nothing is emitted for it, and the manifest still records where it came from.
     expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('karpathy-guidelines');
     expect(composed.manifest.imported.map((entry) => entry.source)).toContain(
       'karpathy-guidelines',

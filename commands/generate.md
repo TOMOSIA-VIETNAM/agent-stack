@@ -1,13 +1,13 @@
 ---
 description: Generate .claude rules and skills for this project from the agent-stack knowledge base
-argument-hint: "[tech stack, e.g. ruby@3.3 rails@7.1 postgresql sidekiq]"
+argument-hint: "[framework, e.g. rails]"
 allowed-tools: Bash(node:*), Read, AskUserQuestion
 ---
 
 Generate the `.claude` rules and skills for the project in the current working
 directory, using the agent-stack knowledge base.
 
-Requested stack: $ARGUMENTS
+Requested framework(s): $ARGUMENTS
 
 The CLI is the only thing that decides *what* is generated. Your job is to turn the
 request into flags, relay conflicts to the user, and report the result. Never write a
@@ -22,17 +22,17 @@ current is `npm run sync`, run by a maintainer of this plugin, not by this comma
 ## 1. Map the request to flags
 
 Run `node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs catalog --json` and map each requested
-technology to a catalog id. Every flag is `--<slot> <id>[@<version>]`, where slot is
-one of: language, framework, frontend, database, cache, testing, infrastructure,
-architecture, library.
+framework to a catalog id. There is exactly one flag: `--framework <id>`, repeatable.
 
-- Use the `kind` from the catalog as the slot.
-- If a requested technology has no catalog id, do not guess a substitute: list the
+- **The catalog holds frameworks and nothing else.** There is no flag for a language,
+  database, cache or deploy target, and no catalog entry for one either. A run is
+  described entirely by which frameworks the project uses.
+- Versions are not part of the input. Do not ask for one and do not append `@`
+  anything — selection does not look at versions.
+- If a requested framework has no catalog id, do not guess a substitute: list the
   closest ids from the catalog and ask the user which they meant.
-- If the user gave no version for a language or framework, ask for it — version
-  ranges decide which rules apply, and an unpinned version silently drops them.
-- Dependencies are resolved by the CLI. Do not add `--language ruby` or
-  `--infrastructure docker` yourself because something implies them.
+- If the user named something that is not a framework (say `postgresql`), explain that
+  rules are selected per framework, and ask which framework the project uses.
 
 ## 2. Resolve and check
 
@@ -50,8 +50,7 @@ Read `report.findings`. Exit code 2 means at least one error-severity finding.
   generated rules. Never decide this silently.
   - Keeping one: drop the other's flag and resolve again.
   - Keeping both: add `--accept-conflict <report finding's conflict id>`.
-- **missing-version** — ask the user for the version and add it to the flag.
-- **missing-language** — ask which language the project uses.
+- **missing-framework** — nothing was selected. Ask which framework the project uses.
 - **uncovered-technology** (warning) — the technology is valid but the knowledge base
   has no content for it yet. Report it; do not treat it as a failure.
 
@@ -62,7 +61,7 @@ Repeat until the resolve step exits 0.
 Run the generate step without `--write` first and show the user the file list:
 
 ```
-node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs generate <flags> --out . 
+node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs generate <flags> --out .
 ```
 
 The output lists every file that would be created or overwritten, and any stale file

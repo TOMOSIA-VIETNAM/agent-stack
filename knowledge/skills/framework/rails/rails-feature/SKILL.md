@@ -1,14 +1,6 @@
 ---
-id: rails-feature
 name: rails-feature
 description: Implement a new user-facing feature in a Rails application — route, controller, model, service, view, and specs — in the order that keeps the app deployable at every step. Use when adding or changing a screen, endpoint, or user-visible behaviour in a Rails codebase.
-type: skill
-layer: framework
-priority: 40
-applies_to:
-  - tech: rails
-    versions: ">=7 <9"
-tags: [rails, feature, workflow]
 ---
 
 Work through the steps in order. Do not skip ahead to code.

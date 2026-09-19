@@ -4,71 +4,54 @@ import { resolveStack, UnknownTechnologyError } from '../src/resolver.js';
 
 const catalog = catalogSchema.parse({
   version: 1,
+  // `requires` and `conflicts_with` carry no entries in the real catalog today,
+  // so exercise them on a synthetic one: they are the resolver's whole job.
   technologies: {
-    ruby: { name: 'Ruby', kind: 'language', supported_versions: '>=3.1 <4' },
-    node: { name: 'Node.js', kind: 'language' },
-    rails: { name: 'Rails', kind: 'framework', aliases: ['ror'], requires: ['ruby'] },
-    stimulus: { name: 'Stimulus', kind: 'frontend', requires: ['rails'], conflicts_with: ['react'] },
-    react: { name: 'React', kind: 'frontend', requires: ['node'], conflicts_with: ['stimulus'] },
-    aws: { name: 'AWS', kind: 'infrastructure' },
-    docker: { name: 'Docker', kind: 'infrastructure' },
-    ecs: { name: 'ECS', kind: 'infrastructure', requires: ['aws', 'docker'] },
+    rails: { name: 'Rails', aliases: ['ror'], requires: ['rails-api'] },
+    'rails-api': { name: 'Rails API', requires: ['rails-core'] },
+    'rails-core': { name: 'Rails Core' },
+    laravel: { name: 'Laravel', conflicts_with: ['rails'] },
   },
 });
 
-const stack = (input: Record<string, { tech: string; version?: string }[]>) =>
-  resolveStack(catalog, techStackInputSchema.parse(input));
+const stack = (framework: string[]) =>
+  resolveStack(catalog, techStackInputSchema.parse({ framework }));
 
 describe('resolveStack', () => {
   it('pulls in transitive requirements', () => {
-    const result = stack({ infrastructure: [{ tech: 'ecs' }] });
-    expect(result.technologies.map((t) => t.id)).toEqual(['aws', 'docker', 'ecs']);
-    expect(result.technologies.find((t) => t.id === 'docker')?.origin).toBe('dependency');
-    expect(result.technologies.find((t) => t.id === 'ecs')?.origin).toBe('input');
+    const result = stack(['rails']);
+    expect(result.technologies.map((t) => t.id)).toEqual(['rails', 'rails-api', 'rails-core']);
+    expect(result.technologies.find((t) => t.id === 'rails-core')?.origin).toBe('dependency');
+    expect(result.technologies.find((t) => t.id === 'rails')?.origin).toBe('input');
   });
 
   it('records the chain that required a dependency', () => {
-    const result = stack({ frontend: [{ tech: 'stimulus' }] });
-    expect(result.technologies.find((t) => t.id === 'ruby')?.requiredBy).toEqual([
+    const result = stack(['rails']);
+    expect(result.technologies.find((t) => t.id === 'rails-core')?.requiredBy).toEqual([
+      'rails-api',
       'rails',
-      'stimulus',
     ]);
   });
 
   it('resolves aliases', () => {
-    const result = stack({ framework: [{ tech: 'ror', version: '7.1' }] });
-    expect(result.technologies.find((t) => t.id === 'rails')?.version).toBe('7.1');
+    const result = stack(['ROR']);
+    expect(result.technologies.map((t) => t.id)).toContain('rails');
   });
 
   it('reports declared conflicts without resolving them', () => {
-    const result = stack({ frontend: [{ tech: 'stimulus' }, { tech: 'react' }] });
+    const result = stack(['rails', 'laravel']);
     expect(result.conflicts).toHaveLength(1);
-    expect(result.conflicts[0]?.id).toBe('react+stimulus');
-    expect(result.technologies.map((t) => t.id)).toContain('react');
-    expect(result.technologies.map((t) => t.id)).toContain('stimulus');
-  });
-
-  it('warns when a version falls outside the curated range', () => {
-    const result = stack({ language: [{ tech: 'ruby', version: '2.7' }] });
-    expect(result.warnings.join(' ')).toContain('outside the curated range');
-  });
-
-  it('warns when a technology is given in the wrong slot', () => {
-    const result = stack({ database: [{ tech: 'ruby' }] });
-    expect(result.warnings.join(' ')).toContain('is a language');
+    expect(result.conflicts[0]?.id).toBe('laravel+rails');
+    expect(result.technologies.map((t) => t.id)).toContain('rails');
+    expect(result.technologies.map((t) => t.id)).toContain('laravel');
   });
 
   it('keeps an explicit selection over the same technology arriving as a dependency', () => {
-    const result = stack({
-      language: [{ tech: 'ruby', version: '3.3' }],
-      framework: [{ tech: 'rails' }],
-    });
-    const ruby = result.technologies.find((t) => t.id === 'ruby');
-    expect(ruby?.origin).toBe('input');
-    expect(ruby?.version).toBe('3.3');
+    const result = stack(['rails-api', 'rails']);
+    expect(result.technologies.find((t) => t.id === 'rails-api')?.origin).toBe('input');
   });
 
   it('rejects an unknown technology instead of guessing', () => {
-    expect(() => stack({ framework: [{ tech: 'railz' }] })).toThrow(UnknownTechnologyError);
+    expect(() => stack(['railz'])).toThrow(UnknownTechnologyError);
   });
 });

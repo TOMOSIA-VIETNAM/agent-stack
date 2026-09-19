@@ -1,112 +1,138 @@
 import { describe, expect, it } from 'vitest';
 import type { Artifact } from '../src/catalog.js';
+import { metaFromPath } from '../src/catalog.js';
 import { resolveStack } from '../src/resolver.js';
-import { artifactMetaSchema, catalogSchema, techStackInputSchema } from '../src/schema.js';
+import { catalogSchema, techStackInputSchema } from '../src/schema.js';
 import { selectArtifacts } from '../src/selector.js';
-import { validate } from '../src/validator.js';
 
 const catalog = catalogSchema.parse({
   version: 1,
   technologies: {
-    ruby: { name: 'Ruby', kind: 'language' },
-    rails: { name: 'Rails', kind: 'framework', requires: ['ruby'] },
-    redis: { name: 'Redis', kind: 'cache' },
+    rails: { name: 'Rails', requires: ['rails-engine'] },
+    'rails-engine': { name: 'Rails Engine' },
+    laravel: { name: 'Laravel' },
   },
 });
 
-/** A rule with only the metadata these tests care about. */
-function rule(meta: Record<string, unknown>): Artifact {
+/** A rule identified the way the loader identifies one: by its path. */
+function rule(source: string): Artifact {
   return {
-    meta: artifactMetaSchema.parse({
-      name: 'Test',
-      description: 'Test',
-      type: 'rule',
-      layer: 'framework',
-      priority: 40,
-      ...meta,
-    }),
-    body: '## Test\n',
+    meta: metaFromPath(source, 'rule'),
+    path: `/knowledge/${source}`,
     dir: '/knowledge',
-    source: 'rules/framework/test.md',
+    source,
+    files: [],
   };
 }
 
 function kb(rules: Artifact[]) {
-  return { root: '/knowledge', catalog, rules, skills: [], commands: [], claudeMd: [], imported: [] };
+  return {
+    root: '/knowledge',
+    catalog,
+    rules,
+    skills: [],
+    commands: [],
+    claudeMd: [],
+    imported: [],
+  };
 }
 
-const select = (rules: Artifact[], input: Record<string, { tech: string; version?: string }[]>) => {
-  const stack = resolveStack(catalog, techStackInputSchema.parse(input));
+const select = (rules: Artifact[], framework: string[]) => {
+  const stack = resolveStack(catalog, techStackInputSchema.parse({ framework }));
   return { stack, selection: selectArtifacts(kb(rules), stack) };
 };
 
-describe('dependencies', () => {
-  const dependent = rule({ id: 'dependent', applies_to: [{ tech: 'rails' }] });
-
-  it('pulls in a dependency whose technology is absent from the stack', () => {
-    const dependency = rule({ id: 'dependency', applies_to: [{ tech: 'redis' }] });
-    const { selection } = select([{ ...dependent, meta: { ...dependent.meta, dependencies: ['dependency'] } }, dependency], {
-      framework: [{ tech: 'rails' }],
+describe('metaFromPath', () => {
+  it('reads the layer, the gate and the id off the path', () => {
+    expect(metaFromPath('rules/framework/rails/security.md', 'rule')).toEqual({
+      id: 'rails-security',
+      type: 'rule',
+      layer: 'framework',
+      applies_to: ['rails'],
     });
-
-    const ids = selection.rules.map((entry) => entry.artifact.meta.id);
-    expect(ids).toContain('dependency');
-    expect(selection.rules.find((e) => e.artifact.meta.id === 'dependency')?.origin).toBe(
-      'dependency',
-    );
-    expect(selection.unmetDependencies).toHaveLength(0);
+    expect(metaFromPath('rules/framework/rails/db/indexes.md', 'rule')).toEqual({
+      id: 'rails-db-indexes',
+      type: 'rule',
+      layer: 'framework',
+      applies_to: ['rails'],
+    });
+    expect(metaFromPath('rules/global/karpathy-guidelines.md', 'rule')).toEqual({
+      id: 'karpathy-guidelines',
+      type: 'rule',
+      layer: 'global',
+      applies_to: [],
+    });
+    expect(metaFromPath('commands/test.md', 'command')).toEqual({
+      id: 'test',
+      type: 'command',
+      layer: 'global',
+      applies_to: [],
+    });
   });
 
-  // A dependency used to override every skip reason, so a rule that declared
-  // `versions` could be dragged into a stack it explicitly does not target.
-  it('does not let a dependency override a version range', () => {
-    const dependency = rule({
-      id: 'dependency',
-      applies_to: [{ tech: 'rails', versions: '>=7 <9' }],
+  // A skill's name is a flat namespace Claude matches against, so the enclosing
+  // framework directory groups without becoming part of the name.
+  it('takes a skill id from its own directory, not the joined path', () => {
+    expect(metaFromPath('skills/framework/rails/rails-feature/SKILL.md', 'skill')).toEqual({
+      id: 'rails-feature',
+      type: 'skill',
+      layer: 'framework',
+      applies_to: ['rails'],
     });
-    const { stack, selection } = select(
-      [{ ...dependent, meta: { ...dependent.meta, dependencies: ['dependency'] } }, dependency],
-      { framework: [{ tech: 'rails', version: '6.1' }] },
-    );
-
-    expect(selection.rules.map((entry) => entry.artifact.meta.id)).not.toContain('dependency');
-    expect(selection.skipped.map((entry) => entry.artifact.meta.id)).toContain('dependency');
-    expect(selection.unmetDependencies).toEqual([
-      { artifact: 'dependent', dependency: 'dependency', reason: 'rails 6.1 is outside ">=7 <9"' },
-    ]);
-
-    const report = validate(stack, selection);
-    expect(report.findings.map((f) => f.code)).toContain('unmet-dependency');
-    expect(report.ok).toBe(true);
+    expect(metaFromPath('skills/global/test-driven-development/SKILL.md', 'skill')).toEqual({
+      id: 'test-driven-development',
+      type: 'skill',
+      layer: 'global',
+      applies_to: [],
+    });
   });
 
-  it('does not let a dependency override an unpinned version either', () => {
-    const dependency = rule({
-      id: 'dependency',
-      applies_to: [{ tech: 'rails', versions: '>=7 <9' }],
-    });
-    const { selection } = select(
-      [{ ...dependent, meta: { ...dependent.meta, dependencies: ['dependency'] } }, dependency],
-      { framework: [{ tech: 'rails' }] },
+  it('rejects a path that cannot become a filename under .claude/', () => {
+    expect(() => metaFromPath('rules/framework/rails/Strong_Params.md', 'rule')).toThrow(
+      /lowercase kebab-case/,
     );
-
-    expect(selection.rules.map((entry) => entry.artifact.meta.id)).not.toContain('dependency');
-    expect(selection.unmetDependencies[0]?.dependency).toBe('dependency');
   });
 
-  it('records the skip reason as a code rather than a message to parse', () => {
+  it('rejects a framework artifact that names no framework directory', () => {
+    expect(() => metaFromPath('rules/framework/security.md', 'rule')).toThrow(
+      /says which framework it applies to/,
+    );
+  });
+});
+
+describe('matching', () => {
+  it('requires every applies_to entry to be in the stack', () => {
     const { selection } = select(
       [
-        rule({ id: 'absent', applies_to: [{ tech: 'redis' }] }),
-        rule({ id: 'unpinned', applies_to: [{ tech: 'rails', versions: '>=7 <9' }] }),
-        rule({ id: 'out-of-range', applies_to: [{ tech: 'ruby', versions: '>=3.3' }] }),
+        rule('rules/framework/rails/security.md'),
+        rule('rules/framework/rails-engine/wiring.md'),
+        rule('rules/framework/laravel/conventions.md'),
+        rule('rules/global/always.md'),
       ],
-      { framework: [{ tech: 'rails' }], language: [{ tech: 'ruby', version: '3.1' }] },
+      ['rails'],
     );
 
-    const codes = Object.fromEntries(
-      selection.skipped.map((entry) => [entry.artifact.meta.id, entry.code]),
-    );
-    expect(codes).toEqual({ absent: 'absent', unpinned: 'unpinned', 'out-of-range': 'out-of-range' });
+    // Alphabetical by id, which is the emitted filename.
+    expect(selection.rules.map((entry) => entry.artifact.meta.id)).toEqual([
+      'always',
+      'rails-engine-wiring',
+      'rails-security',
+    ]);
+    expect(selection.skipped.map((entry) => entry.artifact.meta.id)).toEqual([
+      'laravel-conventions',
+    ]);
+    expect(selection.skipped[0]?.reason).toBe('laravel is not in the stack');
+  });
+
+  it('records which frameworks selected an artifact', () => {
+    const { selection } = select([rule('rules/framework/rails/security.md')], ['rails']);
+    expect(selection.rules[0]?.matchedBy).toEqual(['rails']);
+  });
+});
+
+describe('coverage', () => {
+  it('reports a technology no artifact targets', () => {
+    const { selection } = select([rule('rules/framework/rails/security.md')], ['rails']);
+    expect(selection.uncovered.map((tech) => tech.id)).toEqual(['rails-engine']);
   });
 });
