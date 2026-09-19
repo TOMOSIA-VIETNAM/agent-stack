@@ -58,7 +58,7 @@ function suggestions(catalog: Catalog, name: string): string[] {
 
 /**
  * Expand the selected frameworks over the `requires` graph, then report every
- * declared conflict between the resulting technologies (idea.md §3 and §4).
+ * declared conflict between the resulting technologies.
  *
  * Conflicts are never resolved here: the caller decides, either by dropping a
  * framework or by accepting the conflict explicitly.

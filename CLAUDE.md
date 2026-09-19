@@ -147,5 +147,6 @@ The global layer is copied from other repositories and committed here, pinned to
   *why* when the reason is not obvious.
 - Conventional Commits, imperative subject under 72 characters. The body explains why.
 
-`idea.md` is the original brief. Phase 1 is what exists; natural-language stack input
-and full project bootstrap are not built yet.
+`MY_IDEA.md` states the project's purpose in plain language — read it for *why*, and this
+file for *how*. What exists today is framework selection; natural-language input and full
+project bootstrap are not built yet.

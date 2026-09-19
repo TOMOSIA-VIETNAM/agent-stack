@@ -27,9 +27,9 @@ export interface ValidationReport {
 }
 
 /**
- * Completeness and consistency of a resolved stack plus its selection
- * (idea.md §6). Conflicts explicitly accepted by the caller are downgraded to
- * warnings; nothing is ever resolved silently.
+ * Completeness and consistency of a resolved stack plus its selection.
+ * Conflicts explicitly accepted by the caller are downgraded to warnings;
+ * nothing is ever resolved silently.
  */
 export function validate(
   stack: ResolvedStack,

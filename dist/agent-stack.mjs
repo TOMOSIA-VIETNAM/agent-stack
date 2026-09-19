@@ -11423,9 +11423,9 @@ var technologySchema = external_exports.object({
   name: external_exports.string().min(1),
   aliases: external_exports.array(external_exports.string().min(1)).default([]),
   /**
-   * Transitively pulled in when this framework is selected (idea.md §3). No
-   * entry uses it today; it stays because the graph, not the current catalog,
-   * is what the resolver is for.
+   * Transitively pulled in when this framework is selected. No entry uses it
+   * today; it stays because the graph, not the current catalog, is what the
+   * resolver is for.
    */
   requires: external_exports.array(idSchema).default([]),
   compatible_with: external_exports.array(idSchema).default([]),

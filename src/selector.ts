@@ -47,7 +47,7 @@ function matches(artifact: Artifact, stack: ResolvedStack): MatchResult {
   return { ok: true, matchedBy };
 }
 
-/** Choose the rules and skills that cover the resolved stack (idea.md §5). */
+/** Choose the rules and skills that cover the resolved stack. */
 export function selectArtifacts(kb: KnowledgeBase, stack: ResolvedStack): Selection {
   const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
 

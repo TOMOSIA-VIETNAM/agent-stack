@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Knowledge base layers, in the order they are applied (idea.md §1).
+ * Knowledge base layers, in the order they are applied.
  *
  * Two, not three: every catalog entry is a framework, so there is no language
  * to gate a layer of its own on. Ruby style rules are Rails rules here.
@@ -31,9 +31,9 @@ export const technologySchema = z.object({
   name: z.string().min(1),
   aliases: z.array(z.string().min(1)).default([]),
   /**
-   * Transitively pulled in when this framework is selected (idea.md §3). No
-   * entry uses it today; it stays because the graph, not the current catalog,
-   * is what the resolver is for.
+   * Transitively pulled in when this framework is selected. No entry uses it
+   * today; it stays because the graph, not the current catalog, is what the
+   * resolver is for.
    */
   requires: z.array(idSchema).default([]),
   compatible_with: z.array(idSchema).default([]),
