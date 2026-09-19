@@ -5,6 +5,7 @@ import { loadKnowledgeBase } from './catalog.js';
 import { compose } from './composer.js';
 import { emit } from './emit.js';
 import { resolveStack, UnknownTechnologyError, type ResolvedStack } from './resolver.js';
+import { renderTable } from './table.js';
 import { techStackInputSchema, type TechStackInput } from './schema.js';
 import { selectArtifacts } from './selector.js';
 import { validate } from './validator.js';
@@ -123,11 +124,36 @@ async function run(options: Options): Promise<number> {
   const kb = await loadKnowledgeBase(options.knowledge);
 
   if (options.command === 'catalog') {
+    // What a run on this framework emits: its own artifacts plus the global
+    // layer, which is selected whatever the framework is.
+    const emitted = (entries: typeof kb.rules, id: string) =>
+      entries.filter(
+        (artifact) =>
+          artifact.meta.applies_to.length === 0 || artifact.meta.applies_to.includes(id),
+      );
+    const own = (entries: typeof kb.rules, id: string) =>
+      entries.filter((artifact) => artifact.meta.applies_to.includes(id));
+    const global = (entries: typeof kb.rules) =>
+      entries.filter((artifact) => artifact.meta.applies_to.length === 0);
+
     const technologies = Object.entries(kb.catalog.technologies).map(([id, tech]) => ({
       id,
       name: tech.name,
       requires: tech.requires,
       conflicts_with: tech.conflicts_with,
+      counts: {
+        rules: emitted(kb.rules, id).length,
+        skills: emitted(kb.skills, id).length,
+        commands: emitted(kb.commands, id).length,
+        claudeMd: emitted(kb.claudeMd, id).length,
+      },
+      /** Of those, the ones written for this framework — where the gaps show. */
+      own: {
+        rules: own(kb.rules, id).length,
+        skills: own(kb.skills, id).length,
+        commands: own(kb.commands, id).length,
+        claudeMd: own(kb.claudeMd, id).length,
+      },
       artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd]
         .filter((artifact) => artifact.meta.applies_to.includes(id))
         .map((artifact) => artifact.meta.id),
@@ -136,13 +162,32 @@ async function run(options: Options): Promise<number> {
       process.stdout.write(`${JSON.stringify({ technologies }, null, 2)}\n`);
       return 0;
     }
-    process.stdout.write(`Frameworks (${technologies.length}):\n`);
-    for (const tech of technologies) {
-      const coverage = tech.artifacts.length > 0 ? `${tech.artifacts.length} artifact(s)` : 'no content yet';
-      process.stdout.write(`  ${tech.id} - ${coverage}\n`);
-    }
+    process.stdout.write(`Frameworks (${technologies.length})\n\n`);
     process.stdout.write(
-      `\nRules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}  CLAUDE.md fragments: ${kb.claudeMd.length}\n`,
+      `${renderTable(
+        [
+          { header: 'id' },
+          { header: 'name' },
+          { header: 'rules', align: 'right' },
+          { header: 'skills', align: 'right' },
+          { header: 'commands', align: 'right' },
+        ],
+        technologies.map((tech) => [
+          tech.id,
+          tech.name,
+          // A zero renders as an em dash, so a framework with no content yet
+          // reads as a row of blanks rather than a row of noughts.
+          ...[tech.counts.rules, tech.counts.skills, tech.counts.commands].map((n) =>
+            n > 0 ? String(n) : '',
+          ),
+        ]),
+      )}\n`,
+    );
+    process.stdout.write(
+      `\n  Every row counts the global layer too, which applies whatever the framework:\n` +
+        `  ${global(kb.rules).length} rule(s), ${global(kb.skills).length} skill(s), ` +
+        `${global(kb.commands).length} command(s), ` +
+        `${global(kb.claudeMd).length} CLAUDE.md fragment(s).\n`,
     );
     const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
     for (const source of kb.imported) {
@@ -253,7 +298,18 @@ try {
     process.stderr.write(`${message}\n\n${USAGE}`);
     process.exitCode = 64;
   } else if (error instanceof UnknownTechnologyError) {
-    process.stderr.write(`${message}\n`);
+    // The one thing the operator had to type correctly. Show what was on offer
+    // rather than making them run `catalog` to find out.
+    const catalog =
+      error.known.length > 0
+        ? `\nThe catalog has ${error.known.length} framework${
+            error.known.length === 1 ? '' : 's'
+          }:\n\n${renderTable(
+            [{ header: 'id' }, { header: 'name' }],
+            error.known.map((entry) => [entry.id, entry.name]),
+          )}\n`
+        : '\nThe catalog has no frameworks.\n';
+    process.stderr.write(`${message}\n${catalog}`);
     process.exitCode = 65;
   } else {
     process.stderr.write(`${message}\n`);

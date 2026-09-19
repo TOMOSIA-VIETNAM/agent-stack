@@ -29,7 +29,6 @@ const idSchema = z
  */
 export const technologySchema = z.object({
   name: z.string().min(1),
-  aliases: z.array(z.string().min(1)).default([]),
   /**
    * Transitively pulled in when this framework is selected. No entry uses it
    * today; it stays because the graph, not the current catalog, is what the

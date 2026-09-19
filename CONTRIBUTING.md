@@ -67,8 +67,8 @@ node dist/agent-stack.mjs generate --framework rails --out /tmp/scratch
 
 ## Changing the knowledge base
 
-Read the **Knowledge base** section of [CLAUDE.md](CLAUDE.md) first — it defines the
-layer convention and what each directory in a path means.
+Read [knowledge/README.md](knowledge/README.md) first — it is the reference for what
+each directory in a path means and what lands where.
 
 The short version:
 

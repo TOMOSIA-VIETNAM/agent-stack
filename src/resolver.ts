@@ -24,36 +24,83 @@ export interface ResolvedStack {
   warnings: string[];
 }
 
+/** One catalog entry, as the error reports it. */
+export interface KnownFramework {
+  id: string;
+  name: string;
+}
+
+/**
+ * The operator mistyped the one thing they had to get right.
+ *
+ * The error carries what it knows — the near miss, and every framework the
+ * catalog holds — and leaves the rendering to cli.ts, which owns human output.
+ */
 export class UnknownTechnologyError extends Error {
+  /** The catalog id this was probably meant to be, when one is close. */
+  readonly suggestion: string | undefined;
+
   constructor(
     readonly tech: string,
-    readonly suggestions: string[],
+    readonly known: KnownFramework[],
   ) {
-    const hint = suggestions.length > 0 ? ` Did you mean: ${suggestions.join(', ')}?` : '';
-    super(`Unknown technology "${tech}".${hint}`);
+    const suggestion = closest(tech, known);
+    super(
+      `Unknown framework "${tech}".${suggestion ? ` Did you mean "${suggestion}"?` : ''}`,
+    );
     this.name = 'UnknownTechnologyError';
+    this.suggestion = suggestion;
   }
+}
+
+/** Levenshtein distance, for naming a near miss rather than only listing. */
+function distance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(current[j - 1]! + 1, previous[j]! + 1, previous[j - 1]! + cost);
+    }
+    previous = current;
+  }
+  return previous[b.length]!;
+}
+
+/**
+ * The closest id, when one is close enough to be worth naming. A substring
+ * either way counts — "lara" for laravel — and otherwise the typo has to be
+ * within a third of the id's length.
+ */
+export function closest(input: string, known: KnownFramework[]): string | undefined {
+  const needle = input.trim().toLowerCase();
+  if (needle === '') return undefined;
+
+  let best: { id: string; score: number } | undefined;
+  for (const { id } of known) {
+    const value = id.toLowerCase();
+    const score = value.includes(needle) || needle.includes(value) ? 0 : distance(needle, value);
+    const limit = Math.max(2, Math.floor(value.length / 3));
+    if (score <= limit && (best === undefined || score < best.score)) {
+      best = { id, score };
+    }
+  }
+  return best?.id;
 }
 
 function conflictId(a: string, b: string): string {
   return [a, b].sort().join('+');
 }
 
-/** Resolve an alias or id to a catalog id, or undefined when unknown. */
+/** An id, however it was capitalized or padded, or undefined when unknown. */
 export function canonicalize(catalog: Catalog, name: string): string | undefined {
   const needle = name.trim().toLowerCase();
-  if (catalog.technologies[needle]) return needle;
-  for (const [id, tech] of Object.entries(catalog.technologies)) {
-    if (tech.aliases.some((alias) => alias.toLowerCase() === needle)) return id;
-  }
-  return undefined;
+  return catalog.technologies[needle] ? needle : undefined;
 }
 
-function suggestions(catalog: Catalog, name: string): string[] {
-  const needle = name.trim().toLowerCase();
-  return Object.keys(catalog.technologies)
-    .filter((id) => id.includes(needle) || needle.includes(id))
-    .slice(0, 5);
+/** Everything the catalog would have accepted, for the error to print. */
+export function knownFrameworks(catalog: Catalog): KnownFramework[] {
+  return Object.entries(catalog.technologies).map(([id, tech]) => ({ id, name: tech.name }));
 }
 
 /**
@@ -75,7 +122,7 @@ export function resolveStack(catalog: Catalog, input: TechStackInput): ResolvedS
     const id = canonicalize(catalog, rawId);
     const tech = id ? catalog.technologies[id] : undefined;
     if (!id || !tech) {
-      throw new UnknownTechnologyError(rawId, suggestions(catalog, rawId));
+      throw new UnknownTechnologyError(rawId, knownFrameworks(catalog));
     }
 
     const existing = resolved.get(id);

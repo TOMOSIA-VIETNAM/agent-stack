@@ -45,6 +45,7 @@ One concern per module. Put a change where the concern already lives:
 | `composer.ts` | Deciding where each file lands, merging the CLAUDE.md block |
 | `validator.ts` | Completeness and consistency findings |
 | `emit.ts` | The only module that writes or deletes |
+| `table.ts` | Box-drawn tables for human output, and nothing else |
 | `cli.ts` | Flags, human and `--json` output |
 
 **`emit.ts` may only remove paths listed in the previous run's manifest.** Never widen
@@ -121,6 +122,7 @@ CLAUDE.md fragment = guidance that belongs in the project's CLAUDE.md itself.
 to read: `name` and `description` in a `SKILL.md`, `description` in a command, nothing at
 all in a rule if you want nothing. Put no agent-stack metadata in a file — there is none
 to put, and anything you add is copied into every generated project.
+`knowledge/README.md` is the full reference for the layout.
 
 **A fragment is the one thing inlined rather than copied**, because it becomes part of a
 document agent-stack composes. Only there, and only for that reason, are two things

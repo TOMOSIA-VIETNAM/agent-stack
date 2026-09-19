@@ -11421,7 +11421,6 @@ var LAYERS = ["global", "framework"];
 var idSchema = external_exports.string().regex(/^[a-z0-9][a-z0-9-]*$/, "ids are lowercase kebab-case");
 var technologySchema = external_exports.object({
   name: external_exports.string().min(1),
-  aliases: external_exports.array(external_exports.string().min(1)).default([]),
   /**
    * Transitively pulled in when this framework is selected. No entry uses it
    * today; it stays because the graph, not the current catalog, is what the
@@ -11784,28 +11783,54 @@ async function emit(outDir, composed, options) {
 
 // src/resolver.ts
 var UnknownTechnologyError = class extends Error {
-  constructor(tech, suggestions2) {
-    const hint = suggestions2.length > 0 ? ` Did you mean: ${suggestions2.join(", ")}?` : "";
-    super(`Unknown technology "${tech}".${hint}`);
+  constructor(tech, known) {
+    const suggestion = closest(tech, known);
+    super(
+      `Unknown framework "${tech}".${suggestion ? ` Did you mean "${suggestion}"?` : ""}`
+    );
     this.tech = tech;
-    this.suggestions = suggestions2;
+    this.known = known;
     this.name = "UnknownTechnologyError";
+    this.suggestion = suggestion;
   }
+  /** The catalog id this was probably meant to be, when one is close. */
+  suggestion;
 };
+function distance(a, b) {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+function closest(input, known) {
+  const needle = input.trim().toLowerCase();
+  if (needle === "") return void 0;
+  let best;
+  for (const { id } of known) {
+    const value = id.toLowerCase();
+    const score = value.includes(needle) || needle.includes(value) ? 0 : distance(needle, value);
+    const limit = Math.max(2, Math.floor(value.length / 3));
+    if (score <= limit && (best === void 0 || score < best.score)) {
+      best = { id, score };
+    }
+  }
+  return best?.id;
+}
 function conflictId(a, b) {
   return [a, b].sort().join("+");
 }
 function canonicalize(catalog, name) {
   const needle = name.trim().toLowerCase();
-  if (catalog.technologies[needle]) return needle;
-  for (const [id, tech] of Object.entries(catalog.technologies)) {
-    if (tech.aliases.some((alias) => alias.toLowerCase() === needle)) return id;
-  }
-  return void 0;
+  return catalog.technologies[needle] ? needle : void 0;
 }
-function suggestions(catalog, name) {
-  const needle = name.trim().toLowerCase();
-  return Object.keys(catalog.technologies).filter((id) => id.includes(needle) || needle.includes(id)).slice(0, 5);
+function knownFrameworks(catalog) {
+  return Object.entries(catalog.technologies).map(([id, tech]) => ({ id, name: tech.name }));
 }
 function resolveStack(catalog, input) {
   const resolved = /* @__PURE__ */ new Map();
@@ -11814,7 +11839,7 @@ function resolveStack(catalog, input) {
     const id = canonicalize(catalog, rawId);
     const tech = id ? catalog.technologies[id] : void 0;
     if (!id || !tech) {
-      throw new UnknownTechnologyError(rawId, suggestions(catalog, rawId));
+      throw new UnknownTechnologyError(rawId, knownFrameworks(catalog));
     }
     const existing = resolved.get(id);
     if (existing) {
@@ -11851,6 +11876,30 @@ function resolveStack(catalog, input) {
   }
   const technologies = ids.map((id) => resolved.get(id));
   return { technologies, conflicts, warnings };
+}
+
+// src/table.ts
+function width(value) {
+  return [...value].length;
+}
+function pad(value, to, align) {
+  const gap = " ".repeat(Math.max(0, to - width(value)));
+  return align === "right" ? `${gap}${value}` : `${value}${gap}`;
+}
+function renderTable(columns, rows, indent = "  ") {
+  const cell = (row, index) => row[index]?.trim() || "\u2014";
+  const widths = columns.map(
+    (column, index) => Math.max(width(column.header), ...rows.map((row) => width(cell(row, index))), 1)
+  );
+  const line = (left, fill, join5, right) => `${indent}${left}${widths.map((w) => fill.repeat(w + 2)).join(join5)}${right}`;
+  const body = (cells) => `${indent}\u2502 ${columns.map((column, index) => pad(cells[index] ?? "", widths[index], column.align)).join(" \u2502 ")} \u2502`;
+  return [
+    line("\u250C", "\u2500", "\u252C", "\u2510"),
+    body(columns.map((column) => column.header)),
+    line("\u251C", "\u2500", "\u253C", "\u2524"),
+    ...rows.map((row) => body(columns.map((_, index) => cell(row, index)))),
+    line("\u2514", "\u2500", "\u2534", "\u2518")
+  ].join("\n");
 }
 
 // src/selector.ts
@@ -12043,11 +12092,29 @@ async function run(options) {
   }
   const kb = await loadKnowledgeBase(options.knowledge);
   if (options.command === "catalog") {
+    const emitted = (entries, id) => entries.filter(
+      (artifact) => artifact.meta.applies_to.length === 0 || artifact.meta.applies_to.includes(id)
+    );
+    const own = (entries, id) => entries.filter((artifact) => artifact.meta.applies_to.includes(id));
+    const global = (entries) => entries.filter((artifact) => artifact.meta.applies_to.length === 0);
     const technologies = Object.entries(kb.catalog.technologies).map(([id, tech]) => ({
       id,
       name: tech.name,
       requires: tech.requires,
       conflicts_with: tech.conflicts_with,
+      counts: {
+        rules: emitted(kb.rules, id).length,
+        skills: emitted(kb.skills, id).length,
+        commands: emitted(kb.commands, id).length,
+        claudeMd: emitted(kb.claudeMd, id).length
+      },
+      /** Of those, the ones written for this framework — where the gaps show. */
+      own: {
+        rules: own(kb.rules, id).length,
+        skills: own(kb.skills, id).length,
+        commands: own(kb.commands, id).length,
+        claudeMd: own(kb.claudeMd, id).length
+      },
       artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd].filter((artifact) => artifact.meta.applies_to.includes(id)).map((artifact) => artifact.meta.id)
     }));
     if (options.json) {
@@ -12055,16 +12122,34 @@ async function run(options) {
 `);
       return 0;
     }
-    process.stdout.write(`Frameworks (${technologies.length}):
+    process.stdout.write(`Frameworks (${technologies.length})
+
 `);
-    for (const tech of technologies) {
-      const coverage = tech.artifacts.length > 0 ? `${tech.artifacts.length} artifact(s)` : "no content yet";
-      process.stdout.write(`  ${tech.id} - ${coverage}
-`);
-    }
+    process.stdout.write(
+      `${renderTable(
+        [
+          { header: "id" },
+          { header: "name" },
+          { header: "rules", align: "right" },
+          { header: "skills", align: "right" },
+          { header: "commands", align: "right" }
+        ],
+        technologies.map((tech) => [
+          tech.id,
+          tech.name,
+          // A zero renders as an em dash, so a framework with no content yet
+          // reads as a row of blanks rather than a row of noughts.
+          ...[tech.counts.rules, tech.counts.skills, tech.counts.commands].map(
+            (n) => n > 0 ? String(n) : ""
+          )
+        ])
+      )}
+`
+    );
     process.stdout.write(
       `
-Rules: ${kb.rules.length}  Skills: ${kb.skills.length}  Commands: ${kb.commands.length}  CLAUDE.md fragments: ${kb.claudeMd.length}
+  Every row counts the global layer too, which applies whatever the framework:
+  ${global(kb.rules).length} rule(s), ${global(kb.skills).length} skill(s), ${global(kb.commands).length} command(s), ${global(kb.claudeMd).length} CLAUDE.md fragment(s).
 `
     );
     const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
@@ -12183,8 +12268,16 @@ try {
 ${USAGE}`);
     process.exitCode = 64;
   } else if (error instanceof UnknownTechnologyError) {
+    const catalog = error.known.length > 0 ? `
+The catalog has ${error.known.length} framework${error.known.length === 1 ? "" : "s"}:
+
+${renderTable(
+      [{ header: "id" }, { header: "name" }],
+      error.known.map((entry) => [entry.id, entry.name])
+    )}
+` : "\nThe catalog has no frameworks.\n";
     process.stderr.write(`${message}
-`);
+${catalog}`);
     process.exitCode = 65;
   } else {
     process.stderr.write(`${message}

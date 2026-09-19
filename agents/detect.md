@@ -34,7 +34,8 @@ node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs catalog --json
 
 This is the only source of valid framework ids. A framework that is not in the catalog
 cannot be selected, however clearly the repository uses it — note it for the report
-rather than inventing a flag.
+rather than inventing a flag. If a run is rejected with exit 65, its message already
+names the near miss and lists every framework on offer; relay it rather than guessing.
 
 ## 2. Detect the framework
 

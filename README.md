@@ -205,7 +205,7 @@ Không có cờ cho ngôn ngữ, database, cache hay hạ tầng — và cũng k
 
 ## Knowledge base
 
-`knowledge/` chính là sản phẩm.
+`knowledge/` chính là sản phẩm. Xem [knowledge/README.md](knowledge/README.md) để biết chi tiết từng thư mục và cách thêm nội dung.
 
 ```
 knowledge/
@@ -258,7 +258,7 @@ Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 
 ## Phạm vi hiện có
 
-**Layer 1 — global.** Copy từ hai dự án MIT tại commit được ghim trong `upstream.yaml`: 25 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), và bộ hướng dẫn hành vi từ [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), được inline thẳng vào `CLAUDE.md` của mọi dự án. Tất cả đã commit ở đây, nên generate không cần network. `npm run sync` copy lại tại commit đã ghim — xem [Nội dung import](#nội-dung-import--đừng-đụng-vào).
+**Layer 1 — global.** Copy từ hai dự án MIT tại commit được ghim trong `upstream.yaml`: 25 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), và bộ hướng dẫn hành vi từ [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), được inline thẳng vào `CLAUDE.md` của mọi dự án. Tất cả đã commit ở đây, nên generate không cần network. `npm run sync` copy lại tại commit đã ghim — xem [knowledge/README.md](knowledge/README.md#imported-content).
 
 **Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record, tất cả gate bằng `rails`.
 
@@ -271,7 +271,7 @@ Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 
 Phần này đi hết một ví dụ chạy được thật: bổ sung nội dung Laravel. Laravel đã có sẵn trong catalog nhưng chưa có rule hay skill nào, nên hiện tại `/generate laravel` chỉ ra được layer global.
 
-Phần này cho biết thứ tự làm và những chỗ dễ sai.
+Đọc [knowledge/README.md](knowledge/README.md) trước — nó là bản tham chiếu đầy đủ. Phần này cho biết thứ tự làm và những chỗ dễ sai.
 
 ### Bước 0 — Chuẩn bị
 
@@ -294,7 +294,6 @@ Chỉ có thế. Không có `kind`: mọi entry đều là framework, nên một
 | Trường | Ý nghĩa |
 | --- | --- |
 | `name` | Bắt buộc. Tên cho người đọc |
-| `aliases` | Tên khác mà người dùng có thể gõ, ví dụ `["lumen"]` |
 | `requires` | Kéo vào **tự động, theo chiều lên**, đệ quy. Chưa entry nào cần, nhưng một framework dựng trên framework khác thì dùng tới |
 | `conflicts_with` | Báo cáo, **không bao giờ tự hoà giải**. Lần chạy dừng lại và in ra cờ bỏ qua |
 | `compatible_with` | Chỉ để tài liệu, không được kiểm tra |

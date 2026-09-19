@@ -21,6 +21,9 @@ conflicts with, and the artifacts that target it.
 Otherwise summarize:
 
 - how many frameworks the catalog declares — that is all it holds,
+- for each of them, `counts` — what a run on that framework emits, the global layer
+  included — and `own`, the part written for that framework, which is where the gaps
+  show,
 - which of them have rules or skills, and which have none yet (these are the gaps
   worth filling next),
 - the total rule, skill and command count, and for each imported source, how many

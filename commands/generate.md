@@ -29,8 +29,9 @@ framework to a catalog id. There is exactly one flag: `--framework <id>`, repeat
   described entirely by which frameworks the project uses.
 - Versions are not part of the input. Do not ask for one and do not append `@`
   anything — selection does not look at versions.
-- If a requested framework has no catalog id, do not guess a substitute: list the
-  closest ids from the catalog and ask the user which they meant.
+- If a requested framework has no catalog id, do not guess a substitute. The CLI exits
+  65, names the near miss, and prints a table of every framework the catalog holds —
+  relay that output as it is, and ask the user which they meant.
 - If the user named something that is not a framework (say `postgresql`), explain that
   rules are selected per framework, and ask which framework the project uses.
 

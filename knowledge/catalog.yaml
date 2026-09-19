@@ -18,7 +18,6 @@ version: 1
 technologies:
   rails:
     name: Ruby on Rails
-    aliases: [ror, "ruby-on-rails"]
 
   laravel:
     name: Laravel
