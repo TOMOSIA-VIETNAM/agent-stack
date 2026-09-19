@@ -94,10 +94,12 @@ npm run sync                      # re-copy at the pinned commit
 npm run sync -- --ref <40-char sha>   # move the pin, then copy
 ```
 
-Destination directories are replaced wholesale, so an upstream deletion propagates
-here. Review the diff — it shows every changed line, which is the point of committing
-the content rather than fetching it — then run `npm test` and commit the pin move
-together with the files it brought in.
+A sync removes only the files the previous one delivered, which `upstream.lock.json`
+records. An upstream deletion still propagates — that file was in the record and is not
+in the new snapshot — while anything you wrote by hand beside the imported files stays,
+because it was never in the record. Review the diff — it shows every changed line, which
+is the point of committing the content rather than fetching it — then run `npm test` and
+commit the pin move, the lock file and the content it brought in together.
 
 Only a full 40-character SHA is accepted. Do not point a source at a branch.
 

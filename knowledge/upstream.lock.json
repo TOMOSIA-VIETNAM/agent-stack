@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "sources": {
+    "agent-skills": {
+      "ref": "a120596f6d7ff9b967a3f5e0331ea911376ee5ef",
+      "files": [
+        "commands/build.md",
+        "commands/code-simplify.md",
+        "commands/constraints.md",
+        "commands/plan.md",
+        "commands/review.md",
+        "commands/ship.md",
+        "commands/spec.md",
+        "commands/test.md",
+        "commands/webperf.md",
+        "skills/global/api-and-interface-design/SKILL.md",
+        "skills/global/browser-testing-with-devtools/SKILL.md",
+        "skills/global/ci-cd-and-automation/SKILL.md",
+        "skills/global/code-review-and-quality/SKILL.md",
+        "skills/global/code-simplification/SKILL.md",
+        "skills/global/constraint-driven-development/SKILL.md",
+        "skills/global/constraint-driven-development/references/floor-guard.md",
+        "skills/global/context-engineering/SKILL.md",
+        "skills/global/debugging-and-error-recovery/SKILL.md",
+        "skills/global/deprecation-and-migration/SKILL.md",
+        "skills/global/documentation-and-adrs/SKILL.md",
+        "skills/global/doubt-driven-development/SKILL.md",
+        "skills/global/frontend-ui-engineering/SKILL.md",
+        "skills/global/git-workflow-and-versioning/SKILL.md",
+        "skills/global/idea-refine/SKILL.md",
+        "skills/global/idea-refine/examples.md",
+        "skills/global/idea-refine/frameworks.md",
+        "skills/global/idea-refine/refinement-criteria.md",
+        "skills/global/idea-refine/scripts/idea-refine.sh",
+        "skills/global/incremental-implementation/SKILL.md",
+        "skills/global/interview-me/SKILL.md",
+        "skills/global/observability-and-instrumentation/SKILL.md",
+        "skills/global/performance-optimization/SKILL.md",
+        "skills/global/planning-and-task-breakdown/SKILL.md",
+        "skills/global/security-and-hardening/SKILL.md",
+        "skills/global/shipping-and-launch/SKILL.md",
+        "skills/global/source-driven-development/SKILL.md",
+        "skills/global/spec-driven-development/SKILL.md",
+        "skills/global/test-driven-development/SKILL.md",
+        "skills/global/using-agent-skills/SKILL.md"
+      ]
+    },
+    "karpathy-guidelines": {
+      "ref": "2c606141936f1eeef17fa3043a72095b4765b9c2",
+      "files": [
+        "claude-md/karpathy-guidelines.md"
+      ]
+    }
+  }
+}

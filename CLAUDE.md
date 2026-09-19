@@ -128,7 +128,11 @@ The global layer is copied from other repositories and committed here, pinned to
 - **Never edit a file under a path `upstream.yaml` maps to.** The next sync overwrites
   it. Anything an imported file lacks — a description, a layer — is declared in
   `upstream.yaml` or derived from the path.
-- **Never author new files there either.** The next sync deletes them.
+- **Writing your own file beside the imported ones is fine.** A sync removes only what
+  the previous sync delivered, recorded in `upstream.lock.json`, so a file that was never
+  in that record is never a candidate for removal. Commit the lock file with the content
+  it describes — without it, the next sync cannot tell an upstream deletion from your
+  work, and removes nothing at all.
 - Moving a pin is a reviewable commit: `npm run sync -- --ref <sha>`, then read the diff
   of what it brought in.
 - Attribution lives once per generated project, in `.claude/agent-stack-manifest.json` under

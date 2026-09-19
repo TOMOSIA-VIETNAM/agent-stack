@@ -448,7 +448,7 @@ artifacts on `laravel` so a plain `--framework laravel` run emits them.
 Layer global được copy từ repo khác và ghim theo SHA 40 ký tự.
 
 - **Không sửa file nào nằm dưới đường dẫn mà `upstream.yaml` ánh xạ tới.** Lần sync sau sẽ ghi đè.
-- **Cũng không tạo file mới ở đó.** Lần sync sau sẽ xoá.
+- **Viết file của riêng bạn cạnh nội dung import thì được.** Sync chỉ xoá đúng những file lần sync trước đã mang về, ghi trong `upstream.lock.json`. File chưa từng nằm trong danh sách đó không bao giờ bị đụng tới. Nhớ commit file lock cùng nội dung nó mô tả — thiếu nó, lần sync kế tiếp không phân biệt được đâu là file upstream đã bỏ và đâu là công sức của bạn, nên nó không xoá gì cả.
 - Dời pin là một commit cần review: `npm run sync -- --ref <sha>`, rồi đọc diff xem nó mang gì vào.
 
 Thứ một file import thiếu — description, layer — được khai trong `upstream.yaml` hoặc suy ra từ đường dẫn, chứ không thêm vào file đã copy.
