@@ -1,6 +1,6 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadKnowledgeBase } from '../src/catalog.js';
 import { compose, mergeClaudeMd, BEGIN_MARKER, END_MARKER } from '../src/composer.js';
@@ -290,5 +290,96 @@ describe('mergeClaudeMd', () => {
     expect(merged).toContain('trailing');
     expect(merged).toContain('new');
     expect(merged).not.toContain('old');
+  });
+});
+
+// A project can be built on more than one framework, and two frameworks will
+// naturally want a rule called the same thing. The directory disambiguates it.
+describe('two frameworks at once', () => {
+  const CATALOG = 'version: 1\ntechnologies:\n  rails:\n    name: Ruby on Rails\n  laravel:\n    name: Laravel\n';
+
+  async function tempKnowledge(files: Record<string, string>) {
+    const root = await mkdtemp(join(tmpdir(), 'agent-stack-kb-'));
+    await writeFile(join(root, 'catalog.yaml'), CATALOG, 'utf8');
+    for (const [path, contents] of Object.entries(files)) {
+      const target = join(root, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, contents, 'utf8');
+    }
+    return root;
+  }
+
+  it('gives two rules of the same name distinct files, each a copy of its own source', async () => {
+    const kbRoot = await tempKnowledge({
+      'rules/framework/rails/conventions.md': '# Rails conventions\n\nController rules.\n',
+      'rules/framework/laravel/conventions.md': '# Laravel conventions\n\nController rules.\n',
+    });
+
+    const kb = await loadKnowledgeBase(kbRoot);
+    const stack = resolveStack(
+      kb.catalog,
+      techStackInputSchema.parse({ framework: ['rails', 'laravel'] }),
+    );
+    const selection = selectArtifacts(kb, stack);
+    const report = validate(stack, selection);
+    expect(report.ok).toBe(true);
+
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await emit(out, compose(stack, selection, 'test'), { dryRun: false });
+
+    // Same filename under knowledge/, two different files in the project.
+    expect(selection.rules.map((entry) => entry.artifact.meta.id).sort()).toEqual([
+      'laravel-conventions',
+      'rails-conventions',
+    ]);
+    for (const framework of ['rails', 'laravel']) {
+      expect(
+        await readFile(join(out, `.claude/rules/${framework}-conventions.md`), 'utf8'),
+      ).toBe(await readFile(join(kbRoot, `rules/framework/${framework}/conventions.md`), 'utf8'));
+    }
+
+    const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
+    expect(claudeMd).toContain('@.claude/rules/laravel-conventions.md');
+    expect(claudeMd).toContain('@.claude/rules/rails-conventions.md');
+  });
+
+  it('keeps each framework out of the other, selecting only one at a time', async () => {
+    const kbRoot = await tempKnowledge({
+      'rules/framework/rails/conventions.md': '# Rails\n',
+      'rules/framework/laravel/conventions.md': '# Laravel\n',
+    });
+    const kb = await loadKnowledgeBase(kbRoot);
+    const stack = resolveStack(kb.catalog, techStackInputSchema.parse({ framework: ['rails'] }));
+
+    expect(selectArtifacts(kb, stack).rules.map((e) => e.artifact.meta.id)).toEqual([
+      'rails-conventions',
+    ]);
+  });
+
+  // A skill is named by its own directory, because that name is what Claude
+  // matches a task against. Two frameworks cannot both claim it, and renaming
+  // one behind the author's back would change the name Claude sees.
+  it('refuses a knowledge base where two skills would claim the same name', async () => {
+    const kbRoot = await tempKnowledge({
+      'skills/framework/rails/feature/SKILL.md': '---\nname: feature\ndescription: x\n---\n',
+      'skills/framework/laravel/feature/SKILL.md': '---\nname: feature\ndescription: y\n---\n',
+    });
+
+    await expect(loadKnowledgeBase(kbRoot)).rejects.toThrow(
+      /duplicate skill id "feature".*put the framework in that name/s,
+    );
+  });
+
+  it('accepts the same two skills once their directories name the framework', async () => {
+    const kbRoot = await tempKnowledge({
+      'skills/framework/rails/rails-feature/SKILL.md': '---\nname: rails-feature\ndescription: x\n---\n',
+      'skills/framework/laravel/laravel-feature/SKILL.md': '---\nname: laravel-feature\ndescription: y\n---\n',
+    });
+
+    const kb = await loadKnowledgeBase(kbRoot);
+    expect(kb.skills.map((skill) => skill.meta.id).sort()).toEqual([
+      'laravel-feature',
+      'rails-feature',
+    ]);
   });
 });

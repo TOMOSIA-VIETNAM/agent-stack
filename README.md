@@ -231,6 +231,9 @@ Bốn thứ đọc từ đường dẫn, và **không thứ gì** đọc từ tr
 
 Lồng sâu bao nhiêu cũng được dưới thư mục framework — `rails/db/indexes.md` ra `rails-db-indexes`.
 
+> [!NOTE]
+> **Chọn nhiều framework một lúc thì rule trùng tên vẫn an toàn.** Thư mục framework đã nằm trong id, nên `rails/conventions.md` và `laravel/conventions.md` ra hai file riêng, cùng tồn tại. Riêng **skill** thì không có tiền tố đó — id là tên thư mục của chính nó, vì đó là tên Claude dùng để khớp task. Hai thư mục skill trùng tên sẽ báo lỗi lúc nạp và nêu cả hai đường dẫn, thay vì tự đổi tên sau lưng bạn.
+
 Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 
 | Loại | Nó là gì | Nạp khi nào |

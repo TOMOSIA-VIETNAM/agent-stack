@@ -217,8 +217,16 @@ export function lintKnowledgeBase(kb: KnowledgeBase): string[] {
     const key = `${artifact.meta.type}:${artifact.meta.id}`;
     const existing = byId.get(key);
     if (existing) {
+      // A rule or command carries its framework directory in its id, so two of
+      // them cannot collide across frameworks. A skill is named by its own
+      // directory alone — deliberately, because that name is what Claude
+      // matches a task against — so the author has to make it unique.
+      const hint =
+        artifact.meta.type === 'skill'
+          ? ' — a skill is named by its own directory, so put the framework in that name'
+          : '';
       problems.push(
-        `duplicate ${artifact.meta.type} id "${artifact.meta.id}" (${existing.source}, ${artifact.source})`,
+        `duplicate ${artifact.meta.type} id "${artifact.meta.id}" (${existing.source}, ${artifact.source})${hint}`,
       );
       continue;
     }

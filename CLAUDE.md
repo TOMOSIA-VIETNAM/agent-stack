@@ -102,6 +102,13 @@ A skill's id is its own directory name, not the joined path: skill names are a f
 namespace Claude matches a task against, so write the framework into the skill's own name
 (`rails-feature`, not `rails/feature`).
 
+**A project can select more than one framework**, and two of them will want a rule called
+the same thing. For a rule or a command the framework directory is already part of the id,
+so `rails/conventions.md` and `laravel/conventions.md` emit side by side and never collide.
+A skill has no such prefix, so two skill directories of the same name are a load-time error
+naming both files — renaming one behind the author's back would change the name Claude
+matches against.
+
 Ordering is alphabetical by that id, on disk and in the `@`-imports alike. There is no
 `priority` field, and no numeric prefix, because a field that exists only to fight the
 sort order is one more thing to keep in sync.

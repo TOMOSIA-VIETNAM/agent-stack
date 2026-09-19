@@ -11605,8 +11605,9 @@ function lintKnowledgeBase(kb) {
     const key = `${artifact.meta.type}:${artifact.meta.id}`;
     const existing = byId.get(key);
     if (existing) {
+      const hint = artifact.meta.type === "skill" ? " \u2014 a skill is named by its own directory, so put the framework in that name" : "";
       problems.push(
-        `duplicate ${artifact.meta.type} id "${artifact.meta.id}" (${existing.source}, ${artifact.source})`
+        `duplicate ${artifact.meta.type} id "${artifact.meta.id}" (${existing.source}, ${artifact.source})${hint}`
       );
       continue;
     }
