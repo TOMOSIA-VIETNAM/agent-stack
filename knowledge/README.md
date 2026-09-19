@@ -42,7 +42,7 @@ in context from the first token.
 | `layer` | yes | `global`, `language`, or `framework`. Must match the directory. |
 | `priority` | yes | 0–999. Sorts the output and prefixes rule filenames. |
 | `applies_to` | layer ≠ global | `[{tech, versions?}]` — **all** entries must match the resolved stack. This generalizes idea.md's `language` / `framework` fields: any catalog technology can gate an artifact. |
-| `dependencies` | no | Other artifact ids pulled in whenever this one is selected. |
+| `dependencies` | no | Other artifact ids pulled in whenever this one is selected — but a dependency still has to apply: one gated on a version range this stack falls outside is reported as `unmet-dependency`, not emitted anyway. Give a dependency and its dependent the same range. |
 | `conflicts_with` | no | Artifact ids that must not be emitted alongside this one. |
 | `compatible_with` | no | Documentation only; not enforced. |
 | `tags` | no | Free-form. |

@@ -12197,18 +12197,20 @@ function matches(artifact, stack) {
   for (const entry of appliesTo) {
     const tech = stack.technologies.find((t) => t.id === entry.tech);
     if (!tech) {
-      return { ok: false, reason: `${entry.tech} is not in the stack` };
+      return { ok: false, code: "absent", reason: `${entry.tech} is not in the stack` };
     }
     if (entry.versions) {
       if (!tech.version) {
         return {
           ok: false,
+          code: "unpinned",
           reason: `${entry.tech} has no version pinned, but this artifact targets "${entry.versions}"`
         };
       }
       if (!satisfies(tech.version, entry.versions)) {
         return {
           ok: false,
+          code: "out-of-range",
           reason: `${entry.tech} ${tech.version} is outside "${entry.versions}"`
         };
       }
@@ -12227,19 +12229,27 @@ function selectArtifacts(kb, stack) {
     if (result.ok) {
       selected.set(artifact.meta.id, { artifact, origin: "matched", matchedBy: result.matchedBy });
     } else {
-      skipped.push({ artifact, reason: result.reason });
+      skipped.push({ artifact, code: result.code, reason: result.reason });
     }
   }
-  const queue = [...selected.values()].flatMap((entry) => entry.artifact.meta.dependencies);
+  const unmetDependencies = [];
+  const queue = [...selected.values()].flatMap(
+    (entry) => entry.artifact.meta.dependencies.map((id) => ({ id, from: entry.artifact.meta.id }))
+  );
   while (queue.length > 0) {
-    const id = queue.shift();
+    const { id, from } = queue.shift();
     if (selected.has(id)) continue;
     const artifact = byId.get(id);
     if (!artifact) continue;
-    selected.set(id, { artifact, origin: "dependency", matchedBy: [] });
     const index = skipped.findIndex((entry) => entry.artifact.meta.id === id);
+    const blocked = index >= 0 ? skipped[index] : void 0;
+    if (blocked && blocked.code !== "absent") {
+      unmetDependencies.push({ artifact: from, dependency: id, reason: blocked.reason });
+      continue;
+    }
+    selected.set(id, { artifact, origin: "dependency", matchedBy: [] });
     if (index >= 0) skipped.splice(index, 1);
-    queue.push(...artifact.meta.dependencies);
+    queue.push(...artifact.meta.dependencies.map((next) => ({ id: next, from: id })));
   }
   const conflicts = [];
   const seen = /* @__PURE__ */ new Set();
@@ -12266,6 +12276,7 @@ function selectArtifacts(kb, stack) {
     commands: [...selected.values()].filter((e) => e.artifact.meta.type === "command").sort(order),
     claudeMd: [...selected.values()].filter((e) => e.artifact.meta.type === "claude-md").sort(order),
     skipped: skipped.sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
+    unmetDependencies,
     conflicts,
     uncovered
   };
@@ -12297,7 +12308,7 @@ function validate(stack, selection, acceptedConflicts = []) {
   for (const tech of stack.technologies) {
     if (tech.version) continue;
     const blocked = selection.skipped.filter(
-      (entry) => entry.reason.startsWith(`${tech.id} has no version pinned`)
+      (entry) => entry.code === "unpinned" && entry.artifact.meta.applies_to.some((applies) => applies.tech === tech.id)
     );
     if (blocked.length > 0) {
       findings.push({
@@ -12306,6 +12317,13 @@ function validate(stack, selection, acceptedConflicts = []) {
         message: `${tech.id} has no version pinned, so ${blocked.length} version-specific artifact(s) were skipped: ${blocked.map((entry) => entry.artifact.meta.id).join(", ")}. Pass ${tech.id}@<version>.`
       });
     }
+  }
+  for (const unmet of selection.unmetDependencies) {
+    findings.push({
+      severity: "warning",
+      code: "unmet-dependency",
+      message: `"${unmet.artifact}" depends on "${unmet.dependency}", which does not apply to this stack (${unmet.reason}) \u2014 it was not emitted.`
+    });
   }
   for (const tech of selection.uncovered) {
     findings.push({
@@ -12555,8 +12573,10 @@ function summarize(selection) {
     claudeMd: describe(selection.claudeMd),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
+      code: entry.code,
       reason: entry.reason
-    }))
+    })),
+    unmetDependencies: selection.unmetDependencies
   };
 }
 function printReport(report) {

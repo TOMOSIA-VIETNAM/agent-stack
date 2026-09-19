@@ -232,8 +232,10 @@ function summarize(selection: ReturnType<typeof selectArtifacts>) {
     claudeMd: describe(selection.claudeMd),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
+      code: entry.code,
       reason: entry.reason,
     })),
+    unmetDependencies: selection.unmetDependencies,
   };
 }
 
