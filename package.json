@@ -1,5 +1,5 @@
 {
-  "name": "open-aidd",
+  "name": "agent-stack",
   "version": "0.1.0",
   "private": true,
   "description": "Generate .claude rules and skills for a project from a curated knowledge base, deterministically.",
@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/aidd.mjs --banner:js=\"import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);\"",
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/agent-stack.mjs --banner:js=\"import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",

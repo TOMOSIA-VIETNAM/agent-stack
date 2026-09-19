@@ -13,12 +13,12 @@ const VERSION = '0.1.0';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_KNOWLEDGE = resolve(HERE, '..', 'knowledge');
 
-const USAGE = `open-aidd ${VERSION} - generate .claude rules and skills from a curated knowledge base
+const USAGE = `agent-stack ${VERSION} - generate .claude rules and skills from a curated knowledge base
 
 Usage:
-  aidd catalog [--json]                       list technologies and artifacts
-  aidd resolve <stack flags> [--json]         resolve dependencies, report conflicts
-  aidd generate <stack flags> [options]       compose and write the output
+  agent-stack catalog [--json]                       list technologies and artifacts
+  agent-stack resolve <stack flags> [--json]         resolve dependencies, report conflicts
+  agent-stack generate <stack flags> [options]       compose and write the output
 
 Stack flags (repeatable, "tech" or "tech@version"):
 ${SLOTS.map((slot) => `  --${slot} <tech[@version]>`).join('\n')}

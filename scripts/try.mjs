@@ -7,8 +7,8 @@
  *   npm run try -- --language node@22             any stack flags the CLI takes
  *   npm run try -- --clean                        delete the scratch directory
  *
- * Output goes to .aidd-try/, which is gitignored. This is a development aid, not
- * part of the generator: it only shells out to dist/aidd.mjs with --out set.
+ * Output goes to .agent-stack-try/, which is gitignored. This is a development aid, not
+ * part of the generator: it only shells out to dist/agent-stack.mjs with --out set.
  */
 import { spawn } from 'node:child_process';
 import { readdir, rm, stat, writeFile } from 'node:fs/promises';
@@ -17,8 +17,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const TARGET = join(ROOT, '.aidd-try');
-const CLI = join(ROOT, 'dist', 'aidd.mjs');
+const TARGET = join(ROOT, '.agent-stack-try');
+const CLI = join(ROOT, 'dist', 'agent-stack.mjs');
 
 /** A stack that exercises every layer: global, language and framework. */
 const DEFAULT_STACK = [
@@ -38,7 +38,7 @@ const argv = process.argv.slice(2);
 
 if (argv.includes('--clean')) {
   await rm(TARGET, { recursive: true, force: true });
-  console.log('Removed .aidd-try/');
+  console.log('Removed .agent-stack-try/');
   process.exit(0);
 }
 
@@ -54,7 +54,7 @@ await writeFile(
     '# Scratch project',
     '',
     'This file is here so `npm run try` shows that hand-written text survives a',
-    'generate run. Everything below the aidd markers is generated.',
+    'generate run. Everything below the agent-stack markers is generated.',
     '',
   ].join('\n'),
   'utf8',
@@ -81,7 +81,7 @@ async function count(dir) {
   return files;
 }
 
-console.log(`\nScratch project at ${relative(process.cwd(), TARGET) || '.aidd-try'}:`);
+console.log(`\nScratch project at ${relative(process.cwd(), TARGET) || '.agent-stack-try'}:`);
 for (const dir of ['rules', 'skills', 'commands']) {
   console.log(`  .claude/${dir}: ${await count(join(TARGET, '.claude', dir))} file(s)`);
 }

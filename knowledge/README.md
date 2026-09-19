@@ -1,6 +1,6 @@
 # Knowledge base
 
-The content open-aidd selects from. All of it is committed here, so a generate run
+The content agent-stack selects from. All of it is committed here, so a generate run
 needs no network.
 
 ## Layout
@@ -31,7 +31,7 @@ in context from the first token.
 
 ## Two kinds of file
 
-**Authored here** — declares full open-aidd metadata in its front matter:
+**Authored here** — declares full agent-stack metadata in its front matter:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
@@ -93,7 +93,7 @@ form exists for a file that carries no front matter at all — a repository's ow
 than added to the copied file.
 
 `license`, `license_url` and `copyright` travel into every generated project's
-`.claude/aidd-manifest.json`, under `imported`. That is where the upstream notices
+`.claude/agent-stack-manifest.json`, under `imported`. That is where the upstream notices
 live — once per project, the way an installed plugin's own LICENSE sits once in its
 checkout rather than at the top of every skill file. Keep it accurate, and do not add
 a source that cannot be attributed there.

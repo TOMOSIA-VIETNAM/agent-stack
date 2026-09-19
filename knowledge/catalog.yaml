@@ -1,4 +1,4 @@
-# Technology graph for open-aidd.
+# Technology graph for agent-stack.
 #
 # Every technology declares what it pulls in (`requires`) and what it cannot be
 # combined with (`conflicts_with`). The resolver expands `requires` transitively;

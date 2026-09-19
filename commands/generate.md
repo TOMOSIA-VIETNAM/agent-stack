@@ -1,11 +1,11 @@
 ---
-description: Generate .claude rules and skills for this project from the open-aidd knowledge base
+description: Generate .claude rules and skills for this project from the agent-stack knowledge base
 argument-hint: "[tech stack, e.g. ruby@3.3 rails@7.1 postgresql sidekiq]"
 allowed-tools: Bash(node:*), Read, AskUserQuestion
 ---
 
 Generate the `.claude` rules and skills for the project in the current working
-directory, using the open-aidd knowledge base.
+directory, using the agent-stack knowledge base.
 
 Requested stack: $ARGUMENTS
 
@@ -21,7 +21,7 @@ current is `npm run sync`, run by a maintainer of this plugin, not by this comma
 
 ## 1. Map the request to flags
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/dist/aidd.mjs catalog --json` and map each requested
+Run `node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs catalog --json` and map each requested
 technology to a catalog id. Every flag is `--<slot> <id>[@<version>]`, where slot is
 one of: language, framework, frontend, database, cache, testing, infrastructure,
 architecture, library.
@@ -39,7 +39,7 @@ architecture, library.
 Run:
 
 ```
-node ${CLAUDE_PLUGIN_ROOT}/dist/aidd.mjs resolve <flags> --json
+node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs resolve <flags> --json
 ```
 
 Read `report.findings`. Exit code 2 means at least one error-severity finding.
@@ -62,15 +62,15 @@ Repeat until the resolve step exits 0.
 Run the generate step without `--write` first and show the user the file list:
 
 ```
-node ${CLAUDE_PLUGIN_ROOT}/dist/aidd.mjs generate <flags> --out . 
+node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs generate <flags> --out . 
 ```
 
 The output lists every file that would be created or overwritten, and any stale file
 from a previous run that would be removed. `CLAUDE.md` is merged, not replaced: only
-the block between the `aidd:begin` / `aidd:end` markers changes.
+the block between the `agent-stack:begin` / `agent-stack:end` markers changes.
 
 If the target directory already has a `.claude/rules` or `.claude/skills` directory
-that open-aidd did not generate (no `.claude/aidd-manifest.json`), say so and ask
+that agent-stack did not generate (no `.claude/agent-stack-manifest.json`), say so and ask
 before continuing — those files will be overwritten.
 
 Once the user confirms, re-run the same command with `--write`.

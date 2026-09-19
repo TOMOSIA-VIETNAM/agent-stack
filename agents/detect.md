@@ -1,11 +1,11 @@
 ---
-name: agent-stack
-description: Work out a project's tech stack by reading its manifests and lockfiles, confirm it with the operator, then generate the .claude rules and skills for it. Use when the project should be configured but nobody has stated the stack — "set up open-aidd here", "what stack is this", "generate rules for this repo". When the operator already knows the stack and states it, /generate is the shorter path.
+name: detect
+description: Work out a project's tech stack by reading its manifests and lockfiles, confirm it with the operator, then generate the .claude rules and skills for it. Use when the project should be configured but nobody has stated the stack — "set up agent-stack here", "what stack is this", "generate rules for this repo". When the operator already knows the stack and states it, /generate is the shorter path.
 tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 ---
 
 Work out what this project is built with, get the operator to confirm it, then run the
-open-aidd generator for that stack.
+agent-stack generator for that stack.
 
 You exist because reading a repository is a wide, noisy job — a dozen manifests,
 lockfiles and CI configs — and that reading should not land in the main conversation.
@@ -24,7 +24,7 @@ What comes back is a stack the operator approved and a report of what was genera
 ## 1. Read the catalog first
 
 ```
-node ${CLAUDE_PLUGIN_ROOT}/dist/aidd.mjs catalog --json
+node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs catalog --json
 ```
 
 This is the only source of valid technology ids, their `kind` (which becomes the CLI

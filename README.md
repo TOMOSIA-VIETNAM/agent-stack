@@ -3,12 +3,12 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/images/logo/logo-lockup-dark.svg">
-    <img src="./docs/images/logo/logo-lockup.svg" alt="open-aidd" width="400">
+    <img src="./docs/images/logo/logo-lockup.svg" alt="agent-stack" width="400">
   </picture>
 </p>
 -->
 
-<h1 align="center">open-aidd</h1>
+<h1 align="center">agent-stack</h1>
 
 <p align="center">
   <strong>Rule và skill AI cho dự án của bạn — được <em>chọn</em>, không phải được sinh ra.</strong><br>
@@ -18,8 +18,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/TOMOSIA-VIETNAM/open-aidd/releases"><img alt="Release" src="https://img.shields.io/github/v/release/TOMOSIA-VIETNAM/open-aidd?style=flat-square&label=release&color=2ea44f"></a>
-  <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/open-aidd?style=flat-square&color=blue"></a>
+  <a href="https://github.com/TOMOSIA-VIETNAM/agent-stack/releases"><img alt="Release" src="https://img.shields.io/github/v/release/TOMOSIA-VIETNAM/agent-stack?style=flat-square&label=release&color=2ea44f"></a>
+  <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/agent-stack?style=flat-square&color=blue"></a>
   <a href="#phát-triển"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white"></a>
   <a href="#cài-đặt"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
   <a href="#không-có-nội-dung-do-llm-viết"><img alt="No LLM-written content" src="https://img.shields.io/badge/rule%20content-0%25%20LLM-6E56CF?style=flat-square"></a>
@@ -33,7 +33,7 @@
 
 Repository mới nào cũng bắt đầu giống nhau: ai đó copy `CLAUDE.md` từ dự án trước, xoá phần không còn đúng, rồi quên cập nhật phần còn lại. Sau một tháng, mỗi dự án mang một phương ngữ hơi sai lệch của cùng một bộ quy ước.
 
-**`open-aidd` biến việc copy-paste đó thành một build step.** Bạn khai tech stack; nó chọn đúng rule, skill và command từ knowledge base nằm trong Git, phân giải dependency, dừng lại khi có xung đột, rồi ghi kết quả vào dự án.
+**`agent-stack` biến việc copy-paste đó thành một build step.** Bạn khai tech stack; nó chọn đúng rule, skill và command từ knowledge base nằm trong Git, phân giải dependency, dừng lại khi có xung đột, rồi ghi kết quả vào dự án.
 
 ```
 Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
@@ -70,22 +70,22 @@ Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 Cần [Node 20+](https://nodejs.org/) và [Claude Code](https://claude.ai/code).
 
 ```bash
-/plugin marketplace add TOMOSIA-VIETNAM/open-aidd
-/plugin install open-aidd@open-aidd
+/plugin marketplace add TOMOSIA-VIETNAM/agent-stack
+/plugin install agent-stack@agent-stack
 ```
 
-Repository này vừa là marketplace vừa là plugin. `dist/aidd.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build.
+Repository này vừa là marketplace vừa là plugin. `dist/agent-stack.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build.
 
 <details>
 <summary>Cài từ bản clone local</summary>
 
 ```bash
-git clone https://github.com/TOMOSIA-VIETNAM/open-aidd.git
+git clone https://github.com/TOMOSIA-VIETNAM/agent-stack.git
 ```
 
 ```bash
-/plugin marketplace add /path/to/open-aidd
-/plugin install open-aidd@open-aidd
+/plugin marketplace add /path/to/agent-stack
+/plugin install agent-stack@agent-stack
 ```
 
 </details>
@@ -110,7 +110,7 @@ Muốn biết knowledge base đang có gì trước khi chốt stack:
 
 Phần lớn công cụ "sinh rule AI cho tôi" đều nhờ một model viết rule. Kết quả đọc thì xuôi nhưng mỗi lần chạy lại lệch đi — khác câu chữ, khác mức độ nghiêm ngặt, và kèm những quy ước cả team chưa từng thống nhất.
 
-| Rule do model viết | `open-aidd` |
+| Rule do model viết | `agent-stack` |
 | --- | --- |
 | Cùng một stack, mỗi lần chạy ra văn bản khác nhau | Cùng stack vào, cùng file ra — giống tới từng byte |
 | Rule nghe hợp lý nhưng chưa ai review | Mỗi dòng là một file đã commit, có tác giả và có diff |
@@ -127,14 +127,14 @@ Model trong vòng lặp chỉ có đúng hai việc: biến một câu tiếng n
 ## Nó ghi ra những gì
 
 ```
-CLAUDE.md                        hướng dẫn chung và các @-import, nằm trong cặp marker aidd
+CLAUDE.md                        hướng dẫn chung và các @-import, nằm trong cặp marker agent-stack
 .claude/rules/NN-<id>.md         mỗi rule được chọn một file, sắp theo priority
 .claude/skills/<id>/SKILL.md     mỗi skill được chọn một thư mục, kèm file của nó
 .claude/commands/<id>.md         mỗi command được chọn một file
-.claude/aidd-manifest.json       lần chạy này sinh ra gì, và copy từ đâu
+.claude/agent-stack-manifest.json       lần chạy này sinh ra gì, và copy từ đâu
 ```
 
-`CLAUDE.md` giữ phần hướng dẫn chung dạng inline, rồi `@`-import các rule riêng cho stack. Nó được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `aidd:begin` / `aidd:end` được giữ nguyên.
+`CLAUDE.md` giữ phần hướng dẫn chung dạng inline, rồi `@`-import các rule riêng cho stack. Nó được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `agent-stack:begin` / `agent-stack:end` được giữ nguyên.
 
 Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
 
@@ -149,16 +149,16 @@ Khi bạn chưa biết — hoặc chưa muốn gõ — stack của dự án, dù
 
 | Agent | Làm gì |
 | --- | --- |
-| `agent-stack` | Đọc manifest và lockfile của repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng của `/generate` |
+| `detect` | Đọc manifest và lockfile của repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng của `/generate` |
 
 Khác biệt nằm ở **ai xác định stack**:
 
 | | Đầu vào | Ai xác định stack |
 | --- | --- | --- |
 | `/generate ruby 3.3, rails 7.1` | Bạn gõ stack | Bạn |
-| `agent-stack` | Không cần gõ gì | Agent đọc repo và suy ra, bạn duyệt lại |
+| `detect` | Không cần gõ gì | Agent đọc repo và suy ra, bạn duyệt lại |
 
-`agent-stack` đọc `Gemfile.lock`, `composer.lock`, `package.json`, `Dockerfile`, `docker-compose.yml`, `.github/workflows/`, `config/database.yml`. Nó lấy version đã resolve trong lockfile chứ không lấy khoảng version trong manifest — `Gemfile` ghi `~> 7.1` là một khoảng, `Gemfile.lock` ghi `rails (7.1.3.2)` mới là thứ đang chạy.
+`detect` đọc `Gemfile.lock`, `composer.lock`, `package.json`, `Dockerfile`, `docker-compose.yml`, `.github/workflows/`, `config/database.yml`. Nó lấy version đã resolve trong lockfile chứ không lấy khoảng version trong manifest — `Gemfile` ghi `~> 7.1` là một khoảng, `Gemfile.lock` ghi `rails (7.1.3.2)` mới là thứ đang chạy.
 
 Mỗi dòng nó tìm được đều gắn nhãn `found` (đọc từ lockfile), `uncertain` (suy từ tín hiệu yếu) hay `missing`. Mọi dòng không phải `found` đều phải hỏi lại bạn trước khi generate. Hai thứ nó **không bao giờ tự suy**: kiến trúc (`monolith` / `microservices`) vì không file nào nói ra điều đó, và hạ tầng (`aws`, `ecs`, `rds`) trừ khi có config deploy nêu đích danh.
 
@@ -169,9 +169,9 @@ Việc chạy trong subagent có lý do: đọc cả chục file manifest là vi
 Plugin chỉ là lớp mỏng bọc một CLI mà bạn chạy trực tiếp được, trong CI hoặc bằng tay:
 
 ```bash
-node dist/aidd.mjs catalog  [--json]
-node dist/aidd.mjs resolve  --language ruby@3.3 --framework rails@7.1 [--json]
-node dist/aidd.mjs generate --language ruby@3.3 --framework rails@7.1 --out . [--write]
+node dist/agent-stack.mjs catalog  [--json]
+node dist/agent-stack.mjs resolve  --language ruby@3.3 --framework rails@7.1 [--json]
+node dist/agent-stack.mjs generate --language ruby@3.3 --framework rails@7.1 --out . [--write]
 ```
 
 **Các slot của stack** — mỗi cờ lặp lại được, nhận `tech` hoặc `tech@version`:
@@ -440,20 +440,20 @@ npm run check
 npm run try -- --language php@8.3 --framework laravel@11
 ```
 
-`npm run try` generate vào `.aidd-try/` (đã gitignore) để bạn đọc cây file thật thay vì đoán. Script seed sẵn một `CLAUDE.md` viết tay, nên mỗi lần chạy cũng chứng minh luôn rằng generator merge đúng block của nó mà không đụng chữ xung quanh.
+`npm run try` generate vào `.agent-stack-try/` (đã gitignore) để bạn đọc cây file thật thay vì đoán. Script seed sẵn một `CLAUDE.md` viết tay, nên mỗi lần chạy cũng chứng minh luôn rằng generator merge đúng block của nó mà không đụng chữ xung quanh.
 
 ```bash
 npm run try -- --clean      # xoá thư mục thử
 ```
 
-Mở `.aidd-try/` bằng Claude Code nếu muốn thấy rule và skill thực sự được nạp.
+Mở `.agent-stack-try/` bằng Claude Code nếu muốn thấy rule và skill thực sự được nạp.
 
 ### Bước 6 — Mở PR
 
 Checklist trước khi push:
 
 - [ ] `npm run check` xanh (typecheck + test + bundle)
-- [ ] Đã commit `dist/aidd.mjs` nếu có sửa gì trong `src/` — `npm run check` tự rebuild
+- [ ] Đã commit `dist/agent-stack.mjs` nếu có sửa gì trong `src/` — `npm run check` tự rebuild
 - [ ] Có test mới cho hành vi mới, hoặc test fail-trước-khi-sửa cho bug fix
 - [ ] Đã đọc output của `npm run try` bằng mắt, không chỉ tin test
 - [ ] `applies_to` gate bằng technology mà operator **thực sự gõ**, không phải technology con
@@ -498,11 +498,11 @@ Thứ một file import thiếu — description, layer — được khai trong `
 npm install
 npm run check      # typecheck + test + bundle — chạy trước mỗi lần push
 npm run sync       # copy lại nội dung import tại commit đã ghim
-npm run try        # generate vào .aidd-try/ để đọc kết quả thật
+npm run try        # generate vào .agent-stack-try/ để đọc kết quả thật
 ```
 
 > [!IMPORTANT]
-> `dist/aidd.mjs` được commit để plugin chạy mà không cần cài đặt gì. **Rebuild và commit nó cùng mọi thay đổi trong `src/`** — `npm run check` lo phần rebuild.
+> `dist/agent-stack.mjs` được commit để plugin chạy mà không cần cài đặt gì. **Rebuild và commit nó cùng mọi thay đổi trong `src/`** — `npm run check` lo phần rebuild.
 
 ### Pipeline
 
@@ -540,7 +540,7 @@ Mọi thứ ở đây xoay quanh hai điều này. Thay đổi nào làm yếu m
 
 [Apache-2.0](LICENSE) · Copyright 2026 TOMOSIA VIETNAM.
 
-Nội dung trong `knowledge/` copy từ dự án khác giữ giấy phép riêng của nó; xem [NOTICE](NOTICE). Dự án được generate ghi lại phần ghi công trong `.claude/aidd-manifest.json`.
+Nội dung trong `knowledge/` copy từ dự án khác giữ giấy phép riêng của nó; xem [NOTICE](NOTICE). Dự án được generate ghi lại phần ghi công trong `.claude/agent-stack-manifest.json`.
 
 ---
 

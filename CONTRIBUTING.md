@@ -1,4 +1,4 @@
-# Contributing to open-aidd
+# Contributing to agent-stack
 
 Thanks for helping. This document covers what the project is, how to run it, and what
 a reviewable change looks like.
@@ -9,7 +9,7 @@ are licensed under [Apache-2.0](LICENSE). Vulnerabilities go through
 
 ## What this project is
 
-open-aidd generates a project's `.claude` rules, skills and commands by **selecting**
+agent-stack generates a project's `.claude` rules, skills and commands by **selecting**
 from a curated knowledge base. It does not write rule content with a model.
 
 Two properties hold the design together. A change that breaks either needs a very good
@@ -30,7 +30,7 @@ npm install
 npm run check      # typecheck + tests + bundle — run this before every push
 ```
 
-Node 20 or newer. `dist/aidd.mjs` is committed so the plugin runs without an install
+Node 20 or newer. `dist/agent-stack.mjs` is committed so the plugin runs without an install
 step, so **rebuild and commit `dist/` with any change under `src/`**. `npm run check`
 does the rebuild for you.
 
@@ -42,7 +42,7 @@ npm run try -- --language node@22    # any stack flags the CLI takes
 npm run try -- --clean               # remove the scratch directory
 ```
 
-Output lands in `.aidd-try/`, which is gitignored. The script seeds a hand-written
+Output lands in `.agent-stack-try/`, which is gitignored. The script seeds a hand-written
 `CLAUDE.md` first, so each run also shows that the generator merges its block without
 touching text around it. Read the result, and open it with Claude Code if you want to
 see the rules and skills actually load.
@@ -51,7 +51,7 @@ To drive the CLI directly, point `--out` wherever you like. Without `--write` it
 previews what it would do:
 
 ```bash
-node dist/aidd.mjs generate --language ruby@3.3 --framework rails@7.1 --out /tmp/scratch
+node dist/agent-stack.mjs generate --language ruby@3.3 --framework rails@7.1 --out /tmp/scratch
 ```
 
 ## Where things live
@@ -62,7 +62,7 @@ node dist/aidd.mjs generate --language ruby@3.3 --framework rails@7.1 --out /tmp
 | `knowledge/` | The content: technology graph, rules, skills, commands |
 | `commands/` | The plugin's own slash commands |
 | `scripts/sync-upstream.mjs` | Re-copies imported content at its pinned commit |
-| `scripts/try.mjs` | Development aid: generates into `.aidd-try/` so you can read the output |
+| `scripts/try.mjs` | Development aid: generates into `.agent-stack-try/` so you can read the output |
 | `tests/` | Vitest suite; `pipeline.test.ts` loads the real knowledge base |
 
 ## Changing the knowledge base

@@ -152,7 +152,7 @@ describe('emit', () => {
   it('writes rules, skills, a manifest, and a CLAUDE.md block', async () => {
     const { stack, selection } = await run(stackInput);
     const composed = compose(stack, selection, 'test');
-    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
 
     const result = await emit(out, composed, { dryRun: false });
     expect(result.dryRun).toBe(false);
@@ -169,14 +169,14 @@ describe('emit', () => {
     expect(skill).toContain('name: rails-feature');
     expect(skill).not.toContain('priority:');
 
-    const manifest = JSON.parse(await readFile(join(out, '.claude/aidd-manifest.json'), 'utf8'));
+    const manifest = JSON.parse(await readFile(join(out, '.claude/agent-stack-manifest.json'), 'utf8'));
     expect(manifest.rules.length).toBe(selection.rules.length);
   });
 
   it('dry run writes nothing', async () => {
     const { stack, selection } = await run(stackInput);
     const composed = compose(stack, selection, 'test');
-    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
 
     const result = await emit(out, composed, { dryRun: true });
     expect(result.dryRun).toBe(true);
@@ -185,7 +185,7 @@ describe('emit', () => {
   });
 
   it('removes stale output from a previous run and keeps hand-written CLAUDE.md content', async () => {
-    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
     await writeFile(join(out, 'CLAUDE.md'), '# My project\n\nHand written notes.\n', 'utf8');
 
     const wide = await run(stackInput);
@@ -216,7 +216,7 @@ describe('imported content', () => {
       language: [{ tech: 'ruby', version: '3.3' }],
     });
     const composed = compose(stack, selection, 'test', kb.imported);
-    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
     await emit(out, composed, { dryRun: false });
 
     const skill = await readFile(
@@ -230,7 +230,7 @@ describe('imported content', () => {
     expect(command).toContain('description:');
     expect(command).not.toContain('Copyright');
 
-    const manifest = JSON.parse(await readFile(join(out, '.claude/aidd-manifest.json'), 'utf8'));
+    const manifest = JSON.parse(await readFile(join(out, '.claude/agent-stack-manifest.json'), 'utf8'));
     expect(manifest.commands.map((c: { id: string }) => c.id)).toContain('test');
     expect(manifest.imported[0].ref).toMatch(/^[0-9a-f]{40}$/);
     // Attribution lives once, in the manifest, rather than on every file.
@@ -244,7 +244,7 @@ describe('imported content', () => {
       language: [{ tech: 'ruby', version: '3.3' }],
     });
     const composed = compose(stack, selection, 'test', kb.imported);
-    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
     await emit(out, composed, { dryRun: false });
 
     const referenced = await readFile(
@@ -279,7 +279,7 @@ describe('imported content', () => {
     expect(fragment?.artifact.meta.description).toContain('assumptions');
     expect(fragment?.artifact.provenance?.license).toBe('MIT');
 
-    const out = await mkdtemp(join(tmpdir(), 'aidd-'));
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
     await writeFile(join(out, 'CLAUDE.md'), '# My project\n\nHand written.\n', 'utf8');
     const composed = compose(stack, selection, 'test', kb.imported);
     await emit(out, composed, { dryRun: false });
