@@ -30,7 +30,7 @@ async function readPreviousManifest(outDir: string): Promise<Manifest | undefine
 }
 
 /**
- * Stale paths are taken from the previous manifest only: open-aidd removes
+ * Stale paths are taken from the previous manifest only: agent-stack removes
  * what it generated before and never touches files it did not write.
  */
 export async function planEmit(outDir: string, composed: ComposedOutput): Promise<EmitPlan> {

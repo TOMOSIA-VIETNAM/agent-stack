@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-open-aidd is pre-1.0. Only the latest commit on `main` receives fixes; there are no
+agent-stack is pre-1.0. Only the latest commit on `main` receives fixes; there are no
 maintenance branches for earlier tags.
 
 ## Reporting a vulnerability
@@ -44,7 +44,7 @@ interesting boundaries are:
 - Command injection through any value that reaches `git` in `scripts/sync-upstream.mjs`.
 - `npm run sync` fetching from somewhere other than the pinned repository and commit,
   or accepting a commit that does not match the pin.
-- Generated output that destroys files open-aidd did not create. The generator may
+- Generated output that destroys files agent-stack did not create. The generator may
   only remove paths its own previous manifest lists.
 - Malicious content reaching `knowledge/` through the sync path without review.
 - Generated output losing the `imported` record in its manifest, which is where the
@@ -54,7 +54,7 @@ interesting boundaries are:
 
 - The advice inside a rule or skill being wrong or incomplete. That is a bug — open an
   issue.
-- Vulnerabilities in a project *generated* by open-aidd, where the cause is that
+- Vulnerabilities in a project *generated* by agent-stack, where the cause is that
   project's own code.
 - Vulnerabilities in upstream repositories we copy from. Report those upstream; tell
   us too, and we will move the pin.

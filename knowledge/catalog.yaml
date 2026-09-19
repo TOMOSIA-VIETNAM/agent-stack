@@ -1,4 +1,4 @@
-# Technology graph for open-aidd.
+# Technology graph for agent-stack.
 #
 # Every technology declares what it pulls in (`requires`) and what it cannot be
 # combined with (`conflicts_with`). The resolver expands `requires` transitively;
@@ -52,13 +52,9 @@ technologies:
     supported_versions: ">=10 <12"
 
   # ------------------------------------------------------------------ libraries
-  activerecord:
-    name: Active Record
-    kind: library
-    aliases: ["active-record"]
-    requires: [rails]
-    compatible_with: [postgresql, mysql]
-
+  # Active Record is not a technology here. It ships with Rails, so a separate
+  # entry would only let a stack select Rails without it and silently drop the
+  # Active Record rules; those declare `applies_to: rails` instead.
   sidekiq:
     name: Sidekiq
     kind: library

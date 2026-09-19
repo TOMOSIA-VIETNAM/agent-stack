@@ -111,7 +111,7 @@ interface LoadOptions {
 /**
  * Load one artifact.
  *
- * A file authored here declares full open-aidd metadata. A file copied from
+ * A file authored here declares full agent-stack metadata. A file copied from
  * another repository carries only Claude's own front matter, so the rest is
  * derived from where it sits: id from the file or directory name, layer from
  * the directory above it, priority from that layer. Imported files are never
@@ -153,7 +153,7 @@ async function loadArtifact(
     const description = parsed.success ? parsed.data.description : declared;
     if (description === undefined) {
       throw new Error(
-        `${source}: needs either open-aidd metadata (id, type, ...), a "description" front matter field, or a description in upstream.yaml`,
+        `${source}: needs either agent-stack metadata (id, type, ...), a "description" front matter field, or a description in upstream.yaml`,
       );
     }
     const layer = layerFromPath(source, options.fallbackLayer);

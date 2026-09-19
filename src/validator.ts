@@ -8,6 +8,7 @@ export interface Finding {
     | 'artifact-conflict'
     | 'missing-language'
     | 'missing-version'
+    | 'unmet-dependency'
     | 'uncovered-technology'
     | 'empty-output'
     | 'stack-warning';
@@ -67,8 +68,10 @@ export function validate(
 
   for (const tech of stack.technologies) {
     if (tech.version) continue;
-    const blocked = selection.skipped.filter((entry) =>
-      entry.reason.startsWith(`${tech.id} has no version pinned`),
+    const blocked = selection.skipped.filter(
+      (entry) =>
+        entry.code === 'unpinned' &&
+        entry.artifact.meta.applies_to.some((applies) => applies.tech === tech.id),
     );
     if (blocked.length > 0) {
       findings.push({
@@ -79,6 +82,14 @@ export function validate(
           .join(', ')}. Pass ${tech.id}@<version>.`,
       });
     }
+  }
+
+  for (const unmet of selection.unmetDependencies) {
+    findings.push({
+      severity: 'warning',
+      code: 'unmet-dependency',
+      message: `"${unmet.artifact}" depends on "${unmet.dependency}", which does not apply to this stack (${unmet.reason}) — it was not emitted.`,
+    });
   }
 
   for (const tech of selection.uncovered) {

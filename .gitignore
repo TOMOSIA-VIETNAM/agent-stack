@@ -3,4 +3,4 @@ node_modules/
 .DS_Store
 
 # Scratch target for `npm run try` — generated output, never committed.
-.aidd-try/
+.agent-stack-try/

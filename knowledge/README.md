@@ -1,6 +1,6 @@
 # Knowledge base
 
-The content open-aidd selects from. All of it is committed here, so a generate run
+The content agent-stack selects from. All of it is committed here, so a generate run
 needs no network.
 
 ## Layout
@@ -31,7 +31,7 @@ in context from the first token.
 
 ## Two kinds of file
 
-**Authored here** — declares full open-aidd metadata in its front matter:
+**Authored here** — declares full agent-stack metadata in its front matter:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
@@ -42,7 +42,7 @@ in context from the first token.
 | `layer` | yes | `global`, `language`, or `framework`. Must match the directory. |
 | `priority` | yes | 0–999. Sorts the output and prefixes rule filenames. |
 | `applies_to` | layer ≠ global | `[{tech, versions?}]` — **all** entries must match the resolved stack. This generalizes idea.md's `language` / `framework` fields: any catalog technology can gate an artifact. |
-| `dependencies` | no | Other artifact ids pulled in whenever this one is selected. |
+| `dependencies` | no | Other artifact ids pulled in whenever this one is selected — but a dependency still has to apply: one gated on a version range this stack falls outside is reported as `unmet-dependency`, not emitted anyway. Give a dependency and its dependent the same range. |
 | `conflicts_with` | no | Artifact ids that must not be emitted alongside this one. |
 | `compatible_with` | no | Documentation only; not enforced. |
 | `tags` | no | Free-form. |
@@ -93,7 +93,7 @@ form exists for a file that carries no front matter at all — a repository's ow
 than added to the copied file.
 
 `license`, `license_url` and `copyright` travel into every generated project's
-`.claude/aidd-manifest.json`, under `imported`. That is where the upstream notices
+`.claude/agent-stack-manifest.json`, under `imported`. That is where the upstream notices
 live — once per project, the way an installed plugin's own LICENSE sits once in its
 checkout rather than at the top of every skill file. Keep it accurate, and do not add
 a source that cannot be attributed there.

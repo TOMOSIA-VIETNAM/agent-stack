@@ -70,7 +70,7 @@ for (const name of names) {
     throw new Error(`Source "${name}" must pin a full 40-character commit SHA, got "${ref}"`);
   }
 
-  const work = await mkdtemp(join(tmpdir(), 'open-aidd-sync-'));
+  const work = await mkdtemp(join(tmpdir(), 'agent-stack-sync-'));
   try {
     console.log(`${name}: fetching ${source.repo} at ${ref}`);
     await checkout(source.repo, ref, work);

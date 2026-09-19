@@ -1,4 +1,4 @@
-# open-aidd
+# agent-stack
 
 A Claude Code plugin that generates a project's `.claude` rules, skills and commands by
 **selecting** from a curated knowledge base. It never writes rule content with a model.
@@ -24,11 +24,11 @@ touches the network.
 
 ```bash
 npm run check    # typecheck + tests + bundle — before every push
-npm run try      # generate into .aidd-try/ (gitignored) and read the result
+npm run try      # generate into .agent-stack-try/ (gitignored) and read the result
 npm run sync     # re-copy imported content at the pinned commit
 ```
 
-`dist/aidd.mjs` is committed so the plugin runs without an install step. **Rebuild and
+`dist/agent-stack.mjs` is committed so the plugin runs without an install step. **Rebuild and
 commit it with any change under `src/`** — `npm run check` does the rebuild.
 
 ## Pipeline
@@ -51,7 +51,7 @@ One concern per module. Put a change where the concern already lives:
 that. Everything outside the manifest belongs to the user.
 
 `CLAUDE.md` in a generated project is merged, never replaced: only the text between the
-`aidd:begin` / `aidd:end` markers changes.
+`agent-stack:begin` / `agent-stack:end` markers changes.
 
 ## Knowledge base
 
@@ -88,7 +88,7 @@ The global layer is copied from other repositories and committed here, pinned to
 - **Never author new files there either.** The next sync deletes them.
 - Moving a pin is a reviewable commit: `npm run sync -- --ref <sha>`, then read the diff
   of what it brought in.
-- Attribution lives once per generated project, in `.claude/aidd-manifest.json` under
+- Attribution lives once per generated project, in `.claude/agent-stack-manifest.json` under
   `imported` — repo, commit, licence, licence URL, copyright. That is how the upstream
   MIT terms are met, so keep those fields accurate and do not add a source that cannot
   be attributed there.
@@ -98,7 +98,7 @@ The global layer is copied from other repositories and committed here, pinned to
 - New behaviour needs a test; a bug fix needs a test that fails before it.
 - `tests/pipeline.test.ts` loads the real knowledge base, so a content change that
   breaks an invariant fails the suite.
-- Keep the CLI's `--json` shape stable — `commands/aidd-generate.md` parses it.
+- Keep the CLI's `--json` shape stable — `commands/generate.md` parses it.
 - Rules and skills are advice that will be applied to real code. Prefer guidance that
   has paid off over guidance that sounds right, be specific enough to act on, and say
   *why* when the reason is not obvious.

@@ -1,15 +1,15 @@
 ---
-description: Show what the open-aidd knowledge base covers — technologies, rules, skills, and gaps
+description: Show what the agent-stack knowledge base covers — technologies, rules, skills, and gaps
 argument-hint: "[technology id, optional]"
 allowed-tools: Bash(node:*), Read
 ---
 
-Report what the open-aidd knowledge base currently covers.
+Report what the agent-stack knowledge base currently covers.
 
 Run:
 
 ```
-node ${CLAUDE_PLUGIN_ROOT}/dist/aidd.mjs catalog --json
+node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs catalog --json
 ```
 
 This also validates the knowledge base: a non-zero exit means a metadata or
