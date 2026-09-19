@@ -41,7 +41,6 @@ describe('selection', () => {
     const { selection, report } = await run({
       language: [{ tech: 'ruby', version: '3.3' }],
       framework: [{ tech: 'rails', version: '7.1' }],
-      library: [{ tech: 'activerecord' }],
       testing: [{ tech: 'rspec' }],
     });
     const ruleIds = selection.rules.map((entry) => entry.artifact.meta.id);
@@ -51,6 +50,35 @@ describe('selection', () => {
     expect(ruleIds).toContain('rspec-conventions');
     expect(selection.skills.map((entry) => entry.artifact.meta.id)).toContain('rails-feature');
     expect(report.ok).toBe(true);
+  });
+
+  // Picking a framework must bring everything the knowledge base knows about
+  // it. An artifact gated on a sub-technology the operator was never told to
+  // ask for drops out of the run silently, which is how the Active Record
+  // rules used to disappear from a plain Rails stack.
+  it('emits every Rails artifact from the framework alone', async () => {
+    const { kb, selection } = await run({ framework: [{ tech: 'rails', version: '7.1' }] });
+
+    const railsArtifacts = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd]
+      .filter((artifact) => artifact.meta.applies_to.some((applies) => applies.tech === 'rails'))
+      .map((artifact) => artifact.meta.id);
+    expect(railsArtifacts.length).toBeGreaterThan(1);
+
+    const selectedIds = new Set(
+      [...selection.rules, ...selection.skills, ...selection.commands, ...selection.claudeMd].map(
+        (entry) => entry.artifact.meta.id,
+      ),
+    );
+    for (const id of railsArtifacts) {
+      expect(selectedIds).toContain(id);
+    }
+  });
+
+  it('leaves an optional technology out until it is selected', async () => {
+    const { selection } = await run({ framework: [{ tech: 'rails', version: '7.1' }] });
+    expect(selection.rules.map((entry) => entry.artifact.meta.id)).not.toContain(
+      'rspec-conventions',
+    );
   });
 
   it('skips a framework rule whose version range does not match', async () => {
@@ -119,7 +147,6 @@ describe('emit', () => {
   const stackInput = {
     language: [{ tech: 'ruby', version: '3.3' }],
     framework: [{ tech: 'rails', version: '7.1' }],
-    library: [{ tech: 'activerecord' }],
   };
 
   it('writes rules, skills, a manifest, and a CLAUDE.md block', async () => {

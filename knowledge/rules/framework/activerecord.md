@@ -6,7 +6,8 @@ type: rule
 layer: framework
 priority: 42
 applies_to:
-  - tech: activerecord
+  - tech: rails
+    versions: ">=7 <9"
 dependencies: [rails-conventions]
 tags: [rails, database, performance]
 ---

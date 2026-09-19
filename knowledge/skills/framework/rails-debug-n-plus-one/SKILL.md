@@ -6,7 +6,8 @@ type: skill
 layer: framework
 priority: 43
 applies_to:
-  - tech: activerecord
+  - tech: rails
+    versions: ">=7 <9"
 tags: [rails, performance, debugging]
 ---
 
