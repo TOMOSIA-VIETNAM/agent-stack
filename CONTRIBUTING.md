@@ -1,132 +1,115 @@
-# Contributing to agent-stack
+# Đóng góp cho agent-stack
 
-Thanks for helping. This document covers what the project is, how to run it, and what
-a reviewable change looks like.
+agent-stack sinh `.claude` của một dự án bằng cách **chọn** từ knowledge base có sẵn:
+không model nào viết nội dung, file được chọn thì copy nguyên xi.
 
-By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Contributions
-are licensed under [Apache-2.0](LICENSE). Vulnerabilities go through
-[SECURITY.md](SECURITY.md), never a public issue.
+Đóng góp nghĩa là bạn đồng ý với [Code of Conduct](CODE_OF_CONDUCT.md), và được cấp phép
+theo [Apache-2.0](LICENSE). Lỗ hổng bảo mật báo riêng qua [SECURITY.md](SECURITY.md),
+không mở issue công khai.
 
-## What this project is
+## Chuẩn bị
 
-agent-stack generates a project's `.claude` rules, skills and commands by **selecting**
-from a curated knowledge base. It does not write rule content with a model.
-
-Two properties hold the design together. A change that breaks either needs a very good
-reason, stated in the pull request:
-
-1. **Selection is deterministic.** Dependency resolution, compatibility checking,
-   version matching, composition and validation all run in TypeScript, in `src/`. A
-   model maps a request to CLI flags and relays conflicts to the operator; it decides
-   nothing else.
-2. **Conflicts are never resolved silently.** When two selected technologies are
-   declared incompatible, the run stops and reports the conflict with the flag that
-   waives it. The generator does not pick a winner.
-
-## Getting set up
+Node 20 trở lên.
 
 ```bash
 npm install
-npm run check      # typecheck + tests + bundle — run this before every push
+npm run check     # typecheck + test + bundle — xanh trước khi bắt đầu, và trước mỗi lần push
 ```
 
-Node 20 or newer. `dist/agent-stack.mjs` is committed so the plugin runs without an install
-step, so **rebuild and commit `dist/` with any change under `src/`**. `npm run check`
-does the rebuild for you.
+`dist/agent-stack.mjs` được commit để plugin chạy không cần cài đặt: sửa gì trong `src/`
+thì commit `dist/` kèm theo, `npm run check` tự rebuild.
 
-Try it against a scratch project inside the repository rather than a real one:
+## Thêm rule, skill hay command
 
-```bash
-npm run try                          # Rails, exercising every layer
-npm run try -- --framework laravel   # any framework the catalog has
-npm run try -- --clean               # remove the scratch directory
-```
+**Đường dẫn chính là metadata** — không có trường `id`, `layer`, `applies_to`, `type` hay
+`priority` nào để khai. Đặt file đúng chỗ là xong
+([knowledge/README.md](knowledge/README.md) là bản tham chiếu đầy đủ):
 
-Output lands in `.agent-stack-try/`, which is gitignored. The script seeds a hand-written
-`CLAUDE.md` first, so each run also shows that the generator merges its block without
-touching text around it. Read the result, and open it with Claude Code if you want to
-see the rules and skills actually load.
-
-To drive the CLI directly, point `--out` wherever you like. Without `--write` it only
-previews what it would do:
-
-```bash
-node dist/agent-stack.mjs generate --framework rails --out /tmp/scratch
-```
-
-## Where things live
-
-| Path | What it holds |
+| Bạn viết | Sinh ra |
 | --- | --- |
-| `src/` | The deterministic pipeline: catalog load, resolve, select, compose, validate, emit |
-| `knowledge/` | The content: technology graph, rules, skills, commands |
-| `commands/` | The plugin's own slash commands |
-| `scripts/sync-upstream.mjs` | Re-copies imported content at its pinned commit |
-| `scripts/try.mjs` | Development aid: generates into `.agent-stack-try/` so you can read the output |
-| `tests/` | Vitest suite; `pipeline.test.ts` loads the real knowledge base |
+| `knowledge/rules/global/<name>.md` | `.claude/rules/<name>.md` |
+| `knowledge/rules/framework/<fw>/<name>.md` | `.claude/rules/<fw>-<name>.md` |
+| `knowledge/skills/framework/<fw>/<name>/SKILL.md` | `.claude/skills/<name>/`, kèm mọi file cạnh nó |
+| `knowledge/commands/<name>.md` | `.claude/commands/<name>.md` |
+| `knowledge/commands/framework/<fw>/<name>.md` | `.claude/commands/<fw>-<name>.md` |
+| `knowledge/claude-md/<name>.md` | inline vào `CLAUDE.md`, không ra file riêng |
 
-## Changing the knowledge base
+**Rule** = quy ước, luôn trong context, `@`-import từ `CLAUDE.md`. **Skill** = quy trình
+có các bước, chỉ nạp khi gặp việc — đang đánh số bước thì đó là skill; giữ `SKILL.md` dưới
+~500 dòng, tài liệu dài để ra file riêng cùng thư mục. **Command** = thứ lập trình viên gõ.
+**Fragment `claude-md/`** = hướng dẫn thuộc về chính `CLAUDE.md` của dự án đích.
 
-Read [knowledge/README.md](knowledge/README.md) first — it is the reference for what
-each directory in a path means and what lands where.
+Sáu điều dễ sai:
 
-The short version:
+- `<fw>` phải là id trong `catalog.yaml` — hiện chỉ `rails` và `laravel`. Mọi segment phải
+  là kebab-case thường, nếu không loader từ chối và nêu tên file.
+- **Mọi thứ gate bằng framework.** Catalog không có `ruby`, `php`, `eloquent`, nên rule
+  style Ruby nằm dưới `framework/rails/`. Gate bằng thứ ngoài catalog thì rule không bao
+  giờ được sinh ra.
+- **Id của skill là tên thư mục của chính nó**, không phải cả đường dẫn, và là không gian
+  phẳng Claude khớp task vào — viết tên framework vào luôn: `rails-feature`. Hai thư mục
+  skill trùng tên là lỗi lúc nạp.
+- **Không khai metadata của agent-stack trong front matter** — nó sẽ bị copy vào mọi dự án
+  sinh ra. Chỉ để thứ Claude đọc: `name` + `description` trong `SKILL.md`, `description`
+  trong command, rule thì không cần gì.
+- **Việc chọn không nhìn version.** Nội dung chỉ đúng từ một release nào đó thì nói rõ
+  trong thân file.
+- Thứ tự `@`-import theo alphabet của tên đầu ra. Muốn rule nằm trên thì đặt tên xếp trước.
 
-- The **directory decides the layer** (`global`, `language`, `framework`) and the file
-  or directory name decides the `id`.
-- A file authored here declares full metadata in its front matter. An imported file
-  carries only Claude's own fields and everything else is derived, so imported files
-  are never edited.
-- Do not author anything under a path that `upstream.yaml` maps to. The next sync
-  deletes it.
+Rule và skill sẽ được áp lên code thật: ưu tiên thứ đã thấy hiệu quả hơn thứ nghe có vẻ
+đúng, cụ thể đủ để làm theo, và nói *vì sao* khi lý do không hiển nhiên.
 
-Write a **rule** for a convention that must always be in context, and a **skill** for
-a procedure with steps. If you are numbering steps, it is a skill.
-
-Rules and skills are engineering advice that will be applied to real code. Prefer
-guidance you have seen pay off over guidance that merely sounds right, be specific
-enough to act on, and say *why* when the reason is not obvious.
-
-### Updating imported content
+## Test
 
 ```bash
-npm run sync                      # re-copy at the pinned commit
-npm run sync -- --ref <40-char sha>   # move the pin, then copy
+npm run check                        # typecheck + test + bundle
+npm run try -- --framework laravel   # generate vào .agent-stack-try/ (gitignore) để đọc bằng mắt
+npm run try -- --clean               # xoá thư mục thử
 ```
 
-A sync removes only the files the previous one delivered, which `upstream.lock.json`
-records. An upstream deletion still propagates — that file was in the record and is not
-in the new snapshot — while anything you wrote by hand beside the imported files stays,
-because it was never in the record. Review the diff — it shows every changed line, which
-is the point of committing the content rather than fetching it — then run `npm test` and
-commit the pin move, the lock file and the content it brought in together.
+`tests/pipeline.test.ts` nạp knowledge base thật, nên thư mục framework lạ, segment sai
+kebab-case hay hai file trùng tên đầu ra đều làm suite đỏ ngay.
 
-Only a full 40-character SHA is accepted. Do not point a source at a branch.
+**Hành vi mới cần test mới; bug fix cần test fail trước khi sửa.** Thêm nội dung cho một
+framework thì khẳng định nó được chọn chỉ từ `--framework`:
 
-## Changing the pipeline
+```ts
+it('selects the Laravel layer from the framework alone', async () => {
+  const { selection, report } = await run('laravel');
+  expect(selection.rules.map((entry) => entry.artifact.meta.id)).toContain('laravel-conventions');
+  expect(selection.skills.map((entry) => entry.artifact.meta.id)).toContain('laravel-feature');
+  expect(report.ok).toBe(true);
+});
+```
 
-- Put logic in the module that owns the concern. `resolver.ts` expands the technology
-  graph, `selector.ts` decides which artifacts apply, `composer.ts` builds the output
-  in memory, `emit.ts` touches the disk.
-- Anything that writes or deletes belongs in `emit.ts`. The generator may only remove
-  paths listed in its own previous manifest; never widen that.
-- New behaviour needs a test. Bug fixes need a test that fails before the fix.
-- Keep the CLI's `--json` output stable where you can; the slash commands parse it.
+`npm run try` seed sẵn một `CLAUDE.md` viết tay, nên mỗi lần chạy cũng chứng minh generator
+chỉ merge block của nó mà không đụng chữ xung quanh. Đọc cây file thật thay vì chỉ tin test;
+mở `.agent-stack-try/` bằng Claude Code để thấy rule và skill được nạp.
 
-## Pull requests
+## Nội dung import — đừng đụng vào
 
-- One concern per pull request, small enough to read in one sitting.
-- Use [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`,
-  `refactor:`, `docs:`, `test:`, `chore:`. The subject is imperative, under 72
-  characters, no trailing period.
-- The body explains *why*, not what the diff already shows.
-- The description states what changed, why, and how you verified it. "Ran
-  `npm run check`" plus what you exercised by hand is enough.
-- `npm run check` must pass, and `dist/` must match `src/`.
+Layer global copy từ repo khác, ghim theo SHA 40 ký tự trong `knowledge/upstream.yaml`.
 
-## Reporting bugs and proposing content
+- **Không sửa file dưới đường dẫn mà `upstream.yaml` ánh xạ tới** — lần sync sau ghi đè.
+- Viết file của riêng bạn cạnh đó thì được: sync chỉ xoá những file lần trước đã mang về,
+  ghi trong `upstream.lock.json`. Commit file lock cùng nội dung nó mô tả.
+- Dời pin là commit cần review: `npm run sync -- --ref <sha>` rồi đọc diff. Chỉ nhận SHA đủ
+  40 ký tự, không nhận branch hay tag.
 
-Open an issue. For a bug, include the exact command, the output, and what you expected.
-For a new rule or skill, say which layer and technology it belongs to, and why the
-existing content does not already cover it — the knowledge base is meant to stay small
-enough to read.
+## Sửa pipeline
+
+Đặt logic vào module đang sở hữu mối quan tâm đó — bảng module ở
+[CLAUDE.md](CLAUDE.md#pipeline). **Chỉ `emit.ts` được ghi hoặc xoá**, và chỉ xoá được đường
+dẫn có trong manifest lần chạy trước. Giữ nguyên hình dạng `--json` vì slash command parse
+nó. Hai invariant phải giữ: **việc chọn là tất định**, và **xung đột không bao giờ được hoà
+giải âm thầm** — làm yếu cái nào thì nói thẳng trong PR.
+
+## Pull request
+
+Một PR một mối quan tâm. [Conventional Commits](https://www.conventionalcommits.org), tiêu
+đề mệnh lệnh dưới 72 ký tự, không chấm cuối; body giải thích *vì sao*, không kể lại diff.
+Mô tả PR nói đã thay gì và kiểm chứng ra sao — `npm run check` xanh, `dist/` khớp `src/`.
+
+Chưa chắc nên viết gì thì mở issue trước: với bug ghi đúng câu lệnh, output và thứ bạn mong
+đợi; với rule hay skill mới nói nó thuộc framework nào và vì sao nội dung hiện có chưa bao
+được — knowledge base cố giữ đủ nhỏ để đọc hết.

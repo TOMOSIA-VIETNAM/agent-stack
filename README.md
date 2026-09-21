@@ -269,9 +269,9 @@ Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 
 ## Đóng góp: thêm một stack mới
 
-Phần này đi hết một ví dụ chạy được thật: bổ sung nội dung Laravel. Laravel đã có sẵn trong catalog nhưng chưa có rule hay skill nào, nên hiện tại `/generate laravel` chỉ ra được layer global.
+Phần này đi hết một ví dụ chạy được thật: bổ sung nội dung Laravel. Laravel đã có trong catalog nhưng chưa có rule hay skill nào, nên hôm nay `/generate laravel` chỉ ra được layer global.
 
-Đọc [knowledge/README.md](knowledge/README.md) trước — nó là bản tham chiếu đầy đủ. Phần này cho biết thứ tự làm và những chỗ dễ sai.
+[CONTRIBUTING.md](CONTRIBUTING.md) là bản tóm tắt quy trình, [knowledge/README.md](knowledge/README.md) là tham chiếu đầy đủ về đường dẫn. Phần dưới cho biết thứ tự làm và những chỗ dễ sai.
 
 ### Bước 0 — Chuẩn bị
 
@@ -280,7 +280,7 @@ npm install
 npm run check     # typecheck + test + bundle; phải xanh trước khi bạn bắt đầu
 ```
 
-### Bước 1 — Khai báo technology trong `catalog.yaml`
+### Bước 1 — Khai framework trong `catalog.yaml`
 
 Laravel đã có sẵn, nên xem nó như bản mẫu:
 
@@ -299,27 +299,15 @@ Chỉ có thế. Không có `kind`: mọi entry đều là framework, nên một
 | `compatible_with` | Chỉ để tài liệu, không được kiểm tra |
 
 > [!WARNING]
-> **Mọi rule đều gate bằng framework.** Catalog không có `php`, `eloquent`, `pest` hay `postgresql`, nên không gate được bằng chúng — một `applies_to` trỏ tới thứ không có trong catalog sẽ bị lint chặn ngay. Rule Eloquent gate bằng `laravel`. Rule style PHP cũng gate bằng `laravel`. Lỗi "rule biến mất im lặng" này từng xảy ra thật với Active Record, và một lần nữa với RSpec.
-
-> [!IMPORTANT]
-> `applies_to` là phép **AND**, không có OR. Hôm nay mỗi ngôn ngữ chỉ có một framework nên không thành vấn đề. Ngày thêm framework Ruby thứ hai, một rule Ruby dùng chung cho cả hai sẽ **không** biểu diễn được bằng `applies_to` — `[rails, hanami]` nghĩa là phải có cả hai. Lúc đó hãy thêm lại layer ngôn ngữ thay vì copy file rule.
+> **Mọi artifact gate bằng framework, và thư mục là thứ gate nó.** Catalog không có `php`, `eloquent`, `pest` hay `postgresql`, nên rule Eloquent nằm dưới `framework/laravel/`, rule style PHP cũng vậy. Một thư mục dưới `framework/` không phải id trong catalog bị lint chặn ngay, nêu tên file. Lỗi "rule biến mất im lặng" này từng xảy ra thật với Active Record, và một lần nữa với RSpec.
 
 ### Bước 2 — Viết rule
 
 Rule là một quy ước: *code phải viết thế nào*. Luôn nằm trong context.
 
-Tạo `knowledge/rules/framework/laravel.md`:
+Tạo `knowledge/rules/framework/laravel/conventions.md`:
 
 ```markdown
----
-name: Laravel Conventions
-description: Quy ước phân tầng, controller và cấu hình cho ứng dụng Laravel.
-type: rule
-layer: framework
-applies_to: [laravel]
-tags: [laravel, architecture]
----
-
 ## Phân tầng
 
 - Controller đọc request, gọi đúng một object, rồi trả response. Không chứa
@@ -333,32 +321,26 @@ tags: [laravel, architecture]
 - Dùng `chunkById()` cho bất cứ tập dữ liệu nào có thể vượt vài nghìn dòng.
 ```
 
-Đặt file ở `rules/framework/laravel/conventions.md` — thư mục `laravel/` vừa quyết định rule này áp dụng cho Laravel, vừa thành tiền tố tên đầu ra `.claude/rules/laravel-conventions.md`. Mọi segment phải là kebab-case thường, nếu không loader từ chối ngay và nói rõ file nào.
+Thư mục `laravel/` vừa quyết định rule này áp dụng cho Laravel, vừa thành tiền tố tên đầu ra `.claude/rules/laravel-conventions.md`. Mọi segment phải là kebab-case thường, nếu không loader từ chối ngay và nói rõ file nào.
 
 > [!IMPORTANT]
-> **Không khai metadata của agent-stack trong file.** Không có trường nào để khai. Đường dẫn nói hết. Thứ gì bạn viết trong front matter sẽ được copy nguyên vào mọi dự án sinh ra — nên chỉ để lại thứ Claude cần đọc: `name` + `description` trong `SKILL.md`, `description` trong command, và không gì cả trong rule nếu bạn không cần.
+> **Không khai metadata của agent-stack trong file — không có trường nào để khai.** Đường dẫn nói hết. Thứ gì bạn viết trong front matter sẽ được copy nguyên vào mọi dự án sinh ra, nên chỉ để lại thứ Claude cần đọc: `name` + `description` trong `SKILL.md`, `description` trong command, và không gì cả trong rule nếu bạn không cần.
 
-Thứ tự `@`-import sắp theo alphabet của tên đầu ra. Muốn một rule nằm trên, đặt tên nó xếp trước.
-
-`applies_to` là danh sách framework id, và là **phép AND**: mọi id đều phải có trong stack đã phân giải. Với catalog hai entry hiện tại, thực tế nó luôn là đúng một id.
+Thứ tự `@`-import sắp theo alphabet của tên đầu ra. Muốn một rule nằm trên, đặt tên nó xếp trước; không có trường `priority`.
 
 > [!IMPORTANT]
-> **Việc chọn không nhìn tới version.** Không có trường `versions`, và `--framework laravel@11` không phải cú pháp hợp lệ. Một rule áp dụng cho một technology, không phải cho một release của nó. Nội dung nào thật sự chỉ đúng từ một version nào đó thì viết điều kiện ngay trong thân rule, để người đọc thấy được — thay vì để nó biến mất âm thầm vì operator pin sai số.
+> **Việc chọn không nhìn tới version.** Không có trường `versions`, và `--framework laravel@11` không phải cú pháp hợp lệ. Một rule áp dụng cho một framework, không phải cho một release của nó. Nội dung nào chỉ đúng từ một version nào đó thì viết điều kiện ngay trong thân rule, để người đọc thấy được — thay vì để nó biến mất âm thầm vì operator pin sai số.
 
 ### Bước 3 — Viết skill
 
 Skill là một quy trình có các bước, chỉ nạp khi gặp đúng việc đó.
 
-Tạo `knowledge/skills/framework/laravel-feature/SKILL.md`:
+Tạo `knowledge/skills/framework/laravel/laravel-feature/SKILL.md`:
 
 ```markdown
 ---
 name: laravel-feature
 description: Thêm một feature end-to-end vào ứng dụng Laravel — route, Form Request, action, view và test. Dùng khi bắt đầu một màn hình hoặc endpoint mới.
-type: skill
-layer: framework
-applies_to: [laravel]
-tags: [laravel, feature, workflow]
 ---
 
 Làm theo thứ tự. Mỗi bước chạy được trước khi sang bước sau.
@@ -368,13 +350,23 @@ Làm theo thứ tự. Mỗi bước chạy được trước khi sang bước sa
 2. ...
 ```
 
-Với skill, **tên thư mục của chính nó** là id — `skills/framework/laravel/laravel-feature/SKILL.md` ra `.claude/skills/laravel-feature/`, thư mục `laravel/` chỉ để gom nhóm. Tên skill là một không gian phẳng mà Claude khớp task vào, nên hãy viết tên framework vào chính tên skill. `description` là thứ Claude đọc để quyết định có nạp hay không — viết rõ **nó làm gì** *và* **khi nào dùng**.
+Với skill, **tên thư mục của chính nó** là id — thư mục ở trên ra `.claude/skills/laravel-feature/`, còn `laravel/` chỉ để gom nhóm. Tên skill là một không gian phẳng mà Claude khớp task vào, nên hãy viết tên framework vào chính tên skill; hai thư mục skill trùng tên là lỗi lúc nạp, nêu cả hai đường dẫn.
 
-Giữ `SKILL.md` dưới ~500 dòng. Tài liệu tham chiếu dài để ra file riêng trong cùng thư mục; mọi file khác trong thư mục đó được copy tự động.
+`description` là thứ Claude đọc để quyết định có nạp hay không — viết rõ **nó làm gì** *và* **khi nào dùng**. Giữ `SKILL.md` dưới ~500 dòng; tài liệu tham chiếu dài để ra file riêng trong cùng thư mục, mọi file khác trong đó được copy theo tự động.
 
-`dependencies` kéo theo artifact khác bất kể stack có technology mà nó gate hay không: `laravel-feature` khai `dependencies: [laravel-conventions]` thì rule kia luôn được sinh ra cùng. Dùng nó khi hướng dẫn của bạn không đầy đủ nếu thiếu artifact kia.
+### Bước 4 — Command và đoạn CLAUDE.md
 
-### Bước 4 — Viết test
+Hai loại còn lại, cùng một luật đường dẫn:
+
+| Bạn viết | Sinh ra |
+| --- | --- |
+| `knowledge/commands/<tên>.md` | `.claude/commands/<tên>.md` cho mọi dự án |
+| `knowledge/commands/framework/laravel/<tên>.md` | `.claude/commands/laravel-<tên>.md`, chỉ khi chọn Laravel |
+| `knowledge/claude-md/<tên>.md` | inline vào `CLAUDE.md`, không sinh file riêng |
+
+Command giữ `description` trong front matter. Đoạn `claude-md/` là loại duy nhất bị đọc tới: front matter ở đầu và tiêu đề `# ` của nó bị bỏ khi ghép, vì nó đang chèn vào tài liệu của dự án khác.
+
+### Bước 5 — Viết test
 
 Mọi hành vi mới cần test; mọi bug fix cần một test fail trước khi sửa. `tests/pipeline.test.ts` nạp knowledge base thật, nên một thay đổi nội dung phá vỡ invariant sẽ làm suite đỏ.
 
@@ -390,26 +382,21 @@ it('selects the Laravel layer from the framework alone', async () => {
 });
 ```
 
-Có sẵn một test chặn đúng cái bẫy ở Bước 1 — `emits every Rails artifact from the framework alone`. Khi thêm stack mới, nên viết một bản tương tự: lọc mọi artifact có `applies_to` chứa `'laravel'` rồi khẳng định tất cả đều được chọn chỉ từ `--framework laravel`.
+Có sẵn một test chặn đúng cái bẫy ở Bước 1 — `selects the framework layer from the framework alone`. Khi thêm stack mới, nên viết một bản tương tự: lọc mọi artifact có `applies_to` chứa `'laravel'` rồi khẳng định tất cả đều được chọn chỉ từ `--framework laravel`.
 
-Lưu ý test `flags a technology the knowledge base does not cover yet` đang dùng chính PHP/Laravel làm ví dụ về khoảng trống. Khi bạn lấp khoảng trống đó, hãy đổi nó sang một technology khác còn trống.
+Lưu ý test `flags a framework the knowledge base does not cover yet` đang dùng chính Laravel làm ví dụ về khoảng trống. Khi bạn lấp khoảng trống đó, hãy đổi nó sang một framework khác còn trống.
 
-### Bước 5 — Chạy thử bằng mắt
+### Bước 6 — Chạy thử bằng mắt
 
 ```bash
 npm run check
 npm run try -- --framework laravel
-```
-
-`npm run try` generate vào `.agent-stack-try/` (đã gitignore) để bạn đọc cây file thật thay vì đoán. Script seed sẵn một `CLAUDE.md` viết tay, nên mỗi lần chạy cũng chứng minh luôn rằng generator merge đúng block của nó mà không đụng chữ xung quanh.
-
-```bash
 npm run try -- --clean      # xoá thư mục thử
 ```
 
-Mở `.agent-stack-try/` bằng Claude Code nếu muốn thấy rule và skill thực sự được nạp.
+`npm run try` generate vào `.agent-stack-try/` (đã gitignore) để bạn đọc cây file thật thay vì đoán. Script seed sẵn một `CLAUDE.md` viết tay, nên mỗi lần chạy cũng chứng minh luôn rằng generator merge đúng block của nó mà không đụng chữ xung quanh. Mở `.agent-stack-try/` bằng Claude Code nếu muốn thấy rule và skill thực sự được nạp.
 
-### Bước 6 — Mở PR
+### Bước 7 — Mở PR
 
 Checklist trước khi push:
 
@@ -427,8 +414,9 @@ Ví dụ commit:
 ```
 feat(knowledge): add Laravel conventions and feature skill
 
-Laravel resolved but generated nothing beyond the global layer. Gate both
-artifacts on `laravel` so a plain `--framework laravel` run emits them.
+Laravel resolved but generated nothing beyond the global layer. Put both
+artifacts under framework/laravel/ so a plain `--framework laravel` run
+emits them.
 ```
 
 ### Những lỗi lint hay gặp
@@ -437,12 +425,9 @@ artifacts on `laravel` so a plain `--framework laravel` run emits them.
 
 | Thông báo | Nguyên nhân |
 | --- | --- |
-| `global artifacts must not declare applies_to` | File trong `*/global/` mà có `applies_to` |
-| `<layer> artifacts must declare applies_to` | File ngoài `global` mà thiếu `applies_to` |
 | `the directory "x" is not a framework in catalog.yaml` | Thư mục dưới `framework/` không phải id trong catalog |
-| `duplicate <type> id "x"` | Hai file cùng `type` cho ra cùng tên đầu ra |
+| `duplicate <type> id "x"` | Hai file cùng `type` cho ra cùng tên đầu ra — hai thư mục skill trùng tên là ca hay gặp nhất |
 | `"X_y" cannot be a filename under .claude/` | Một segment không phải kebab-case thường |
-| `a framework artifact lives under <type>/framework/<framework>/` | Thiếu thư mục framework |
 | `catalog.yaml: x conflicts with itself` | `conflicts_with` chứa chính nó |
 
 ### Nội dung import — đừng đụng vào
@@ -451,7 +436,7 @@ Layer global được copy từ repo khác và ghim theo SHA 40 ký tự.
 
 - **Không sửa file nào nằm dưới đường dẫn mà `upstream.yaml` ánh xạ tới.** Lần sync sau sẽ ghi đè.
 - **Viết file của riêng bạn cạnh nội dung import thì được.** Sync chỉ xoá đúng những file lần sync trước đã mang về, ghi trong `upstream.lock.json`. File chưa từng nằm trong danh sách đó không bao giờ bị đụng tới. Nhớ commit file lock cùng nội dung nó mô tả — thiếu nó, lần sync kế tiếp không phân biệt được đâu là file upstream đã bỏ và đâu là công sức của bạn, nên nó không xoá gì cả.
-- Dời pin là một commit cần review: `npm run sync -- --ref <sha>`, rồi đọc diff xem nó mang gì vào.
+- Dời pin là một commit cần review: `npm run sync -- --ref <sha>`, rồi đọc diff xem nó mang gì vào. Chỉ nhận SHA đủ 40 ký tự, không nhận branch hay tag.
 
 Thứ một file import thiếu — description, layer — được khai trong `upstream.yaml` hoặc suy ra từ đường dẫn, chứ không thêm vào file đã copy.
 
