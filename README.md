@@ -34,17 +34,19 @@ Repository mới nào cũng bắt đầu giống nhau: ai đó copy `CLAUDE.md` 
 Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 ```
 
-<!-- MEMO(image): terminal screenshot of `/generate rails` showing the resolved stack and the file preview. Save as ./docs/images/generate-demo.png (width ~680) and uncomment.
 <p align="center">
-  <img src="./docs/images/generate-demo.png" width="680" alt="A generate run: resolved stack, conflict prompt, and the file list written into the project">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/generate-demo-dark.svg">
+    <img src="./docs/images/generate-demo.svg" width="680" alt="Một lần generate: checklist duyệt, stack đã phân giải, cảnh báo file dự án đã có, rồi danh sách file được ghi">
+  </picture>
 </p>
--->
 
 - **Nội dung không bao giờ do model viết** — rule đến từ file do con người review và commit
-- **Cùng một framework luôn cho cùng một kết quả** — phân giải, chọn và kết hợp đều chạy bằng TypeScript
+- **Cùng một framework luôn cho cùng một kết quả** — việc chọn là code, không phải prompt
 - **Xung đột làm dừng cả lần chạy** — generator nêu tên xung đột và cờ để bỏ qua; nó không tự chọn bên thắng
+- **Bạn duyệt trước khi ghi** — checklist liệt kê từng rule, skill và command; tick cái nào ghi cái đó
 - **Chạy offline** — knowledge base đã được commit, nên lúc generate không đụng network
-- **Không phá gì** — `CLAUDE.md` được merge trong cặp marker; chỉ file nằm trong manifest của lần chạy trước mới bị xoá
+- **Không phá gì** — `CLAUDE.md` merge trong cặp marker, file dự án tự viết giữ nguyên, và chỉ file nằm trong manifest của lần chạy trước mới bị xoá
 
 ## Cài đặt
 
@@ -76,10 +78,12 @@ git clone https://github.com/TOMOSIA-VIETNAM/agent-stack.git
 Trong dự án bạn muốn cấu hình:
 
 ```
-/generate ruby 3.3, rails 7.1, postgres, sidekiq, rspec
+/generate rails
 ```
 
-Command ánh xạ yêu cầu của bạn sang id trong catalog, phân giải dependency, dừng lại hỏi khi có xung đột, xem trước danh sách file, rồi mới ghi. `/catalog` cho biết knowledge base đang có gì trước khi bạn chốt stack.
+Command ánh xạ yêu cầu sang id trong catalog, phân giải dependency, dừng lại hỏi khi có xung đột, xem trước danh sách file, rồi mới ghi.
+
+Gõ thoải mái — `rails 7.1` hay `Ruby on Rails` đều được, command quy về id `rails` và bỏ qua version. Nhưng **đầu vào chỉ có framework**: nêu thêm `postgres` hay `rspec` thì command hỏi lại bạn dùng framework nào, vì catalog không có entry cho chúng. `/catalog` cho biết knowledge base đang có gì trước khi bạn chốt stack.
 
 ## Vì sao chọn lại hơn sinh
 
@@ -111,11 +115,34 @@ CLAUDE.md                              hướng dẫn chung và các @-import, t
 
 `CLAUDE.md` được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `agent-stack:begin` / `agent-stack:end` được giữ nguyên. Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
 
+### Duyệt trước khi ghi
+
+`generate --write` trong terminal hiện một **checklist** liệt kê đúng những gì nó định ghi, kèm đường dẫn đích. Không file nào rời knowledge base trước khi bạn duyệt:
+
+```
+Rules (3)
+> [x] rails-activerecord   .claude/rules/rails-activerecord.md
+  [x] rails-conventions    .claude/rules/rails-conventions.md
+  [ ] rails-ruby           .claude/rules/rails-ruby.md — already in the project
+
+Skills (29)
+  [x] api-and-interface-design  .claude/skills/api-and-interface-design
+  …
+
+40 of 42 selected, 1 left untouched because the project already has them
+```
+
+`space` một dòng · `g` cả nhóm · `a`/`n` tất cả/không cái nào · `enter` ghi · `q` huỷ, không ghi gì.
+
+**File dự án đã có thì mặc định không được tick.** Một file agent-stack chưa từng ghi — không nằm trong manifest lần trước — là của bạn: không bị đè, không vào manifest, không được `@`-import vào `CLAUDE.md`. Tick nó, hoặc chạy `--overwrite`, thì agent-stack mới nhận lấy.
+
+Không có terminal — `--json`, CI, hay gọi qua slash command — thì checklist không hiện, nhưng mặc định vẫn y nguyên, và mỗi đường dẫn bị bỏ qua đều in ra kèm cờ để bỏ qua nó.
+
 ## Command và agent
 
 | Gọi bằng | Làm gì | Ai xác định framework |
 | --- | --- | --- |
-| `/generate <stack>` | Phân giải stack, xem trước danh sách file, rồi ghi `CLAUDE.md` và `.claude/`. Gặp xung đột thì dừng và hỏi | Bạn gõ |
+| `/generate <stack>` | Phân giải stack, xem trước, rồi ghi `CLAUDE.md` và `.claude/`. Xung đột thì dừng và hỏi; file dự án đã có thì giữ nguyên | Bạn gõ |
 | `/catalog` | Liệt kê technology, rule, skill và command knowledge base đang phủ — và cả chỗ còn trống | — |
 | agent `detect` | Đọc repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng `/generate` | Agent suy ra, bạn duyệt |
 
@@ -137,11 +164,13 @@ node dist/agent-stack.mjs generate --framework rails --framework laravel --out .
 | --- | --- |
 | `--out <dir>` | Thư mục dự án đích (mặc định: thư mục hiện tại) |
 | `--write` | Ghi file thật; không có cờ này thì chỉ xem trước |
+| `--yes` | Bỏ qua checklist duyệt, lấy luôn mặc định |
+| `--overwrite` | Đè cả những file dự án đã có, thay vì để yên chúng |
 | `--accept-conflict <id>` | Chấp nhận đúng một xung đột, theo id mà CLI in ra |
 | `--knowledge <dir>` | Dùng knowledge base ở chỗ khác (mặc định: bản đi kèm) |
 | `--json` | Xuất dạng máy đọc — hợp đồng ổn định, `commands/generate.md` parse nó |
 
-Exit code: `0` thành công · `2` lỗi ở bước kiểm tra · `64` sai cách dùng · `65` technology không tồn tại.
+Exit code: `0` thành công · `2` lỗi ở bước kiểm tra · `64` sai cách dùng · `65` technology không tồn tại · `130` bạn huỷ ở checklist.
 
 ## Knowledge base
 
@@ -171,18 +200,16 @@ Nếu bạn đang viết các bước được đánh số thì đó là **skill
 
 [knowledge/README.md](knowledge/README.md) là tham chiếu đầy đủ: đường dẫn quyết định những gì, front matter nào Claude cần, thứ tự `@`-import, và cách xử lý khi chọn nhiều framework cùng lúc.
 
-<!-- MEMO(image): a layer diagram — Layer 1 global / Layer 2 framework, with the resolver pulling a slice down each column. Save as ./docs/images/layers.svg (+ layers-dark.svg) and uncomment.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/images/layers-dark.svg">
-    <img src="./docs/images/layers.svg" width="760" alt="Three knowledge base layers: global, language, framework — a resolved stack selects a slice from each">
+    <img src="./docs/images/layers.svg" width="760" alt="Hai layer của knowledge base: global áp dụng cho mọi framework, framework thì gate theo thư mục — một stack đã phân giải lấy lát cắt qua cả hai">
   </picture>
 </p>
--->
 
 ## Phạm vi hiện có
 
-**Layer 1 — global.** Copy từ hai dự án MIT tại commit được ghim trong `upstream.yaml`: 25 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), và bộ hướng dẫn hành vi từ [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), inline thẳng vào `CLAUDE.md` của mọi dự án.
+**Layer 1 — global.** Copy từ hai dự án MIT tại commit được ghim trong `upstream.yaml`: 26 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), và bộ hướng dẫn hành vi từ [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), inline thẳng vào `CLAUDE.md` của mọi dự án.
 
 **Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record, tất cả gate bằng `rails`.
 
@@ -237,6 +264,7 @@ Mỗi module một mối quan tâm. Sửa gì thì đặt vào đúng chỗ mố
 | `selector.ts` | Artifact nào áp dụng cho một stack đã phân giải |
 | `composer.ts` | Dựng output trong bộ nhớ, merge block `CLAUDE.md` |
 | `validator.ts` | Các phát hiện về tính đầy đủ và nhất quán |
+| `prompt.ts` | Checklist duyệt trên terminal, và không gì khác |
 | `emit.ts` | Module **duy nhất** được ghi hoặc xoá |
 | `cli.ts` | Cờ dòng lệnh, output cho người và `--json` |
 
@@ -247,7 +275,7 @@ Mỗi module một mối quan tâm. Sửa gì thì đặt vào đúng chỗ mố
 
 Mọi thứ ở đây xoay quanh hai điều này. Thay đổi nào làm yếu một trong hai phải nói thẳng ra, không được lách qua:
 
-1. **Việc chọn là tất định.** Phân giải, kiểm tra tương thích, kết hợp và kiểm tra đều chạy bằng TypeScript trong `src/`. Model chỉ ánh xạ yêu cầu sang cờ CLI và chuyển tiếp xung đột cho operator.
+1. **Việc chọn là tất định.** Model chỉ làm [đúng hai việc đã nêu ở trên](#không-có-nội-dung-do-llm-viết); phần còn lại là TypeScript trong `src/`. Checklist duyệt chỉ **thu hẹp** kết quả đó — bỏ bớt artifact, không bao giờ thêm vào, và không đổi nội dung file nào.
 2. **Xung đột không bao giờ được hoà giải âm thầm.** Khi hai technology được chọn bị khai là không tương thích, lần chạy dừng lại, nêu tên xung đột, và in ra cờ để bỏ qua.
 
 Điều thứ ba đúng với knowledge base: **generate là offline.** Một lần generate chỉ đọc repository này và ghi vào thư mục đích. Chỉ `npm run sync`, chạy có chủ đích, mới đụng network.

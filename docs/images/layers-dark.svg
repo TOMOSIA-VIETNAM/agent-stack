@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 372" width="760" height="372" role="img" aria-labelledby="t d">
+<title id="t">Hai layer của knowledge base</title>
+<desc id="d">Layer 1 global áp dụng cho mọi framework; layer 2 gate theo từng framework. Một stack đã phân giải lấy lát cắt qua cả hai layer và ghi vào .claude/.</desc>
+<defs><marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#4A3C34"/></marker><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#FF9B66"/></marker></defs>
+<rect width="760" height="372" fill="#191411"/>
+<text x="20" y="28" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" fill="#9A8B82" font-weight="600">knowledge/</text>
+<rect x="20" y="40" width="268" height="102" rx="8" fill="#211A16" stroke="#332924"/>
+<text x="36" y="64" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#F2EDE9" font-weight="700">Layer 1 · global</text>
+<text x="36" y="82" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#9A8B82">áp dụng cho mọi framework</text>
+<rect x="36" y="92" width="73" height="22" rx="11" fill="#191411" stroke="#332924"/>
+<text x="72.35" y="107" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" fill="#F2EDE9" text-anchor="middle">26 skills</text>
+<rect x="116.69999999999999" y="92" width="79" height="22" rx="11" fill="#191411" stroke="#332924"/>
+<text x="156.2" y="107" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" fill="#F2EDE9" text-anchor="middle">9 commands</text>
+<text x="36" y="132" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#9A8B82">1 đoạn CLAUDE.md · không có rule nào</text>
+<rect x="20" y="158" width="268" height="170" rx="8" fill="#211A16" stroke="#332924"/>
+<text x="36" y="182" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#F2EDE9" font-weight="700">Layer 2 · framework</text>
+<text x="36" y="200" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#9A8B82">thư mục là thứ gate nó</text>
+<rect x="36" y="212" width="236" height="56" rx="8" fill="#2E1E16" stroke="#B83408"/>
+<text x="56" y="236" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#FF9B66" font-weight="700">rails</text>
+<text x="56" y="254" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#FF9B66">được chọn</text>
+<text x="256" y="236" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9" text-anchor="end">3 rules</text>
+<text x="256" y="254" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9" text-anchor="end">3 skills</text>
+<rect x="36" y="280" width="236" height="34" rx="8" fill="#221C18" stroke="#3A2F29" stroke-dasharray="4 3"/>
+<text x="56" y="302" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#9A8B82" font-weight="700">laravel</text>
+<text x="256" y="302" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#9A8B82" text-anchor="end">chưa có nội dung</text>
+<text x="372" y="62" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" fill="#FF9B66" font-weight="700" text-anchor="middle">--framework rails</text>
+<path d="M372 72 V126" fill="none" stroke="#FF9B66" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="313" y="132" width="118" height="96" rx="8" fill="#211A16" stroke="#332924"/>
+<text x="372" y="158" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9" text-anchor="middle">resolver</text>
+<text x="372" y="184" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9" text-anchor="middle">selector</text>
+<text x="372" y="210" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9" text-anchor="middle">composer</text>
+<text x="372" y="246" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#9A8B82" text-anchor="middle">TypeScript, tất định</text>
+<path d="M288 91 H295 Q303 91 303 99 V152 Q303 160 311 160" fill="none" stroke="#FF9B66" stroke-width="1.5" marker-end="url(#ah)"/>
+<path d="M272 240 H295 Q303 240 303 232 V198 Q303 190 311 190" fill="none" stroke="#FF9B66" stroke-width="1.5" marker-end="url(#ah)"/>
+<path d="M272 297 H292" fill="none" stroke="#3A2F29" stroke-width="1.5" stroke-dasharray="4 3"/>
+<path d="M298 293 l8 8 M306 293 l-8 8" stroke="#3A2F29" stroke-width="1.5"/>
+<path d="M431 180 H449" fill="none" stroke="#4A3C34" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="452" y="28" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#9A8B82" font-weight="600">dự án của bạn</text>
+<rect x="452" y="40" width="288" height="288" rx="8" fill="#211A16" stroke="#332924"/>
+<text x="470" y="80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9">.claude/rules/</text>
+<text x="722" y="80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#FF9B66" font-weight="700" text-anchor="end">3</text>
+<text x="470" y="95" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#9A8B82">0 từ global + 3 của rails</text>
+<text x="470" y="126" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9">.claude/skills/</text>
+<text x="722" y="126" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#FF9B66" font-weight="700" text-anchor="end">29</text>
+<text x="470" y="141" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#9A8B82">26 từ global + 3 của rails</text>
+<text x="470" y="172" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9">.claude/commands/</text>
+<text x="722" y="172" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#FF9B66" font-weight="700" text-anchor="end">9</text>
+<text x="470" y="187" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#9A8B82">9 từ global</text>
+<line x1="470" y1="204" x2="722" y2="204" stroke="#332924"/>
+<text x="470" y="228" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9">CLAUDE.md</text>
+<text x="470" y="243" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#9A8B82">1 đoạn inline + 3 @-import, trong cặp marker</text>
+<text x="470" y="274" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#F2EDE9">.claude/agent-stack-manifest.json</text>
+<text x="470" y="289" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#9A8B82">lần chạy này sinh ra gì, và copy từ đâu</text>
+<text x="380" y="356" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#9A8B82" text-anchor="middle">Global luôn được chọn; framework quyết định phần còn lại. Cùng đầu vào, cùng file ra — tới từng byte.</text>
+</svg>
