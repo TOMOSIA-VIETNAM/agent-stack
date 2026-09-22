@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loadKnowledgeBase } from '../src/catalog.js';
+import { loadKnowledgeBase, metaFromPath } from '../src/catalog.js';
 import {
   artifactTargets,
   compose,
@@ -18,6 +18,39 @@ import { validate } from '../src/validator.js';
 import { upstreamSourceSchema } from '../src/upstream.js';
 
 const KNOWLEDGE = resolve(import.meta.dirname, '..', 'knowledge');
+const TEMPLATE = resolve(import.meta.dirname, '..', 'templates', 'framework');
+
+const CATALOG = 'version: 1\ntechnologies:\n  rails:\n    name: Ruby on Rails\n  laravel:\n    name: Laravel\n';
+
+/** A knowledge base of exactly these files, on the catalog above. */
+async function tempKnowledge(files: Record<string, string>) {
+  const root = await mkdtemp(join(tmpdir(), 'agent-stack-kb-'));
+  await writeFile(join(root, 'catalog.yaml'), CATALOG, 'utf8');
+  for (const [path, contents] of Object.entries(files)) {
+    const target = join(root, path);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, contents, 'utf8');
+  }
+  return root;
+}
+
+/** The framework directories that exist under any `<type>/framework/`. */
+async function frameworkDirs(root: string): Promise<string[]> {
+  const dirs = new Set<string>();
+  for (const type of ['rules', 'skills', 'commands', 'claude-md']) {
+    const entries = await readdir(join(root, type, 'framework'), { withFileTypes: true }).catch(
+      () => [],
+    );
+    for (const entry of entries) if (entry.isDirectory()) dirs.add(entry.name);
+  }
+  return [...dirs].sort();
+}
+
+/** Every Markdown and YAML file under a root, relative to it. */
+async function contentFiles(root: string): Promise<string[]> {
+  const entries = await readdir(root, { recursive: true });
+  return entries.filter((entry) => /\.(md|ya?ml)$/.test(entry)).sort();
+}
 
 async function run(...framework: string[]) {
   const kb = await loadKnowledgeBase(KNOWLEDGE);
@@ -42,6 +75,100 @@ describe('knowledge base', () => {
     const kb = await loadKnowledgeBase(KNOWLEDGE);
     expect(kb.rules.length).toBeGreaterThan(0);
     expect(kb.skills.length).toBeGreaterThan(0);
+  });
+});
+
+// The template is a contributor's starting point, not content: the loader never
+// sees it. Two things have to stay true anyway — the paths it teaches are ones
+// the loader accepts, and its instruction comments never reach a real artifact,
+// because an artifact is copied into a project byte for byte.
+// The catalog names the frameworks; a directory under `<type>/framework/`
+// claims one. A directory the catalog does not list means an artifact gated on
+// something nobody can select — it would never be emitted, and would go missing
+// without a word. The reverse is legal and stays a warning: a framework can be
+// in the catalog before anyone has written content for it.
+describe('the catalog and the framework directories', () => {
+  it('lists every framework directory of the real knowledge base', async () => {
+    const kb = await loadKnowledgeBase(KNOWLEDGE);
+    const dirs = await frameworkDirs(KNOWLEDGE);
+
+    expect(dirs.length).toBeGreaterThan(0);
+    expect(dirs.filter((dir) => kb.catalog.technologies[dir] === undefined)).toEqual([]);
+  });
+
+  // An empty directory carries no artifact, so lint cannot see it. The test
+  // reads the tree instead, which is the only thing that can.
+  it('refuses a framework directory the catalog does not list', async () => {
+    const kbRoot = await tempKnowledge({
+      'rules/framework/rails/conventions.md': '# Rails\n',
+      'rules/framework/django/conventions.md': '# Django\n',
+    });
+
+    await expect(loadKnowledgeBase(kbRoot)).rejects.toThrow(
+      /the directory "django" is not a framework in catalog.yaml/,
+    );
+  });
+
+  it('refuses it whatever type it sits under', async () => {
+    for (const path of [
+      'skills/framework/django/django-feature/SKILL.md',
+      'commands/framework/django/review.md',
+      'claude-md/framework/django/stack-notes.md',
+    ]) {
+      const kbRoot = await tempKnowledge({ [path]: '# Django\n' });
+      await expect(loadKnowledgeBase(kbRoot)).rejects.toThrow(
+        /the directory "django" is not a framework in catalog.yaml/,
+      );
+    }
+  });
+
+  // The legal direction: laravel is in the real catalog with no directory of
+  // its own yet. The run completes, and says which framework is bare.
+  it('lets a catalog framework have no directory yet, and names it as uncovered', async () => {
+    const kb = await loadKnowledgeBase(KNOWLEDGE);
+    const dirs = await frameworkDirs(KNOWLEDGE);
+    const bare = Object.keys(kb.catalog.technologies).filter((id) => !dirs.includes(id));
+    expect(bare.length).toBeGreaterThan(0);
+
+    for (const id of bare) {
+      const { report } = await run(id);
+      expect(report.ok).toBe(true);
+      expect(
+        report.findings.filter(
+          (finding) => finding.code === 'uncovered-technology' && finding.message.startsWith(id),
+        ),
+      ).toHaveLength(1);
+    }
+  });
+});
+
+describe('the framework template', () => {
+  const TYPES = { rules: 'rule', skills: 'skill', commands: 'command' } as const;
+
+  it('teaches paths the loader reads a framework off', async () => {
+    const files = (await contentFiles(TEMPLATE)).filter((file) => file.includes('FRAMEWORK'));
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const type = TYPES[file.split('/')[0] as keyof typeof TYPES];
+      expect(type, file).toBeDefined();
+      // A skill is loaded by its SKILL.md; the files bundled beside it are
+      // copied along, never read as artifacts of their own.
+      if (type === 'skill' && !file.endsWith('SKILL.md')) continue;
+      const meta = metaFromPath(file.replaceAll('FRAMEWORK', 'django'), type);
+      expect(meta.layer, file).toBe('framework');
+      expect(meta.applies_to, file).toEqual(['django']);
+      expect(meta.id, file).toContain('django');
+    }
+  });
+
+  it('never leaks its instruction markers into the knowledge base', async () => {
+    const leaked: string[] = [];
+    for (const file of await contentFiles(KNOWLEDGE)) {
+      const contents = await readFile(join(KNOWLEDGE, file), 'utf8');
+      if (contents.includes('TEMPLATE:')) leaked.push(file);
+    }
+    expect(leaked).toEqual([]);
   });
 });
 
@@ -302,19 +429,6 @@ describe('mergeClaudeMd', () => {
 // A project can be built on more than one framework, and two frameworks will
 // naturally want a rule called the same thing. The directory disambiguates it.
 describe('two frameworks at once', () => {
-  const CATALOG = 'version: 1\ntechnologies:\n  rails:\n    name: Ruby on Rails\n  laravel:\n    name: Laravel\n';
-
-  async function tempKnowledge(files: Record<string, string>) {
-    const root = await mkdtemp(join(tmpdir(), 'agent-stack-kb-'));
-    await writeFile(join(root, 'catalog.yaml'), CATALOG, 'utf8');
-    for (const [path, contents] of Object.entries(files)) {
-      const target = join(root, path);
-      await mkdir(dirname(target), { recursive: true });
-      await writeFile(target, contents, 'utf8');
-    }
-    return root;
-  }
-
   it('gives two rules of the same name distinct files, each a copy of its own source', async () => {
     const kbRoot = await tempKnowledge({
       'rules/framework/rails/conventions.md': '# Rails conventions\n\nController rules.\n',

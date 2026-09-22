@@ -160,7 +160,7 @@ mọi nơi.
 **Fragment** — file Markdown dưới `claude-md/`. Chỉ dùng cho hướng dẫn mà mọi dự án cần
 nằm inline thay vì sau một import.
 
-**Framework** — một entry trong `catalog.yaml`, rồi một thư mục cùng tên.
+**Framework** — `npm run new-framework -- <id> "<Name>"` thêm entry vào `catalog.yaml` và clone [`templates/framework/`](../templates/framework/) vào đúng chỗ. Chi tiết ở [CONTRIBUTING.md](../CONTRIBUTING.md#thêm-một-framework).
 
 Chạy `npm test` sau mỗi thay đổi: suite load thư mục này và fail khi trùng tên, khi thư
 mục framework lạ, hoặc khi một đường dẫn không thể thành tên file.

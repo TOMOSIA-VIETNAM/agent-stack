@@ -33,6 +33,8 @@ npm run check    # typecheck + tests + bundle — before every push
 npm run try      # generate into .agent-stack-try/ (gitignored) and read the result
 npm run sync     # re-copy imported content at the pinned commit
 
+npm run new-framework -- <id> "<Name>"   # catalog entry + templates/framework/ cloned into knowledge/
+
 npm run commit-type   # ask TypeSafe which Conventional Commit type a change is
 ```
 

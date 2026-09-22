@@ -59,6 +59,48 @@ Sáu điều dễ sai:
 Rule và skill sẽ được áp lên code thật: ưu tiên thứ đã thấy hiệu quả hơn thứ nghe có vẻ
 đúng, cụ thể đủ để làm theo, và nói *vì sao* khi lý do không hiển nhiên.
 
+## Thêm một framework
+
+Một lệnh, đối số là id framework:
+
+```bash
+npm run new-framework -- django "Django"
+```
+
+Nó thêm entry vào [`knowledge/catalog.yaml`](knowledge/catalog.yaml) rồi clone
+[`templates/framework/`](templates/framework/) — một rule, một skill kèm file đi kèm, một
+command — vào đúng chỗ trong `knowledge/`, thay `<Framework>` và tên skill theo id:
+
+```
+knowledge/rules/framework/django/conventions.md
+knowledge/skills/framework/django/django-feature/SKILL.md
+knowledge/skills/framework/django/django-feature/references/checklist.md
+knowledge/commands/framework/django/review.md
+```
+
+Id phải là lowercase kebab-case: nó vừa là thứ operator gõ sau `--framework`, vừa là tên
+thư mục của mọi artifact. Bỏ tham số tên thì tên suy ra từ id (`ruby-on-rails` →
+`Ruby On Rails`). Lệnh **từ chối ghi đè**: file đã có trong `knowledge/` là của tác giả nó,
+nên chạy lần hai trên cùng id chỉ in ra những gì đang có.
+
+`requires` / `conflicts_with` không được sinh — chỉ khai bằng tay khi thật đúng, vì chúng là
+chất liệu của hai invariant.
+
+Sau đó là phần viết nội dung, và xoá phần không cần: một framework chỉ có rule vẫn hợp lệ —
+validator báo `uncovered-technology` chứ không fail; một file còn nguyên placeholder thì tệ
+hơn là không có file đó. Cần hướng dẫn nằm inline trong `CLAUDE.md` của dự án đích thì thêm
+`knowledge/claude-md/framework/<fw>/<name>.md` — không có khung, vì nó chỉ là Markdown bắt
+đầu bằng `##`.
+
+Khung rule có khối `paths:` với glob placeholder — thay bằng glob thật của framework, hoặc
+xoá cả khối nếu quy ước áp dụng cho mọi file. Khung skill thì không: `description` là thứ
+Claude đối chiếu với task, nên một skill làm feature phải là ứng viên cho mọi task làm
+feature.
+
+**Xoá mọi comment `TEMPLATE:` và mọi placeholder `<…>` trước khi commit** — file được copy
+nguyên xi vào dự án sinh ra, comment còn lại sẽ đi theo. `tests/pipeline.test.ts` chặn việc
+đó, và kiểm luôn rằng mọi thư mục framework trên đĩa là một id có trong catalog.
+
 ## Test
 
 ```bash

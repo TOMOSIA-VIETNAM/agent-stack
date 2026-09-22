@@ -220,7 +220,7 @@ Nếu bạn đang viết các bước được đánh số thì đó là **skill
 
 ## Đóng góp
 
-[CONTRIBUTING.md](CONTRIBUTING.md) là quy trình từng bước; [knowledge/README.md](knowledge/README.md) là tham chiếu đường dẫn. Ba chỗ dễ sai nhất:
+[CONTRIBUTING.md](CONTRIBUTING.md) là quy trình từng bước; [knowledge/README.md](knowledge/README.md) là tham chiếu đường dẫn; `npm run new-framework -- <id> "<Name>"` dựng sẵn khung cho một framework mới. Ba chỗ dễ sai nhất:
 
 > [!WARNING]
 > **Mọi artifact gate bằng framework, và thư mục là thứ gate nó.** Catalog không có `php`, `eloquent`, `pest` hay `postgresql`, nên rule Eloquent nằm dưới `framework/laravel/`, rule style PHP cũng vậy. Một thư mục dưới `framework/` không phải id trong catalog bị lint chặn ngay. Lỗi "rule biến mất im lặng" này từng xảy ra thật với Active Record, và một lần nữa với RSpec.
