@@ -13,7 +13,8 @@
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",
     "sync": "node scripts/sync-upstream.mjs",
-    "try": "node scripts/try.mjs"
+    "try": "node scripts/try.mjs",
+    "commit-type": "node scripts/commit-type.mjs"
   },
   "dependencies": {
     "yaml": "^2.9.1",

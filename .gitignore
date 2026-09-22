@@ -4,3 +4,11 @@ node_modules/
 
 # Scratch target for `npm run try` — generated output, never committed.
 .agent-stack-try/
+
+# Local secrets — TYPESAFE_API_KEY for `npm run commit-type`, and anything like it.
+.env
+.env.local
+
+# Skills the harness installs into this repo's own .claude/ — third-party content,
+# which agent-stack may only carry through upstream.yaml with a pinned commit.
+.claude/

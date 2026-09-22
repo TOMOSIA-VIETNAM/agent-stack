@@ -247,6 +247,8 @@ npm install
 npm run check      # typecheck + test + bundle — chạy trước mỗi lần push
 npm run sync       # copy lại nội dung import tại commit đã ghim
 npm run try        # generate vào .agent-stack-try/ để đọc kết quả thật
+
+npm run commit-type   # hỏi TypeSafe xem thay đổi này là Conventional Commit type nào
 ```
 
 > [!IMPORTANT]
@@ -278,7 +280,7 @@ Mọi thứ ở đây xoay quanh hai điều này. Thay đổi nào làm yếu m
 1. **Việc chọn là tất định.** Model chỉ làm [đúng hai việc đã nêu ở trên](#không-có-nội-dung-do-llm-viết); phần còn lại là TypeScript trong `src/`. Checklist duyệt chỉ **thu hẹp** kết quả đó — bỏ bớt artifact, không bao giờ thêm vào, và không đổi nội dung file nào.
 2. **Xung đột không bao giờ được hoà giải âm thầm.** Khi hai technology được chọn bị khai là không tương thích, lần chạy dừng lại, nêu tên xung đột, và in ra cờ để bỏ qua.
 
-Điều thứ ba đúng với knowledge base: **generate là offline.** Một lần generate chỉ đọc repository này và ghi vào thư mục đích. Chỉ `npm run sync`, chạy có chủ đích, mới đụng network.
+Điều thứ ba đúng với knowledge base: **generate là offline.** Một lần generate chỉ đọc repository này và ghi vào thư mục đích. Chỉ hai script đụng network, đều phải gõ tay và đều không gọi được từ `src/`: `npm run sync`, và `npm run commit-type` — hỏi TypeSafe xem một diff là commit type nào lúc bạn viết commit message.
 
 ## Giấy phép
 
