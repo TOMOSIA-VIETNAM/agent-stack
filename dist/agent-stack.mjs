@@ -11731,9 +11731,32 @@ function compose(stack, selection, generatorVersion, imported = []) {
 ` });
   return { files, manifest, claudeMdBlock: claudeMdBlock(selection.claudeMd, ruleEntries) };
 }
+function artifactTargets(selection) {
+  return [
+    ...selection.rules.map((entry) => ({
+      id: entry.artifact.meta.id,
+      type: "rule",
+      path: rulePath(entry)
+    })),
+    ...selection.skills.map((entry) => ({
+      id: entry.artifact.meta.id,
+      type: "skill",
+      path: skillDir(entry)
+    })),
+    ...selection.commands.map((entry) => ({
+      id: entry.artifact.meta.id,
+      type: "command",
+      path: commandPath(entry)
+    })),
+    ...selection.claudeMd.map((entry) => ({
+      id: entry.artifact.meta.id,
+      type: "claude-md"
+    }))
+  ];
+}
 
 // src/emit.ts
-import { copyFile, mkdir, readFile as readFile3, rm, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile as readFile3, rm, writeFile } from "node:fs/promises";
 import { dirname as dirname2, join as join4 } from "node:path";
 async function readPreviousManifest(outDir) {
   const raw = await readFile3(join4(outDir, MANIFEST_PATH), "utf8").catch(() => void 0);
@@ -11744,18 +11767,35 @@ async function readPreviousManifest(outDir) {
     return void 0;
   }
 }
-async function planEmit(outDir, composed) {
-  const write = [...composed.files.map((file) => file.path), "CLAUDE.md"].sort();
-  const previous = await readPreviousManifest(outDir);
-  if (!previous) return { write, remove: [] };
-  const owned = (manifest) => [
+function ownedPaths(manifest) {
+  return [
     ...manifest.rules.map((rule) => rule.path),
     ...manifest.skills.map((skill) => skill.path),
     ...(manifest.commands ?? []).map((command) => command.path),
     ...manifest.extras ?? []
   ];
-  const next = new Set(owned(composed.manifest));
-  const remove = owned(previous).filter((path) => !next.has(path)).sort();
+}
+async function inspectTargets(outDir, targets) {
+  const previous = await readPreviousManifest(outDir);
+  const owned = new Set(previous ? ownedPaths(previous) : []);
+  return Promise.all(
+    targets.map(async (target) => {
+      if (target.path === void 0) return { ...target, state: "new" };
+      if (owned.has(target.path)) return { ...target, state: "owned" };
+      const there = await access(join4(outDir, target.path)).then(
+        () => true,
+        () => false
+      );
+      return { ...target, state: there ? "exists" : "new" };
+    })
+  );
+}
+async function planEmit(outDir, composed) {
+  const write = [...composed.files.map((file) => file.path), "CLAUDE.md"].sort();
+  const previous = await readPreviousManifest(outDir);
+  if (!previous) return { write, remove: [] };
+  const next = new Set(ownedPaths(composed.manifest));
+  const remove = ownedPaths(previous).filter((path) => !next.has(path)).sort();
   return { write, remove };
 }
 async function emit(outDir, composed, options) {
@@ -11779,6 +11819,269 @@ async function emit(outDir, composed, options) {
     await rm(join4(outDir, path), { recursive: true, force: true });
   }
   return { ...plan, outDir, dryRun: false };
+}
+
+// src/selector.ts
+function matches(artifact, stack) {
+  const { applies_to: appliesTo } = artifact.meta;
+  if (appliesTo.length === 0) {
+    return { ok: true, matchedBy: [] };
+  }
+  const matchedBy = [];
+  for (const id of appliesTo) {
+    if (!stack.technologies.some((tech) => tech.id === id)) {
+      return { ok: false, reason: `${id} is not in the stack` };
+    }
+    matchedBy.push(id);
+  }
+  return { ok: true, matchedBy };
+}
+function selectArtifacts(kb, stack) {
+  const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
+  const selected = /* @__PURE__ */ new Map();
+  const skipped = [];
+  for (const artifact of all) {
+    const result = matches(artifact, stack);
+    if (result.ok) {
+      selected.set(artifact.meta.id, { artifact, matchedBy: result.matchedBy });
+    } else {
+      skipped.push({ artifact, reason: result.reason });
+    }
+  }
+  const covered = new Set(
+    [...selected.values()].flatMap((entry) => entry.artifact.meta.applies_to)
+  );
+  const uncovered = stack.technologies.filter((tech) => !covered.has(tech.id));
+  const order = (a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id);
+  return {
+    rules: [...selected.values()].filter((e) => e.artifact.meta.type === "rule").sort(order),
+    skills: [...selected.values()].filter((e) => e.artifact.meta.type === "skill").sort(order),
+    commands: [...selected.values()].filter((e) => e.artifact.meta.type === "command").sort(order),
+    claudeMd: [...selected.values()].filter((e) => e.artifact.meta.type === "claude-md").sort(order),
+    skipped: skipped.sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
+    uncovered
+  };
+}
+function artifactKey(artifact) {
+  return `${artifact.type}:${artifact.id}`;
+}
+function excludeArtifacts(selection, excluded, stack) {
+  if (excluded.size === 0) return selection;
+  const keep = (entries) => entries.filter((entry) => !excluded.has(artifactKey(entry.artifact.meta)));
+  const dropped = (entries) => entries.filter((entry) => excluded.has(artifactKey(entry.artifact.meta))).map((entry) => ({
+    artifact: entry.artifact,
+    reason: excluded.get(artifactKey(entry.artifact.meta)) ?? "not approved"
+  }));
+  const rules = keep(selection.rules);
+  const skills = keep(selection.skills);
+  const commands = keep(selection.commands);
+  const claudeMd = keep(selection.claudeMd);
+  const covered = new Set(
+    [...rules, ...skills, ...commands, ...claudeMd].flatMap(
+      (entry) => entry.artifact.meta.applies_to
+    )
+  );
+  return {
+    rules,
+    skills,
+    commands,
+    claudeMd,
+    skipped: [
+      ...selection.skipped,
+      ...dropped(selection.rules),
+      ...dropped(selection.skills),
+      ...dropped(selection.commands),
+      ...dropped(selection.claudeMd)
+    ].sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
+    uncovered: stack.technologies.filter((tech) => !covered.has(tech.id))
+  };
+}
+
+// src/prompt.ts
+var TYPE_ORDER = ["rule", "skill", "command", "claude-md"];
+var TYPE_LABEL = {
+  rule: "Rules",
+  skill: "Skills",
+  command: "Commands",
+  "claude-md": "CLAUDE.md fragments"
+};
+var STATE_NOTE = {
+  new: "",
+  owned: "replaces the last run",
+  exists: "already in the project"
+};
+function initialState(targets, options = {}) {
+  const items = [...targets].sort(
+    (a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) || a.id.localeCompare(b.id)
+  ).map((target) => ({
+    key: artifactKey(target),
+    id: target.id,
+    type: target.type,
+    path: target.path,
+    state: target.state,
+    checked: options.overwrite === true || target.state !== "exists"
+  }));
+  return { items, cursor: 0, status: "open" };
+}
+function reduce(state, key) {
+  if (state.status !== "open") return state;
+  const { items, cursor } = state;
+  const count = items.length;
+  const set = (predicate, checked) => ({
+    ...state,
+    items: items.map(
+      (item, index) => predicate(item, index) ? { ...item, checked } : item
+    )
+  });
+  switch (key) {
+    case "up":
+      return count === 0 ? state : { ...state, cursor: (cursor - 1 + count) % count };
+    case "down":
+      return count === 0 ? state : { ...state, cursor: (cursor + 1) % count };
+    case "toggle": {
+      const current = items[cursor];
+      return current === void 0 ? state : set((_, i) => i === cursor, !current.checked);
+    }
+    case "all":
+      return set(() => true, true);
+    case "none":
+      return set(() => true, false);
+    case "group": {
+      const current = items[cursor];
+      if (current === void 0) return state;
+      const group = items.filter((item) => item.type === current.type);
+      return set((item) => item.type === current.type, !group.every((item) => item.checked));
+    }
+    case "confirm":
+      return { ...state, status: "confirmed" };
+    case "cancel":
+      return { ...state, status: "cancelled" };
+  }
+}
+function parseKey(chunk) {
+  switch (chunk) {
+    case "\x1B[A":
+    case "k":
+      return "up";
+    case "\x1B[B":
+    case "j":
+      return "down";
+    case " ":
+      return "toggle";
+    case "a":
+      return "all";
+    case "n":
+      return "none";
+    case "g":
+      return "group";
+    case "\r":
+    case "\n":
+      return "confirm";
+    case "":
+    case "\x1B":
+    case "q":
+      return "cancel";
+    default:
+      return void 0;
+  }
+}
+function splitKeys(chunk) {
+  return chunk.startsWith("\x1B[") ? [chunk] : [...chunk];
+}
+function rejected(state) {
+  return state.items.filter((item) => !item.checked);
+}
+var DIM = "\x1B[2m";
+var BOLD = "\x1B[1m";
+var RESET = "\x1B[0m";
+function itemLine(item, focused) {
+  const box = item.checked ? "[x]" : "[ ]";
+  const note = STATE_NOTE[item.state];
+  const where = item.path ?? "inlined into CLAUDE.md";
+  const trailer = note === "" ? where : `${where} \u2014 ${note}`;
+  const body = `${box} ${item.id.padEnd(28)} ${DIM}${trailer}${RESET}`;
+  return focused ? `${BOLD}>${RESET} ${body}` : `  ${body}`;
+}
+function render(state, rows = 24) {
+  const height = rows > 0 ? rows : 24;
+  const body = [];
+  let focusedLine = 0;
+  let lastType;
+  state.items.forEach((item, index) => {
+    if (item.type !== lastType) {
+      const total = state.items.filter((other) => other.type === item.type).length;
+      if (lastType !== void 0) body.push("");
+      body.push(`${BOLD}${TYPE_LABEL[item.type]}${RESET} ${DIM}(${total})${RESET}`);
+      lastType = item.type;
+    }
+    if (index === state.cursor) focusedLine = body.length;
+    body.push(itemLine(item, index === state.cursor));
+  });
+  const chosen = state.items.filter((item) => item.checked).length;
+  const held = state.items.filter((item) => !item.checked && item.state === "exists").length;
+  const header = [
+    `${BOLD}Choose what to write into .claude/${RESET}`,
+    `${DIM}space toggle \xB7 g group \xB7 a all \xB7 n none \xB7 \u2191\u2193/jk move \xB7 enter write \xB7 q cancel${RESET}`,
+    ""
+  ];
+  const footer = [
+    "",
+    `${chosen} of ${state.items.length} selected` + (held > 0 ? `, ${held} left untouched because the project already has them` : "")
+  ];
+  const room = Math.max(3, height - header.length - footer.length - 1);
+  if (body.length <= room) return [...header, ...body, ...footer];
+  const start = Math.min(
+    Math.max(0, focusedLine - Math.floor(room / 2)),
+    body.length - room
+  );
+  const window = body.slice(start, start + room);
+  if (start > 0) window[0] = `${DIM}  \u2026 ${start} more above${RESET}`;
+  const below = body.length - (start + room);
+  if (below > 0) window[window.length - 1] = `${DIM}  \u2026 ${below} more below${RESET}`;
+  return [...header, ...window, ...footer];
+}
+function isInteractive(io) {
+  return Boolean(io.input.isTTY && io.output.isTTY && typeof io.input.setRawMode === "function");
+}
+async function runPicker(targets, io, options = {}) {
+  let state = initialState(targets, options);
+  const { input, output } = io;
+  let drawn = 0;
+  const draw = () => {
+    if (drawn > 0) output.write(`\x1B[${drawn}A\x1B[0J`);
+    const lines = render(state, output.rows ?? 0);
+    output.write(`${lines.join("\n")}
+`);
+    drawn = lines.length;
+  };
+  const previousRaw = input.isRaw === true;
+  input.setRawMode(true);
+  input.setEncoding("utf8");
+  input.resume();
+  draw();
+  try {
+    await new Promise((settle) => {
+      const onData = (chunk) => {
+        for (const key of splitKeys(chunk)) {
+          const action = parseKey(key);
+          if (action === void 0) continue;
+          state = reduce(state, action);
+          if (state.status !== "open") {
+            input.off("data", onData);
+            settle();
+            return;
+          }
+        }
+        draw();
+      };
+      input.on("data", onData);
+    });
+  } finally {
+    input.setRawMode(previousRaw);
+    input.pause();
+  }
+  draw();
+  return state;
 }
 
 // src/resolver.ts
@@ -11902,50 +12205,8 @@ function renderTable(columns, rows, indent = "  ") {
   ].join("\n");
 }
 
-// src/selector.ts
-function matches(artifact, stack) {
-  const { applies_to: appliesTo } = artifact.meta;
-  if (appliesTo.length === 0) {
-    return { ok: true, matchedBy: [] };
-  }
-  const matchedBy = [];
-  for (const id of appliesTo) {
-    if (!stack.technologies.some((tech) => tech.id === id)) {
-      return { ok: false, reason: `${id} is not in the stack` };
-    }
-    matchedBy.push(id);
-  }
-  return { ok: true, matchedBy };
-}
-function selectArtifacts(kb, stack) {
-  const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
-  const selected = /* @__PURE__ */ new Map();
-  const skipped = [];
-  for (const artifact of all) {
-    const result = matches(artifact, stack);
-    if (result.ok) {
-      selected.set(artifact.meta.id, { artifact, matchedBy: result.matchedBy });
-    } else {
-      skipped.push({ artifact, reason: result.reason });
-    }
-  }
-  const covered = new Set(
-    [...selected.values()].flatMap((entry) => entry.artifact.meta.applies_to)
-  );
-  const uncovered = stack.technologies.filter((tech) => !covered.has(tech.id));
-  const order = (a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id);
-  return {
-    rules: [...selected.values()].filter((e) => e.artifact.meta.type === "rule").sort(order),
-    skills: [...selected.values()].filter((e) => e.artifact.meta.type === "skill").sort(order),
-    commands: [...selected.values()].filter((e) => e.artifact.meta.type === "command").sort(order),
-    claudeMd: [...selected.values()].filter((e) => e.artifact.meta.type === "claude-md").sort(order),
-    skipped: skipped.sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
-    uncovered
-  };
-}
-
 // src/validator.ts
-function validate(stack, selection, acceptedConflicts = []) {
+function validate(stack, selection, acceptedConflicts = [], kept = []) {
   const findings = [];
   const accepted = new Set(acceptedConflicts);
   for (const conflict of stack.conflicts) {
@@ -11963,6 +12224,13 @@ function validate(stack, selection, acceptedConflicts = []) {
       severity: "warning",
       code: "uncovered-technology",
       message: `${tech.id} is in the stack but the knowledge base has no rules or skills for it yet.`
+    });
+  }
+  for (const entry of kept) {
+    findings.push({
+      severity: "warning",
+      code: "existing-file",
+      message: `${entry.path} already exists and agent-stack did not write it \u2014 ${entry.id} was left out [--overwrite to replace it]`
     });
   }
   for (const warning of stack.warnings) {
@@ -12014,10 +12282,19 @@ Stack flags:
 Options:
   --out <dir>                 target project directory (default: cwd)
   --write                     write files; without it, generate only previews
+  --yes                       skip the approval checklist and take the defaults
+  --overwrite                 replace files the project already has, which are
+                              otherwise left where they are
   --accept-conflict <id>      proceed despite one conflict, by its reported id
   --knowledge <dir>           knowledge base directory (default: bundled)
   --json                      machine-readable output
   -h, --help                  this help
+
+On a terminal, \`generate --write\` first shows a checklist of everything it
+would write, ticked except for files the project already has. Nothing moves
+into .claude/ until it is approved. Without a terminal \u2014 under --json, or from
+a script \u2014 the same defaults apply unattended, and every file left alone is
+reported.
 `;
 var UsageError = class extends Error {
 };
@@ -12029,6 +12306,8 @@ function parseArgs(argv2) {
   let knowledge = DEFAULT_KNOWLEDGE;
   let write = false;
   let json = false;
+  let yes = false;
+  let overwrite = false;
   for (let i = 0; i < argv2.length; i += 1) {
     const arg = argv2[i];
     const next = () => {
@@ -12047,6 +12326,10 @@ function parseArgs(argv2) {
       write = true;
     } else if (arg === "--json") {
       json = true;
+    } else if (arg === "--yes") {
+      yes = true;
+    } else if (arg === "--overwrite") {
+      overwrite = true;
     } else if (arg === "--out") {
       out = resolve(next());
     } else if (arg === "--knowledge") {
@@ -12071,7 +12354,9 @@ function parseArgs(argv2) {
     write,
     json,
     knowledge,
-    acceptConflicts
+    acceptConflicts,
+    yes,
+    overwrite
   };
 }
 function formatStack(stack) {
@@ -12166,12 +12451,16 @@ async function run(options) {
     throw new UsageError(`Unknown command: ${options.command}`);
   }
   const stack = resolveStack(kb.catalog, options.stack);
-  const selection = selectArtifacts(kb, stack);
-  const report = validate(stack, selection, options.acceptConflicts);
+  const fullSelection = selectArtifacts(kb, stack);
+  const fullReport = validate(stack, fullSelection, options.acceptConflicts);
   if (options.command === "resolve") {
     if (options.json) {
       process.stdout.write(
-        `${JSON.stringify({ stack, selection: summarize(selection), report }, null, 2)}
+        `${JSON.stringify(
+          { stack, selection: summarize(fullSelection), report: fullReport },
+          null,
+          2
+        )}
 `
       );
     } else {
@@ -12179,16 +12468,30 @@ async function run(options) {
 `);
       process.stdout.write(`${formatStack(stack).join("\n")}
 `);
-      printReport(report);
+      printReport(fullReport);
     }
-    return report.ok ? 0 : 2;
+    return fullReport.ok ? 0 : 2;
   }
+  const approval = fullReport.ok ? await approve(options, stack, fullSelection) : { cancelled: false, selection: fullSelection, kept: [], declined: [] };
+  if (approval.cancelled) {
+    process.stdout.write("\nCancelled. Nothing was written.\n");
+    return 130;
+  }
+  const { selection, kept, declined } = approval;
+  const report = fullReport.ok ? validate(stack, selection, options.acceptConflicts, kept) : fullReport;
   const composed = compose(stack, selection, VERSION, kb.imported);
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
   if (options.json) {
     process.stdout.write(
       `${JSON.stringify(
-        { stack, selection: summarize(selection), report, emit: result },
+        {
+          stack,
+          selection: summarize(selection),
+          report,
+          emit: result,
+          kept,
+          declined: declined.map(({ id, type, path }) => ({ id, type, path }))
+        },
         null,
         2
       )}
@@ -12201,6 +12504,15 @@ async function run(options) {
   process.stdout.write(`${formatStack(stack).join("\n")}
 `);
   printReport(report);
+  if (declined.length > 0) {
+    process.stdout.write(`
+Left out at your request:
+`);
+    for (const item of declined) {
+      process.stdout.write(`  ${item.id}${item.path ? ` (${item.path})` : ""}
+`);
+    }
+  }
   process.stdout.write(
     `
 ${result.dryRun ? "Would write" : "Wrote"} ${result.write.length} file(s) in ${result.outDir}:
@@ -12218,6 +12530,40 @@ ${result.dryRun ? "Would write" : "Wrote"} ${result.write.length} file(s) in ${r
     process.stdout.write("\nNothing written. Re-run with --write to apply.\n");
   }
   return report.ok ? 0 : 2;
+}
+async function approve(options, stack, selection) {
+  const targets = await inspectTargets(options.out, artifactTargets(selection));
+  const io = { input: process.stdin, output: process.stdout };
+  const excluded = /* @__PURE__ */ new Map();
+  const kept = [];
+  const declined = [];
+  if (options.write && !options.json && !options.yes && isInteractive(io)) {
+    const picked = await runPicker(targets, io, { overwrite: options.overwrite });
+    if (picked.status === "cancelled") {
+      return { cancelled: true, selection, kept, declined };
+    }
+    for (const item of rejected(picked)) {
+      if (item.state === "exists" && item.path !== void 0) {
+        excluded.set(item.key, "the project already has this file");
+        kept.push({ id: item.id, path: item.path });
+      } else {
+        excluded.set(item.key, "not approved");
+        declined.push(item);
+      }
+    }
+  } else if (!options.overwrite) {
+    for (const target of targets) {
+      if (target.state !== "exists" || target.path === void 0) continue;
+      excluded.set(artifactKey(target), "the project already has this file");
+      kept.push({ id: target.id, path: target.path });
+    }
+  }
+  return {
+    cancelled: false,
+    selection: excludeArtifacts(selection, excluded, stack),
+    kept,
+    declined
+  };
 }
 function summarize(selection) {
   const describe = (entries) => entries.map((entry) => ({

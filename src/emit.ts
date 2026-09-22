@@ -1,8 +1,9 @@
-import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import {
   MANIFEST_PATH,
   mergeClaudeMd,
+  type ArtifactTarget,
   type ComposedOutput,
   type Manifest,
 } from './composer.js';
@@ -30,6 +31,56 @@ async function readPreviousManifest(outDir: string): Promise<Manifest | undefine
 }
 
 /**
+ * What already sits at an artifact's target path.
+ *
+ * - `new`    nothing is there.
+ * - `owned`  a previous run wrote it, and this run replaces it.
+ * - `exists` the project put it there. agent-stack did not write it, so it is
+ *            not agent-stack's to replace without being told.
+ */
+export type TargetState = 'new' | 'owned' | 'exists';
+
+export interface InspectedTarget extends ArtifactTarget {
+  state: TargetState;
+}
+
+function ownedPaths(manifest: Manifest): string[] {
+  return [
+    ...manifest.rules.map((rule) => rule.path),
+    ...manifest.skills.map((skill) => skill.path),
+    ...(manifest.commands ?? []).map((command) => command.path),
+    ...(manifest.extras ?? []),
+  ];
+}
+
+/**
+ * Classify every target against the project as it stands.
+ *
+ * This is what stops a generate run from walking over a `.claude` directory
+ * someone wrote by hand: ownership comes from the previous manifest, so a file
+ * agent-stack has never written is always `exists`, whatever its name.
+ */
+export async function inspectTargets(
+  outDir: string,
+  targets: ArtifactTarget[],
+): Promise<InspectedTarget[]> {
+  const previous = await readPreviousManifest(outDir);
+  const owned = new Set(previous ? ownedPaths(previous) : []);
+
+  return Promise.all(
+    targets.map(async (target) => {
+      if (target.path === undefined) return { ...target, state: 'new' as const };
+      if (owned.has(target.path)) return { ...target, state: 'owned' as const };
+      const there = await access(join(outDir, target.path)).then(
+        () => true,
+        () => false,
+      );
+      return { ...target, state: there ? ('exists' as const) : ('new' as const) };
+    }),
+  );
+}
+
+/**
  * Stale paths are taken from the previous manifest only: agent-stack removes
  * what it generated before and never touches files it did not write.
  */
@@ -38,15 +89,8 @@ export async function planEmit(outDir: string, composed: ComposedOutput): Promis
   const previous = await readPreviousManifest(outDir);
   if (!previous) return { write, remove: [] };
 
-  const owned = (manifest: Manifest): string[] => [
-    ...manifest.rules.map((rule) => rule.path),
-    ...manifest.skills.map((skill) => skill.path),
-    ...(manifest.commands ?? []).map((command) => command.path),
-    ...(manifest.extras ?? []),
-  ];
-
-  const next = new Set(owned(composed.manifest));
-  const remove = owned(previous)
+  const next = new Set(ownedPaths(composed.manifest));
+  const remove = ownedPaths(previous)
     .filter((path) => !next.has(path))
     .sort();
 

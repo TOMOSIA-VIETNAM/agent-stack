@@ -3,11 +3,17 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadKnowledgeBase } from '../src/catalog.js';
-import { compose, mergeClaudeMd, BEGIN_MARKER, END_MARKER } from '../src/composer.js';
-import { emit } from '../src/emit.js';
+import {
+  artifactTargets,
+  compose,
+  mergeClaudeMd,
+  BEGIN_MARKER,
+  END_MARKER,
+} from '../src/composer.js';
+import { emit, inspectTargets } from '../src/emit.js';
 import { resolveStack } from '../src/resolver.js';
 import { techStackInputSchema, type TechStackInput } from '../src/schema.js';
-import { selectArtifacts } from '../src/selector.js';
+import { artifactKey, excludeArtifacts, selectArtifacts } from '../src/selector.js';
 import { validate } from '../src/validator.js';
 import { upstreamSourceSchema } from '../src/upstream.js';
 
@@ -381,5 +387,103 @@ describe('two frameworks at once', () => {
       'laravel-feature',
       'rails-feature',
     ]);
+  });
+});
+
+describe('a project that is already there', () => {
+  /** Generate once, so the output directory carries a manifest of its own. */
+  async function generateInto(out: string, framework: string, overwrite = false) {
+    const { kb, stack, selection } = await run(framework);
+    const targets = await inspectTargets(out, artifactTargets(selection));
+    const excluded = new Map<string, string>();
+    const kept: { id: string; path: string }[] = [];
+    if (!overwrite) {
+      for (const target of targets) {
+        if (target.state !== 'exists' || target.path === undefined) continue;
+        excluded.set(artifactKey(target), 'the project already has this file');
+        kept.push({ id: target.id, path: target.path });
+      }
+    }
+    const narrowed = excludeArtifacts(selection, excluded, stack);
+    const composed = compose(stack, narrowed, 'test', kb.imported);
+    await emit(out, composed, { dryRun: false });
+    return { targets, kept, selection: narrowed, composed };
+  }
+
+  it('leaves a file the project wrote exactly where it was', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const mine = join(out, '.claude/rules/rails-ruby.md');
+    await mkdir(dirname(mine), { recursive: true });
+    await writeFile(mine, '# our own Ruby rules\n', 'utf8');
+
+    const { kept, composed } = await generateInto(out, 'rails');
+
+    expect(await readFile(mine, 'utf8')).toBe('# our own Ruby rules\n');
+    expect(kept.map((entry) => entry.path)).toContain('.claude/rules/rails-ruby.md');
+    // Not written, so not claimed: a later run must not remove it as stale.
+    expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('rails-ruby');
+    // And not imported either, because agent-stack did not put it there.
+    expect(await readFile(join(out, 'CLAUDE.md'), 'utf8')).not.toContain(
+      '@.claude/rules/rails-ruby.md',
+    );
+  });
+
+  it('replaces that same file once overwrite is approved', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const mine = join(out, '.claude/rules/rails-ruby.md');
+    await mkdir(dirname(mine), { recursive: true });
+    await writeFile(mine, '# our own Ruby rules\n', 'utf8');
+
+    const { kept, composed } = await generateInto(out, 'rails', true);
+
+    expect(kept).toEqual([]);
+    expect(composed.manifest.rules.map((rule) => rule.id)).toContain('rails-ruby');
+    expect(await readFile(mine, 'utf8')).not.toBe('# our own Ruby rules\n');
+  });
+
+  // A hand-written skill is a directory, not a file, and must be just as safe.
+  it('leaves a skill directory the project wrote alone', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const mine = join(out, '.claude/skills/rails-feature/SKILL.md');
+    await mkdir(dirname(mine), { recursive: true });
+    await writeFile(mine, '---\nname: rails-feature\n---\nours\n', 'utf8');
+
+    const { kept, composed } = await generateInto(out, 'rails');
+
+    expect(await readFile(mine, 'utf8')).toContain('ours');
+    expect(kept.map((entry) => entry.path)).toContain('.claude/skills/rails-feature');
+    expect(composed.manifest.skills.map((skill) => skill.id)).not.toContain('rails-feature');
+  });
+
+  // The guard is about files agent-stack did not write. Its own output from the
+  // last run is still its own, and regenerating has to keep working.
+  it('still replaces what its own previous run wrote', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await generateInto(out, 'rails');
+    const written = join(out, '.claude/rules/rails-ruby.md');
+    await writeFile(written, 'drifted\n', 'utf8');
+
+    const { targets, kept } = await generateInto(out, 'rails');
+
+    expect(targets.find((target) => target.id === 'rails-ruby')?.state).toBe('owned');
+    expect(kept).toEqual([]);
+    expect(await readFile(written, 'utf8')).not.toBe('drifted\n');
+  });
+
+  it('reports every kept path as a waivable warning, and stays a success', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const mine = join(out, '.claude/rules/rails-ruby.md');
+    await mkdir(dirname(mine), { recursive: true });
+    await writeFile(mine, 'ours\n', 'utf8');
+
+    const { stack, selection } = await run('rails');
+    const { kept } = await generateInto(out, 'rails');
+    const report = validate(stack, selection, [], kept);
+
+    const finding = report.findings.find((entry) => entry.code === 'existing-file');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('.claude/rules/rails-ruby.md');
+    expect(finding?.message).toContain('--overwrite');
+    expect(report.ok).toBe(true);
   });
 });

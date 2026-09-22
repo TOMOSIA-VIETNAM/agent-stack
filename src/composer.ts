@@ -1,4 +1,5 @@
 import { join, posix, sep } from 'node:path';
+import type { ArtifactType } from './schema.js';
 import type { ImportedSource } from './upstream.js';
 import type { ResolvedStack } from './resolver.js';
 import type { Selection, SelectedArtifact } from './selector.js';
@@ -174,4 +175,44 @@ export function compose(
   files.push({ path: MANIFEST_PATH, contents: `${JSON.stringify(manifest, null, 2)}\n` });
 
   return { files, manifest, claudeMdBlock: claudeMdBlock(selection.claudeMd, ruleEntries) };
+}
+
+/**
+ * Where each selected artifact would land, worked out before anything is
+ * written.
+ *
+ * The picker and the collision check both need to talk about an artifact by the
+ * path it occupies, and this module already owns that mapping — deriving it a
+ * second time elsewhere is how the two would drift apart. A `claude-md`
+ * fragment has no path because it is spliced into a document rather than
+ * copied.
+ */
+export interface ArtifactTarget {
+  id: string;
+  type: ArtifactType;
+  path?: string;
+}
+
+export function artifactTargets(selection: Selection): ArtifactTarget[] {
+  return [
+    ...selection.rules.map((entry) => ({
+      id: entry.artifact.meta.id,
+      type: 'rule' as const,
+      path: rulePath(entry),
+    })),
+    ...selection.skills.map((entry) => ({
+      id: entry.artifact.meta.id,
+      type: 'skill' as const,
+      path: skillDir(entry),
+    })),
+    ...selection.commands.map((entry) => ({
+      id: entry.artifact.meta.id,
+      type: 'command' as const,
+      path: commandPath(entry),
+    })),
+    ...selection.claudeMd.map((entry) => ({
+      id: entry.artifact.meta.id,
+      type: 'claude-md' as const,
+    })),
+  ];
 }

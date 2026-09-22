@@ -82,3 +82,63 @@ export function selectArtifacts(kb: KnowledgeBase, stack: ResolvedStack): Select
     uncovered,
   };
 }
+
+/** A selected artifact is named by its type and id: two types may share an id. */
+export function artifactKey(artifact: { type: string; id: string }): string {
+  return `${artifact.type}:${artifact.id}`;
+}
+
+/**
+ * Drop artifacts the operator did not approve, or that the project already has
+ * a file for.
+ *
+ * Dropping happens after selection rather than inside it: what applies to a
+ * stack is a property of the knowledge base, while what gets written is the
+ * operator's call. A dropped artifact moves into `skipped` with the reason, so
+ * nothing leaves the run unaccounted for — and because `uncovered` is derived
+ * again afterwards, a framework whose every artifact was dropped is reported as
+ * uncovered rather than silently counted as handled.
+ */
+export function excludeArtifacts(
+  selection: Selection,
+  excluded: Map<string, string>,
+  stack: ResolvedStack,
+): Selection {
+  if (excluded.size === 0) return selection;
+
+  const keep = (entries: SelectedArtifact[]) =>
+    entries.filter((entry) => !excluded.has(artifactKey(entry.artifact.meta)));
+  const dropped = (entries: SelectedArtifact[]): SkippedArtifact[] =>
+    entries
+      .filter((entry) => excluded.has(artifactKey(entry.artifact.meta)))
+      .map((entry) => ({
+        artifact: entry.artifact,
+        reason: excluded.get(artifactKey(entry.artifact.meta)) ?? 'not approved',
+      }));
+
+  const rules = keep(selection.rules);
+  const skills = keep(selection.skills);
+  const commands = keep(selection.commands);
+  const claudeMd = keep(selection.claudeMd);
+
+  const covered = new Set(
+    [...rules, ...skills, ...commands, ...claudeMd].flatMap(
+      (entry) => entry.artifact.meta.applies_to,
+    ),
+  );
+
+  return {
+    rules,
+    skills,
+    commands,
+    claudeMd,
+    skipped: [
+      ...selection.skipped,
+      ...dropped(selection.rules),
+      ...dropped(selection.skills),
+      ...dropped(selection.commands),
+      ...dropped(selection.claudeMd),
+    ].sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
+    uncovered: stack.technologies.filter((tech) => !covered.has(tech.id)),
+  };
+}

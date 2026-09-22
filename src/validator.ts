@@ -8,6 +8,7 @@ export interface Finding {
     | 'missing-framework'
     | 'uncovered-technology'
     | 'empty-output'
+    | 'existing-file'
     | 'stack-warning';
   message: string;
   /** Conflict id, when the finding can be waived with --accept-conflict. */
@@ -26,6 +27,12 @@ export interface ValidationReport {
   ok: boolean;
 }
 
+/** A path the run declined to take over, because the project already has it. */
+export interface KeptPath {
+  id: string;
+  path: string;
+}
+
 /**
  * Completeness and consistency of a resolved stack plus its selection.
  * Conflicts explicitly accepted by the caller are downgraded to warnings;
@@ -35,6 +42,7 @@ export function validate(
   stack: ResolvedStack,
   selection: Selection,
   acceptedConflicts: string[] = [],
+  kept: KeptPath[] = [],
 ): ValidationReport {
   const findings: Finding[] = [];
   const accepted = new Set(acceptedConflicts);
@@ -56,6 +64,17 @@ export function validate(
       severity: 'warning',
       code: 'uncovered-technology',
       message: `${tech.id} is in the stack but the knowledge base has no rules or skills for it yet.`,
+    });
+  }
+
+  // A warning, not an error: the run is complete and correct, it simply left
+  // the project's own file where it was. Saying which file, and how to take it
+  // over, is the part that must not be silent.
+  for (const entry of kept) {
+    findings.push({
+      severity: 'warning',
+      code: 'existing-file',
+      message: `${entry.path} already exists and agent-stack did not write it — ${entry.id} was left out [--overwrite to replace it]`,
     });
   }
 

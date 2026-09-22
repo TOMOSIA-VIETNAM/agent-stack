@@ -13,6 +13,9 @@ out loud, not slip through:
    relays conflicts to the operator. It decides nothing else and writes no content.
    Neither does the generator: a selected file is **copied byte for byte**. The one
    exception is `CLAUDE.md`, which agent-stack composes rather than copies.
+   The approval checklist only **narrows** that result: it drops artifacts, never adds
+   one, and never touches what a kept artifact contains. An unattended run and an
+   approved one differ in what was dropped and in nothing else.
 2. **Conflicts are never resolved silently.** When two selected technologies are declared
    incompatible, the run stops, names the conflict, and prints the flag that waives it.
    The generator does not pick a winner.
@@ -43,6 +46,7 @@ One concern per module. Put a change where the concern already lives:
 | `resolver.ts` | Expanding the technology graph over `requires`, reporting conflicts |
 | `selector.ts` | Which artifacts apply to a resolved stack |
 | `composer.ts` | Deciding where each file lands, merging the CLAUDE.md block |
+| `prompt.ts` | The terminal approval checklist, and nothing else |
 | `validator.ts` | Completeness and consistency findings |
 | `emit.ts` | The only module that writes or deletes |
 | `table.ts` | Box-drawn tables for human output, and nothing else |
@@ -50,6 +54,13 @@ One concern per module. Put a change where the concern already lives:
 
 **`emit.ts` may only remove paths listed in the previous run's manifest.** Never widen
 that. Everything outside the manifest belongs to the user.
+
+The same manifest decides what may be *written over*. `inspectTargets` marks a target
+`owned` when the previous manifest lists it, and `exists` when something is there that
+agent-stack never wrote. An `exists` path is dropped from the selection — not emitted,
+not in the new manifest, not `@`-imported — and reported as a waivable warning. Only
+`--overwrite`, or a tick in the checklist, takes it over. A run must never acquire a
+file by being run twice.
 
 `CLAUDE.md` in a generated project is merged, never replaced: only the text between the
 `agent-stack:begin` / `agent-stack:end` markers changes.
@@ -71,6 +82,12 @@ Two consequences, both deliberate:
 
 `requires` and `conflicts_with` are still resolved and still enforced — they are what
 invariants 1 and 2 are made of — but no catalog entry needs them yet.
+
+`--yes` and `--overwrite` are not input. They waive a step the run would otherwise take
+on its own — showing the checklist, and leaving the project's own files alone — the way
+`--accept-conflict` waives a conflict. Neither can select an artifact, and no flag
+should be added that can: what a stack needs is the knowledge base's answer, and what
+gets written is the checklist's.
 
 ## Knowledge base
 

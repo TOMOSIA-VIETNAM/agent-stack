@@ -3,7 +3,7 @@ import type { Artifact } from '../src/catalog.js';
 import { metaFromPath } from '../src/catalog.js';
 import { resolveStack } from '../src/resolver.js';
 import { catalogSchema, techStackInputSchema } from '../src/schema.js';
-import { selectArtifacts } from '../src/selector.js';
+import { artifactKey, excludeArtifacts, selectArtifacts } from '../src/selector.js';
 
 const catalog = catalogSchema.parse({
   version: 1,
@@ -134,5 +134,43 @@ describe('coverage', () => {
   it('reports a technology no artifact targets', () => {
     const { selection } = select([rule('rules/framework/rails/security.md')], ['rails']);
     expect(selection.uncovered.map((tech) => tech.id)).toEqual(['rails-engine']);
+  });
+});
+
+describe('dropping what was not approved', () => {
+  it('moves a dropped artifact into skipped, with the reason it was dropped', () => {
+    const { stack, selection } = select(
+      [rule('rules/framework/rails/security.md'), rule('rules/global/style.md')],
+      ['rails'],
+    );
+    const narrowed = excludeArtifacts(
+      selection,
+      new Map([[artifactKey({ type: 'rule', id: 'style' }), 'the project already has this file']]),
+      stack,
+    );
+
+    expect(narrowed.rules.map((entry) => entry.artifact.meta.id)).toEqual(['rails-security']);
+    expect(narrowed.skipped.map((entry) => entry.reason)).toContain(
+      'the project already has this file',
+    );
+  });
+
+  // Coverage is derived again afterwards: dropping every Rails artifact leaves
+  // Rails uncovered, rather than counted as handled by a file nobody wrote.
+  it('reports a framework as uncovered once its last artifact is dropped', () => {
+    const { stack, selection } = select([rule('rules/framework/rails/security.md')], ['rails']);
+    expect(selection.uncovered.map((tech) => tech.id)).toEqual(['rails-engine']);
+
+    const narrowed = excludeArtifacts(
+      selection,
+      new Map([[artifactKey({ type: 'rule', id: 'rails-security' }), 'not approved']]),
+      stack,
+    );
+    expect(narrowed.uncovered.map((tech) => tech.id).sort()).toEqual(['rails', 'rails-engine']);
+  });
+
+  it('is a no-op when nothing was dropped', () => {
+    const { stack, selection } = select([rule('rules/framework/rails/security.md')], ['rails']);
+    expect(excludeArtifacts(selection, new Map(), stack)).toBe(selection);
   });
 });

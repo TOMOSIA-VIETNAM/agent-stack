@@ -2,13 +2,14 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { loadKnowledgeBase } from './catalog.js';
-import { compose } from './composer.js';
-import { emit } from './emit.js';
+import { artifactTargets, compose } from './composer.js';
+import { emit, inspectTargets } from './emit.js';
+import { isInteractive, rejected, runPicker, type PickerItem } from './prompt.js';
 import { resolveStack, UnknownTechnologyError, type ResolvedStack } from './resolver.js';
 import { renderTable } from './table.js';
 import { techStackInputSchema, type TechStackInput } from './schema.js';
-import { selectArtifacts } from './selector.js';
-import { validate } from './validator.js';
+import { artifactKey, excludeArtifacts, selectArtifacts } from './selector.js';
+import { validate, type KeptPath } from './validator.js';
 
 const VERSION = '0.1.0';
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -28,10 +29,19 @@ Stack flags:
 Options:
   --out <dir>                 target project directory (default: cwd)
   --write                     write files; without it, generate only previews
+  --yes                       skip the approval checklist and take the defaults
+  --overwrite                 replace files the project already has, which are
+                              otherwise left where they are
   --accept-conflict <id>      proceed despite one conflict, by its reported id
   --knowledge <dir>           knowledge base directory (default: bundled)
   --json                      machine-readable output
   -h, --help                  this help
+
+On a terminal, \`generate --write\` first shows a checklist of everything it
+would write, ticked except for files the project already has. Nothing moves
+into .claude/ until it is approved. Without a terminal — under --json, or from
+a script — the same defaults apply unattended, and every file left alone is
+reported.
 `;
 
 class UsageError extends Error {}
@@ -44,6 +54,10 @@ interface Options {
   json: boolean;
   knowledge: string;
   acceptConflicts: string[];
+  /** Approve the defaults without showing the checklist. */
+  yes: boolean;
+  /** Take over paths the project already has, instead of leaving them. */
+  overwrite: boolean;
 }
 
 function parseArgs(argv: string[]): Options {
@@ -54,6 +68,8 @@ function parseArgs(argv: string[]): Options {
   let knowledge = DEFAULT_KNOWLEDGE;
   let write = false;
   let json = false;
+  let yes = false;
+  let overwrite = false;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
@@ -74,6 +90,10 @@ function parseArgs(argv: string[]): Options {
       write = true;
     } else if (arg === '--json') {
       json = true;
+    } else if (arg === '--yes') {
+      yes = true;
+    } else if (arg === '--overwrite') {
+      overwrite = true;
     } else if (arg === '--out') {
       out = resolve(next());
     } else if (arg === '--knowledge') {
@@ -100,6 +120,8 @@ function parseArgs(argv: string[]): Options {
     json,
     knowledge,
     acceptConflicts,
+    yes,
+    overwrite,
   };
 }
 
@@ -204,21 +226,38 @@ async function run(options: Options): Promise<number> {
   }
 
   const stack = resolveStack(kb.catalog, options.stack);
-  const selection = selectArtifacts(kb, stack);
-  const report = validate(stack, selection, options.acceptConflicts);
+  const fullSelection = selectArtifacts(kb, stack);
+  const fullReport = validate(stack, fullSelection, options.acceptConflicts);
 
   if (options.command === 'resolve') {
     if (options.json) {
       process.stdout.write(
-        `${JSON.stringify({ stack, selection: summarize(selection), report }, null, 2)}\n`,
+        `${JSON.stringify(
+          { stack, selection: summarize(fullSelection), report: fullReport },
+          null,
+          2,
+        )}\n`,
       );
     } else {
       process.stdout.write(`Resolved stack (${stack.technologies.length}):\n`);
       process.stdout.write(`${formatStack(stack).join('\n')}\n`);
-      printReport(report);
+      printReport(fullReport);
     }
-    return report.ok ? 0 : 2;
+    return fullReport.ok ? 0 : 2;
   }
+
+  const approval = fullReport.ok
+    ? await approve(options, stack, fullSelection)
+    : { cancelled: false as const, selection: fullSelection, kept: [], declined: [] };
+  if (approval.cancelled) {
+    process.stdout.write('\nCancelled. Nothing was written.\n');
+    return 130;
+  }
+
+  const { selection, kept, declined } = approval;
+  const report = fullReport.ok
+    ? validate(stack, selection, options.acceptConflicts, kept)
+    : fullReport;
 
   const composed = compose(stack, selection, VERSION, kb.imported);
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
@@ -226,7 +265,14 @@ async function run(options: Options): Promise<number> {
   if (options.json) {
     process.stdout.write(
       `${JSON.stringify(
-        { stack, selection: summarize(selection), report, emit: result },
+        {
+          stack,
+          selection: summarize(selection),
+          report,
+          emit: result,
+          kept,
+          declined: declined.map(({ id, type, path }) => ({ id, type, path })),
+        },
         null,
         2,
       )}\n`,
@@ -237,6 +283,12 @@ async function run(options: Options): Promise<number> {
   process.stdout.write(`Resolved stack (${stack.technologies.length}):\n`);
   process.stdout.write(`${formatStack(stack).join('\n')}\n`);
   printReport(report);
+  if (declined.length > 0) {
+    process.stdout.write(`\nLeft out at your request:\n`);
+    for (const item of declined) {
+      process.stdout.write(`  ${item.id}${item.path ? ` (${item.path})` : ''}\n`);
+    }
+  }
   process.stdout.write(
     `\n${result.dryRun ? 'Would write' : 'Wrote'} ${result.write.length} file(s) in ${result.outDir}:\n`,
   );
@@ -249,6 +301,63 @@ async function run(options: Options): Promise<number> {
     process.stdout.write('\nNothing written. Re-run with --write to apply.\n');
   }
   return report.ok ? 0 : 2;
+}
+
+interface Approval {
+  cancelled: boolean;
+  selection: ReturnType<typeof selectArtifacts>;
+  kept: KeptPath[];
+  declined: PickerItem[];
+}
+
+/**
+ * Narrow the selection to what the operator approved.
+ *
+ * On a terminal the checklist decides; anywhere else — under --json, in a
+ * script, behind a slash command — the same defaults run unattended: a file the
+ * project already has is left alone unless --overwrite says otherwise. Both
+ * paths end at one map of dropped artifacts, so an approved run and an
+ * unattended one differ in what was dropped and in nothing else.
+ */
+async function approve(
+  options: Options,
+  stack: ResolvedStack,
+  selection: ReturnType<typeof selectArtifacts>,
+): Promise<Approval> {
+  const targets = await inspectTargets(options.out, artifactTargets(selection));
+  const io = { input: process.stdin, output: process.stdout };
+  const excluded = new Map<string, string>();
+  const kept: KeptPath[] = [];
+  const declined: PickerItem[] = [];
+
+  if (options.write && !options.json && !options.yes && isInteractive(io)) {
+    const picked = await runPicker(targets, io, { overwrite: options.overwrite });
+    if (picked.status === 'cancelled') {
+      return { cancelled: true, selection, kept, declined };
+    }
+    for (const item of rejected(picked)) {
+      if (item.state === 'exists' && item.path !== undefined) {
+        excluded.set(item.key, 'the project already has this file');
+        kept.push({ id: item.id, path: item.path });
+      } else {
+        excluded.set(item.key, 'not approved');
+        declined.push(item);
+      }
+    }
+  } else if (!options.overwrite) {
+    for (const target of targets) {
+      if (target.state !== 'exists' || target.path === undefined) continue;
+      excluded.set(artifactKey(target), 'the project already has this file');
+      kept.push({ id: target.id, path: target.path });
+    }
+  }
+
+  return {
+    cancelled: false,
+    selection: excludeArtifacts(selection, excluded, stack),
+    kept,
+    declined,
+  };
 }
 
 function summarize(selection: ReturnType<typeof selectArtifacts>) {
