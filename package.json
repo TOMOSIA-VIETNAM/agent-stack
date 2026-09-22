@@ -1,11 +1,48 @@
 {
-  "name": "agent-stack",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@tomosia/agent-stack",
+  "version": "1.0.0",
   "description": "Generate .claude rules and skills for a project from a curated knowledge base, deterministically.",
   "type": "module",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "TOMOSIA VIETNAM"
+  },
+  "homepage": "https://github.com/TOMOSIA-VIETNAM/agent-stack#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TOMOSIA-VIETNAM/agent-stack.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TOMOSIA-VIETNAM/agent-stack/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agent-skills",
+    "rules",
+    "skills",
+    "scaffolding",
+    "knowledge-base",
+    "cli",
+    "rails",
+    "laravel"
+  ],
+  "bin": {
+    "agent-stack": "dist/agent-stack.mjs"
+  },
+  "files": [
+    "dist/",
+    "knowledge/",
+    "commands/",
+    "agents/",
+    ".claude-plugin/",
+    "NOTICE"
+  ],
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/agent-stack.mjs --banner:js=\"import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);\"",
@@ -26,6 +63,5 @@
     "esbuild": "^0.24.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
-  },
-  "license": "Apache-2.0"
+  }
 }

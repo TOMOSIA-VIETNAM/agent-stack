@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@tomosia/agent-stack"><img alt="npm" src="https://img.shields.io/npm/v/%40tomosia%2Fagent-stack?style=flat-square&label=npm&color=cb3837"></a>
   <a href="https://github.com/TOMOSIA-VIETNAM/agent-stack/releases"><img alt="Release" src="https://img.shields.io/github/v/release/TOMOSIA-VIETNAM/agent-stack?style=flat-square&label=release&color=2ea44f"></a>
   <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/agent-stack?style=flat-square&color=blue"></a>
   <a href="#phát-triển"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white"></a>
@@ -50,14 +51,38 @@ Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 
 ## Cài đặt
 
-Cần [Node 20+](https://nodejs.org/) và [Claude Code](https://claude.ai/code).
+Cần [Node 20+](https://nodejs.org/). Hai đường, dùng chung một generator.
+
+### Dòng lệnh
+
+```bash
+npm install -g @tomosia/agent-stack
+```
+
+```bash
+cd /đường/dẫn/tới/dự-án
+agent-stack generate --framework rails --write
+```
+
+Không cần Claude Code, không cần API key, không gọi network: knowledge base nằm trong package. Chạy một lần thì `npx @tomosia/agent-stack generate --framework rails --write` cũng vậy.
+
+```bash
+agent-stack catalog                     # knowledge base đang có gì
+agent-stack generate --framework rails  # xem trước, không ghi
+agent-stack generate --framework rails --framework laravel --write
+agent-stack --help
+```
+
+Không có `--write` thì không file nào bị ghi. Ở terminal tương tác, lần ghi nào cũng qua checklist duyệt trước — `--yes` bỏ qua checklist, `--json` cho máy đọc.
+
+### Plugin Claude Code
 
 ```bash
 /plugin marketplace add TOMOSIA-VIETNAM/agent-stack
 /plugin install agent-stack@agent-stack
 ```
 
-Repository này vừa là marketplace vừa là plugin. `dist/agent-stack.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build.
+Repository này vừa là marketplace vừa là plugin. `dist/agent-stack.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build. Plugin thêm `/generate` và `/catalog`, nơi một câu tiếng người được ánh xạ sang cờ CLI ở trên.
 
 <details>
 <summary>Cài từ bản clone local</summary>
@@ -79,6 +104,12 @@ Trong dự án bạn muốn cấu hình:
 
 ```
 /generate rails
+```
+
+hoặc, không qua Claude Code:
+
+```bash
+agent-stack generate --framework rails --write
 ```
 
 Command ánh xạ yêu cầu sang id trong catalog, phân giải dependency, dừng lại hỏi khi có xung đột, xem trước danh sách file, rồi mới ghi.

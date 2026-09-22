@@ -11,7 +11,9 @@ import { techStackInputSchema, type TechStackInput } from './schema.js';
 import { artifactKey, excludeArtifacts, selectArtifacts } from './selector.js';
 import { validate, type KeptPath } from './validator.js';
 
-const VERSION = '0.1.0';
+// Kept as a literal so the bundle carries no part of package.json. A test
+// holds it equal to the published version, and to the plugin manifest's.
+const VERSION = '1.0.0';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_KNOWLEDGE = resolve(HERE, '..', 'knowledge');
 
