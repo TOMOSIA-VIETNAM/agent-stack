@@ -14,6 +14,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@tomosia/agent-stack"><img alt="npm" src="https://img.shields.io/npm/v/%40tomosia%2Fagent-stack?style=flat-square&label=npm&color=cb3837"></a>
+  <a href="https://www.npmjs.com/package/@tomosia/agent-stack"><img alt="Lượt tải npm" src="https://img.shields.io/npm/dm/%40tomosia%2Fagent-stack?style=flat-square&label=tải%2Ftháng&color=cb3837"></a>
   <a href="https://github.com/TOMOSIA-VIETNAM/agent-stack/releases"><img alt="Release" src="https://img.shields.io/github/v/release/TOMOSIA-VIETNAM/agent-stack?style=flat-square&label=release&color=2ea44f"></a>
   <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/agent-stack?style=flat-square&color=blue"></a>
   <a href="#phát-triển"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white"></a>
@@ -58,6 +59,8 @@ Cần [Node 20+](https://nodejs.org/). Hai đường, dùng chung một generato
 ```bash
 npm install -g @tomosia/agent-stack
 ```
+
+Bản phát hành đầu tiên là **1.0.0** — cờ CLI, hợp đồng `--json` và bố cục `knowledge/` từ đây trở đi theo [SemVer](https://semver.org/lang/vi/): thay đổi phá vỡ chúng phải lên major. Cần ghim cho CI thì `npm install -g @tomosia/agent-stack@1.0.0`; lịch sử từng bản nằm ở [Releases](https://github.com/TOMOSIA-VIETNAM/agent-stack/releases).
 
 ```bash
 cd /đường/dẫn/tới/dự-án
