@@ -51,20 +51,6 @@ Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 - **Chạy offline** — knowledge base đã được commit, nên lúc generate không đụng network
 - **Không phá gì** — `CLAUDE.md` được merge trong cặp marker; chỉ file nằm trong manifest của lần chạy trước mới bị xoá
 
-## Mục lục
-
-- [Cài đặt](#cài-đặt)
-- [Bắt đầu nhanh](#bắt-đầu-nhanh)
-- [Vì sao chọn lại hơn sinh](#vì-sao-chọn-lại-hơn-sinh)
-- [Nó ghi ra những gì](#nó-ghi-ra-những-gì)
-- [Command và agent](#command-và-agent)
-- [Tham chiếu CLI](#tham-chiếu-cli)
-- [Knowledge base](#knowledge-base)
-- [Phạm vi hiện có](#phạm-vi-hiện-có)
-- [Đóng góp: thêm một stack mới](#đóng-góp-thêm-một-stack-mới)
-- [Phát triển](#phát-triển)
-- [Giấy phép](#giấy-phép)
-
 ## Cài đặt
 
 Cần [Node 20+](https://nodejs.org/) và [Claude Code](https://claude.ai/code).
@@ -98,13 +84,7 @@ Trong dự án bạn muốn cấu hình:
 /generate ruby 3.3, rails 7.1, postgres, sidekiq, rspec
 ```
 
-Command này ánh xạ yêu cầu của bạn sang id trong catalog, phân giải dependency, dừng lại hỏi khi có xung đột, xem trước danh sách file, rồi mới ghi.
-
-Muốn biết knowledge base đang có gì trước khi chốt stack:
-
-```
-/catalog
-```
+Command ánh xạ yêu cầu của bạn sang id trong catalog, phân giải dependency, dừng lại hỏi khi có xung đột, xem trước danh sách file, rồi mới ghi. `/catalog` cho biết knowledge base đang có gì trước khi bạn chốt stack.
 
 ## Vì sao chọn lại hơn sinh
 
@@ -127,42 +107,24 @@ Model trong vòng lặp chỉ có đúng hai việc: biến một câu tiếng n
 ## Nó ghi ra những gì
 
 ```
-CLAUDE.md                        hướng dẫn chung và các @-import, nằm trong cặp marker agent-stack
-.claude/rules/<tên>.md           mỗi rule được chọn một file, copy nguyên văn
-.claude/skills/<tên>/SKILL.md    mỗi skill được chọn một thư mục, kèm file của nó
-.claude/commands/<tên>.md        mỗi command được chọn một file
-.claude/agent-stack-manifest.json       lần chạy này sinh ra gì, và copy từ đâu
+CLAUDE.md                              hướng dẫn chung và các @-import, trong cặp marker agent-stack
+.claude/rules/<tên>.md                 mỗi rule được chọn một file, copy nguyên văn
+.claude/skills/<tên>/SKILL.md          mỗi skill được chọn một thư mục, kèm file của nó
+.claude/commands/<tên>.md              mỗi command được chọn một file
+.claude/agent-stack-manifest.json      lần chạy này sinh ra gì, và copy từ đâu
 ```
 
-`CLAUDE.md` giữ phần hướng dẫn chung dạng inline, rồi `@`-import các rule riêng cho stack. Nó được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `agent-stack:begin` / `agent-stack:end` được giữ nguyên.
-
-Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
+`CLAUDE.md` được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `agent-stack:begin` / `agent-stack:end` được giữ nguyên. Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
 
 ## Command và agent
 
-| Command | Làm gì |
-| --- | --- |
-| `/generate <stack>` | Phân giải stack, xem trước danh sách file, rồi ghi `CLAUDE.md` và `.claude/`. Gặp xung đột thì dừng và hỏi |
-| `/catalog` | Liệt kê technology, rule, skill và command mà knowledge base đang phủ — và cả những chỗ còn trống |
-
-Khi bạn chưa biết — hoặc chưa muốn gõ — stack của dự án, dùng agent:
-
-| Agent | Làm gì |
-| --- | --- |
-| `detect` | Đọc manifest và lockfile của repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng của `/generate` |
-
-Khác biệt nằm ở **ai xác định stack**:
-
-| | Đầu vào | Ai xác định framework |
+| Gọi bằng | Làm gì | Ai xác định framework |
 | --- | --- | --- |
-| `/generate rails` | Bạn gõ framework | Bạn |
-| `detect` | Không cần gõ gì | Agent đọc repo và suy ra, bạn duyệt lại |
+| `/generate <stack>` | Phân giải stack, xem trước danh sách file, rồi ghi `CLAUDE.md` và `.claude/`. Gặp xung đột thì dừng và hỏi | Bạn gõ |
+| `/catalog` | Liệt kê technology, rule, skill và command knowledge base đang phủ — và cả chỗ còn trống | — |
+| agent `detect` | Đọc repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng `/generate` | Agent suy ra, bạn duyệt |
 
-`detect` đọc `Gemfile.lock`, `composer.lock`, `composer.json`, và cấu trúc thư mục khi không có lockfile nào được commit. Nó chỉ đi tìm **một thứ**: framework. Ngôn ngữ, database, cache và hạ tầng không phải đầu vào và cũng không có trong catalog, nên đọc thêm về chúng chỉ là nhiễu.
-
-Thứ nó tìm được gắn nhãn `found` (có tên trong manifest hoặc lockfile), `uncertain` (chỉ suy từ cấu trúc thư mục) hay `missing`. Không phải `found` thì phải hỏi lại bạn trước khi generate.
-
-Việc chạy trong subagent có lý do: đọc cả chục file manifest là việc tản mát và ồn, kết quả đó không nên đổ vào context chính. Thứ trả về chỉ là framework bạn đã duyệt và báo cáo những gì đã sinh ra.
+`detect` đọc `Gemfile.lock`, `composer.lock`, `composer.json`, và cấu trúc thư mục khi không có lockfile nào được commit. Nó chỉ đi tìm **một thứ**: framework — ngôn ngữ, database, cache và hạ tầng không phải đầu vào, đọc thêm về chúng chỉ là nhiễu. Kết quả gắn nhãn `found` (có tên trong manifest hoặc lockfile), `uncertain` (chỉ suy từ cấu trúc thư mục) hay `missing`; không phải `found` thì phải hỏi lại bạn trước khi generate. Nó chạy trong subagent để việc đọc cả chục file manifest không đổ vào context chính.
 
 ## Tham chiếu CLI
 
@@ -171,18 +133,10 @@ Plugin chỉ là lớp mỏng bọc một CLI mà bạn chạy trực tiếp đ�
 ```bash
 node dist/agent-stack.mjs catalog  [--json]
 node dist/agent-stack.mjs resolve  --framework rails [--json]
-node dist/agent-stack.mjs generate --framework rails --out . [--write]
+node dist/agent-stack.mjs generate --framework rails --framework laravel --out . [--write]
 ```
 
-**Đầu vào chỉ có một cờ** — `--framework <id>`, lặp lại được cho dự án nhiều framework:
-
-```bash
-node dist/agent-stack.mjs generate --framework rails --framework laravel --out .
-```
-
-Không có cờ cho ngôn ngữ, database, cache hay hạ tầng — và cũng không có entry nào cho chúng trong catalog. Không có cú pháp `@version`. Framework là thứ operator luôn biết chắc; mỗi cờ thêm vào là thêm một cơ hội để operator bỏ sót và rule biến mất mà không báo gì.
-
-**Tuỳ chọn khác:**
+**Đầu vào chỉ có một cờ** — `--framework <id>`, lặp lại được cho dự án nhiều framework. Không có cờ cho ngôn ngữ, database, cache hay hạ tầng, và cũng không có entry nào cho chúng trong catalog. Không có cú pháp `@version`. Framework là thứ operator luôn biết chắc; mỗi cờ thêm vào là thêm một cơ hội để operator bỏ sót và rule biến mất mà không báo gì.
 
 | Cờ | Ý nghĩa |
 | --- | --- |
@@ -190,22 +144,13 @@ Không có cờ cho ngôn ngữ, database, cache hay hạ tầng — và cũng k
 | `--write` | Ghi file thật; không có cờ này thì chỉ xem trước |
 | `--accept-conflict <id>` | Chấp nhận đúng một xung đột, theo id mà CLI in ra |
 | `--knowledge <dir>` | Dùng knowledge base ở chỗ khác (mặc định: bản đi kèm) |
-| `--json` | Xuất dạng máy đọc |
+| `--json` | Xuất dạng máy đọc — hợp đồng ổn định, `commands/generate.md` parse nó |
 
-**Exit code:**
-
-| Code | Ý nghĩa |
-| --- | --- |
-| `0` | Thành công |
-| `2` | Có lỗi ở bước kiểm tra |
-| `64` | Sai cách dùng |
-| `65` | Technology không tồn tại |
-
-Đầu ra `--json` là một hợp đồng ổn định — `commands/generate.md` parse nó, và CI của bạn cũng parse được.
+Exit code: `0` thành công · `2` lỗi ở bước kiểm tra · `64` sai cách dùng · `65` technology không tồn tại.
 
 ## Knowledge base
 
-`knowledge/` chính là sản phẩm. Xem [knowledge/README.md](knowledge/README.md) để biết chi tiết từng thư mục và cách thêm nội dung.
+`knowledge/` chính là sản phẩm. **Đường dẫn là metadata, và file không bao giờ bị đụng tới**: agent-stack không đọc, không sửa, không dựng lại front matter — file sinh ra giống file trong `knowledge/` từng byte. Ngoại lệ duy nhất là `claude-md/`, được inline vào `CLAUDE.md` chứ không copy.
 
 ```
 knowledge/
@@ -218,22 +163,6 @@ knowledge/
 └── claude-md/<tên>.md                    inline vào CLAUDE.md, không sinh file riêng
 ```
 
-**Đường dẫn là metadata, và file không bao giờ bị đụng tới.** agent-stack không đọc, không sửa, không dựng lại front matter — file sinh ra giống file trong `knowledge/` từng byte. Ngoại lệ duy nhất là `claude-md/`, được inline vào `CLAUDE.md` chứ không copy.
-
-Bốn thứ đọc từ đường dẫn, và **không thứ gì** đọc từ trong file:
-
-| Suy ra | Từ đâu |
-| --- | --- |
-| `type` | thư mục gốc — `rules/`, `skills/`, `commands/`, `claude-md/` |
-| `layer` | segment 2, nếu là `global` hoặc `framework`; không thì `global` |
-| `applies_to` | thư mục framework nằm dưới `framework/` |
-| `id` | phần còn lại nối bằng `-`, bỏ `.md`. Skill thì lấy tên thư mục của chính nó |
-
-Lồng sâu bao nhiêu cũng được dưới thư mục framework — `rails/db/indexes.md` ra `rails-db-indexes`.
-
-> [!NOTE]
-> **Chọn nhiều framework một lúc thì rule trùng tên vẫn an toàn.** Thư mục framework đã nằm trong id, nên `rails/conventions.md` và `laravel/conventions.md` ra hai file riêng, cùng tồn tại. Riêng **skill** thì không có tiền tố đó — id là tên thư mục của chính nó, vì đó là tên Claude dùng để khớp task. Hai thư mục skill trùng tên sẽ báo lỗi lúc nạp và nêu cả hai đường dẫn, thay vì tự đổi tên sau lưng bạn.
-
 Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 
 | Loại | Nó là gì | Nạp khi nào |
@@ -243,9 +172,9 @@ Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 | **Command** | Thứ developer gõ ra | Khi được gọi |
 | **Đoạn CLAUDE.md** | Hướng dẫn mọi dự án đều cần sẵn inline | Ngay từ token đầu tiên |
 
-> `claude-md/` là loại **duy nhất** không copy thành file: nội dung nó được ghép vào chính `CLAUDE.md` của dự án. Vì đang chèn vào tài liệu của người khác, hai thứ bị bỏ — khối front matter ở đầu (nằm giữa file Markdown thì vô nghĩa) và tiêu đề `# ` của nó (nếu không dự án sẽ có hai h1).
+Nếu bạn đang viết các bước được đánh số thì đó là **skill**, không phải rule.
 
-> Nếu bạn đang viết các bước được đánh số thì đó là **skill**, không phải rule.
+[knowledge/README.md](knowledge/README.md) là tham chiếu đầy đủ: đường dẫn quyết định những gì, front matter nào Claude cần, thứ tự `@`-import, và cách xử lý khi chọn nhiều framework cùng lúc.
 
 <!-- MEMO(image): a layer diagram — Layer 1 global / Layer 2 framework, with the resolver pulling a slice down each column. Save as ./docs/images/layers.svg (+ layers-dark.svg) and uncomment.
 <p align="center">
@@ -258,187 +187,36 @@ Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 
 ## Phạm vi hiện có
 
-**Layer 1 — global.** Copy từ hai dự án MIT tại commit được ghim trong `upstream.yaml`: 25 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), và bộ hướng dẫn hành vi từ [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), được inline thẳng vào `CLAUDE.md` của mọi dự án. Tất cả đã commit ở đây, nên generate không cần network. `npm run sync` copy lại tại commit đã ghim — xem [knowledge/README.md](knowledge/README.md#imported-content).
+**Layer 1 — global.** Copy từ hai dự án MIT tại commit được ghim trong `upstream.yaml`: 25 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), và bộ hướng dẫn hành vi từ [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), inline thẳng vào `CLAUDE.md` của mọi dự án.
 
 **Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record, tất cả gate bằng `rails`.
 
-**Catalog đúng hai entry: Rails và Laravel.** Không có gì khác, vì framework là thứ duy nhất chọn được. Laravel hiện chưa có nội dung nào, và validator báo nó là `uncovered-technology` chứ không làm hỏng lần chạy.
+**Catalog đúng hai entry: Rails và Laravel.** Laravel hiện chưa có nội dung nào, và validator báo nó là `uncovered-technology` chứ không làm hỏng lần chạy.
 
 > [!NOTE]
-> Một framework có trong catalog mà chưa có rule nào là **khoảng trống đã được ghi nhận, không phải bug**. Bổ sung nội dung cho nó là đóng góp có giá trị nhất — phần dưới đây hướng dẫn từng bước.
+> Một framework có trong catalog mà chưa có rule nào là **khoảng trống đã được ghi nhận, không phải bug**. Bổ sung nội dung cho nó là đóng góp có giá trị nhất.
 
-## Đóng góp: thêm một stack mới
+## Đóng góp
 
-Phần này đi hết một ví dụ chạy được thật: bổ sung nội dung Laravel. Laravel đã có trong catalog nhưng chưa có rule hay skill nào, nên hôm nay `/generate laravel` chỉ ra được layer global.
-
-[CONTRIBUTING.md](CONTRIBUTING.md) là bản tóm tắt quy trình, [knowledge/README.md](knowledge/README.md) là tham chiếu đầy đủ về đường dẫn. Phần dưới cho biết thứ tự làm và những chỗ dễ sai.
-
-### Bước 0 — Chuẩn bị
-
-```bash
-npm install
-npm run check     # typecheck + test + bundle; phải xanh trước khi bạn bắt đầu
-```
-
-### Bước 1 — Khai framework trong `catalog.yaml`
-
-Laravel đã có sẵn, nên xem nó như bản mẫu:
-
-```yaml
-  laravel:
-    name: Laravel
-```
-
-Chỉ có thế. Không có `kind`: mọi entry đều là framework, nên một trường luôn mang cùng một giá trị chỉ là nhiễu.
-
-| Trường | Ý nghĩa |
-| --- | --- |
-| `name` | Bắt buộc. Tên cho người đọc |
-| `requires` | Kéo vào **tự động, theo chiều lên**, đệ quy. Chưa entry nào cần, nhưng một framework dựng trên framework khác thì dùng tới |
-| `conflicts_with` | Báo cáo, **không bao giờ tự hoà giải**. Lần chạy dừng lại và in ra cờ bỏ qua |
-| `compatible_with` | Chỉ để tài liệu, không được kiểm tra |
+[CONTRIBUTING.md](CONTRIBUTING.md) là quy trình từng bước; [knowledge/README.md](knowledge/README.md) là tham chiếu đường dẫn. Ba chỗ dễ sai nhất:
 
 > [!WARNING]
-> **Mọi artifact gate bằng framework, và thư mục là thứ gate nó.** Catalog không có `php`, `eloquent`, `pest` hay `postgresql`, nên rule Eloquent nằm dưới `framework/laravel/`, rule style PHP cũng vậy. Một thư mục dưới `framework/` không phải id trong catalog bị lint chặn ngay, nêu tên file. Lỗi "rule biến mất im lặng" này từng xảy ra thật với Active Record, và một lần nữa với RSpec.
-
-### Bước 2 — Viết rule
-
-Rule là một quy ước: *code phải viết thế nào*. Luôn nằm trong context.
-
-Tạo `knowledge/rules/framework/laravel/conventions.md`:
-
-```markdown
-## Phân tầng
-
-- Controller đọc request, gọi đúng một object, rồi trả response. Không chứa
-  business logic, không orchestrate nhiều bước, không viết chuỗi query trực tiếp.
-- Form Request giữ toàn bộ validation. Controller không gọi `$request->validate()`.
-
-## Eloquent
-
-- Eager-load quan hệ mà bạn sẽ render bằng `with()`. N+1 query trong list view là
-  một defect, không phải chuyện style.
-- Dùng `chunkById()` cho bất cứ tập dữ liệu nào có thể vượt vài nghìn dòng.
-```
-
-Thư mục `laravel/` vừa quyết định rule này áp dụng cho Laravel, vừa thành tiền tố tên đầu ra `.claude/rules/laravel-conventions.md`. Mọi segment phải là kebab-case thường, nếu không loader từ chối ngay và nói rõ file nào.
+> **Mọi artifact gate bằng framework, và thư mục là thứ gate nó.** Catalog không có `php`, `eloquent`, `pest` hay `postgresql`, nên rule Eloquent nằm dưới `framework/laravel/`, rule style PHP cũng vậy. Một thư mục dưới `framework/` không phải id trong catalog bị lint chặn ngay. Lỗi "rule biến mất im lặng" này từng xảy ra thật với Active Record, và một lần nữa với RSpec.
 
 > [!IMPORTANT]
-> **Không khai metadata của agent-stack trong file — không có trường nào để khai.** Đường dẫn nói hết. Thứ gì bạn viết trong front matter sẽ được copy nguyên vào mọi dự án sinh ra, nên chỉ để lại thứ Claude cần đọc: `name` + `description` trong `SKILL.md`, `description` trong command, và không gì cả trong rule nếu bạn không cần.
-
-Thứ tự `@`-import sắp theo alphabet của tên đầu ra. Muốn một rule nằm trên, đặt tên nó xếp trước; không có trường `priority`.
+> **Không khai metadata của agent-stack trong file — không có trường nào để khai.** Thứ gì bạn viết trong front matter sẽ được copy nguyên vào mọi dự án sinh ra, nên chỉ để lại thứ Claude cần đọc: `name` + `description` trong `SKILL.md`, `description` trong command, và không gì cả trong rule.
 
 > [!IMPORTANT]
-> **Việc chọn không nhìn tới version.** Không có trường `versions`, và `--framework laravel@11` không phải cú pháp hợp lệ. Một rule áp dụng cho một framework, không phải cho một release của nó. Nội dung nào chỉ đúng từ một version nào đó thì viết điều kiện ngay trong thân rule, để người đọc thấy được — thay vì để nó biến mất âm thầm vì operator pin sai số.
-
-### Bước 3 — Viết skill
-
-Skill là một quy trình có các bước, chỉ nạp khi gặp đúng việc đó.
-
-Tạo `knowledge/skills/framework/laravel/laravel-feature/SKILL.md`:
-
-```markdown
----
-name: laravel-feature
-description: Thêm một feature end-to-end vào ứng dụng Laravel — route, Form Request, action, view và test. Dùng khi bắt đầu một màn hình hoặc endpoint mới.
----
-
-Làm theo thứ tự. Mỗi bước chạy được trước khi sang bước sau.
-
-1. Khai route trong `routes/web.php` hoặc `routes/api.php`, trỏ tới một
-   controller đơn lẻ.
-2. ...
-```
-
-Với skill, **tên thư mục của chính nó** là id — thư mục ở trên ra `.claude/skills/laravel-feature/`, còn `laravel/` chỉ để gom nhóm. Tên skill là một không gian phẳng mà Claude khớp task vào, nên hãy viết tên framework vào chính tên skill; hai thư mục skill trùng tên là lỗi lúc nạp, nêu cả hai đường dẫn.
-
-`description` là thứ Claude đọc để quyết định có nạp hay không — viết rõ **nó làm gì** *và* **khi nào dùng**. Giữ `SKILL.md` dưới ~500 dòng; tài liệu tham chiếu dài để ra file riêng trong cùng thư mục, mọi file khác trong đó được copy theo tự động.
-
-### Bước 4 — Command và đoạn CLAUDE.md
-
-Hai loại còn lại, cùng một luật đường dẫn:
-
-| Bạn viết | Sinh ra |
-| --- | --- |
-| `knowledge/commands/<tên>.md` | `.claude/commands/<tên>.md` cho mọi dự án |
-| `knowledge/commands/framework/laravel/<tên>.md` | `.claude/commands/laravel-<tên>.md`, chỉ khi chọn Laravel |
-| `knowledge/claude-md/<tên>.md` | inline vào `CLAUDE.md`, không sinh file riêng |
-
-Command giữ `description` trong front matter. Đoạn `claude-md/` là loại duy nhất bị đọc tới: front matter ở đầu và tiêu đề `# ` của nó bị bỏ khi ghép, vì nó đang chèn vào tài liệu của dự án khác.
-
-### Bước 5 — Viết test
-
-Mọi hành vi mới cần test; mọi bug fix cần một test fail trước khi sửa. `tests/pipeline.test.ts` nạp knowledge base thật, nên một thay đổi nội dung phá vỡ invariant sẽ làm suite đỏ.
-
-Thêm vào `tests/pipeline.test.ts`:
-
-```ts
-it('selects the Laravel layer from the framework alone', async () => {
-  const { selection, report } = await run('laravel');
-  const ruleIds = selection.rules.map((entry) => entry.artifact.meta.id);
-  expect(ruleIds).toContain('laravel-conventions');
-  expect(selection.skills.map((entry) => entry.artifact.meta.id)).toContain('laravel-feature');
-  expect(report.ok).toBe(true);
-});
-```
-
-Có sẵn một test chặn đúng cái bẫy ở Bước 1 — `selects the framework layer from the framework alone`. Khi thêm stack mới, nên viết một bản tương tự: lọc mọi artifact có `applies_to` chứa `'laravel'` rồi khẳng định tất cả đều được chọn chỉ từ `--framework laravel`.
-
-Lưu ý test `flags a framework the knowledge base does not cover yet` đang dùng chính Laravel làm ví dụ về khoảng trống. Khi bạn lấp khoảng trống đó, hãy đổi nó sang một framework khác còn trống.
-
-### Bước 6 — Chạy thử bằng mắt
-
-```bash
-npm run check
-npm run try -- --framework laravel
-npm run try -- --clean      # xoá thư mục thử
-```
-
-`npm run try` generate vào `.agent-stack-try/` (đã gitignore) để bạn đọc cây file thật thay vì đoán. Script seed sẵn một `CLAUDE.md` viết tay, nên mỗi lần chạy cũng chứng minh luôn rằng generator merge đúng block của nó mà không đụng chữ xung quanh. Mở `.agent-stack-try/` bằng Claude Code nếu muốn thấy rule và skill thực sự được nạp.
-
-### Bước 7 — Mở PR
+> **Việc chọn không nhìn tới version.** Không có trường `versions`, và `--framework laravel@11` không phải cú pháp hợp lệ. Nội dung nào chỉ đúng từ một version nào đó thì viết điều kiện ngay trong thân rule.
 
 Checklist trước khi push:
 
 - [ ] `npm run check` xanh (typecheck + test + bundle)
-- [ ] Đã commit `dist/agent-stack.mjs` nếu có sửa gì trong `src/` — `npm run check` tự rebuild
+- [ ] Đã commit `dist/agent-stack.mjs` nếu có sửa gì trong `src/`
 - [ ] Có test mới cho hành vi mới, hoặc test fail-trước-khi-sửa cho bug fix
 - [ ] Đã đọc output của `npm run try` bằng mắt, không chỉ tin test
-- [ ] File nằm dưới đúng thư mục framework mà operator **thực sự gõ**
-- [ ] Front matter không chứa metadata của agent-stack — nó sẽ bị copy vào dự án đích
-- [ ] Không sửa hay thêm file nào nằm dưới đường dẫn mà `upstream.yaml` ánh xạ tới
-- [ ] Commit theo Conventional Commits, tiêu đề ở thể mệnh lệnh, dưới 72 ký tự; phần body giải thích **vì sao**
-
-Ví dụ commit:
-
-```
-feat(knowledge): add Laravel conventions and feature skill
-
-Laravel resolved but generated nothing beyond the global layer. Put both
-artifacts under framework/laravel/ so a plain `--framework laravel` run
-emits them.
-```
-
-### Những lỗi lint hay gặp
-
-`npm run check` nạp knowledge base thật và fail sớm. Các thông báo bạn có thể gặp:
-
-| Thông báo | Nguyên nhân |
-| --- | --- |
-| `the directory "x" is not a framework in catalog.yaml` | Thư mục dưới `framework/` không phải id trong catalog |
-| `duplicate <type> id "x"` | Hai file cùng `type` cho ra cùng tên đầu ra — hai thư mục skill trùng tên là ca hay gặp nhất |
-| `"X_y" cannot be a filename under .claude/` | Một segment không phải kebab-case thường |
-| `catalog.yaml: x conflicts with itself` | `conflicts_with` chứa chính nó |
-
-### Nội dung import — đừng đụng vào
-
-Layer global được copy từ repo khác và ghim theo SHA 40 ký tự.
-
-- **Không sửa file nào nằm dưới đường dẫn mà `upstream.yaml` ánh xạ tới.** Lần sync sau sẽ ghi đè.
-- **Viết file của riêng bạn cạnh nội dung import thì được.** Sync chỉ xoá đúng những file lần sync trước đã mang về, ghi trong `upstream.lock.json`. File chưa từng nằm trong danh sách đó không bao giờ bị đụng tới. Nhớ commit file lock cùng nội dung nó mô tả — thiếu nó, lần sync kế tiếp không phân biệt được đâu là file upstream đã bỏ và đâu là công sức của bạn, nên nó không xoá gì cả.
-- Dời pin là một commit cần review: `npm run sync -- --ref <sha>`, rồi đọc diff xem nó mang gì vào. Chỉ nhận SHA đủ 40 ký tự, không nhận branch hay tag.
-
-Thứ một file import thiếu — description, layer — được khai trong `upstream.yaml` hoặc suy ra từ đường dẫn, chứ không thêm vào file đã copy.
+- [ ] Không sửa file nào nằm dưới đường dẫn mà `upstream.yaml` ánh xạ tới — lần sync sau ghi đè
+- [ ] Commit theo Conventional Commits, tiêu đề ở thể mệnh lệnh, dưới 72 ký tự; body giải thích **vì sao**
 
 ## Phát triển
 
@@ -474,20 +252,16 @@ Mỗi module một mối quan tâm. Sửa gì thì đặt vào đúng chỗ mố
 
 Mọi thứ ở đây xoay quanh hai điều này. Thay đổi nào làm yếu một trong hai phải nói thẳng ra, không được lách qua:
 
-1. **Việc chọn là tất định.** Phân giải, kiểm tra tương thích, kết hợp và kiểm tra đều chạy bằng TypeScript trong `src/`. Model chỉ ánh xạ yêu cầu sang cờ CLI và chuyển tiếp xung đột cho operator. Ngoài ra nó không quyết định gì và không viết nội dung.
-2. **Xung đột không bao giờ được hoà giải âm thầm.** Khi hai technology được chọn bị khai là không tương thích, lần chạy dừng lại, nêu tên xung đột, và in ra cờ để bỏ qua. Generator không tự chọn bên thắng.
+1. **Việc chọn là tất định.** Phân giải, kiểm tra tương thích, kết hợp và kiểm tra đều chạy bằng TypeScript trong `src/`. Model chỉ ánh xạ yêu cầu sang cờ CLI và chuyển tiếp xung đột cho operator.
+2. **Xung đột không bao giờ được hoà giải âm thầm.** Khi hai technology được chọn bị khai là không tương thích, lần chạy dừng lại, nêu tên xung đột, và in ra cờ để bỏ qua.
 
 Điều thứ ba đúng với knowledge base: **generate là offline.** Một lần generate chỉ đọc repository này và ghi vào thư mục đích. Chỉ `npm run sync`, chạy có chủ đích, mới đụng network.
 
-### Tài liệu liên quan
-
-[CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [SECURITY.md](SECURITY.md) để báo lỗ hổng bảo mật riêng tư, không qua issue công khai.
-
 ## Giấy phép
 
-[Apache-2.0](LICENSE) · Copyright 2026 TOMOSIA VIETNAM.
+[Apache-2.0](LICENSE) · Copyright 2026 TOMOSIA VIETNAM. Nội dung trong `knowledge/` copy từ dự án khác giữ giấy phép riêng của nó; xem [NOTICE](NOTICE). Dự án được generate ghi lại phần ghi công trong `.claude/agent-stack-manifest.json`.
 
-Nội dung trong `knowledge/` copy từ dự án khác giữ giấy phép riêng của nó; xem [NOTICE](NOTICE). Dự án được generate ghi lại phần ghi công trong `.claude/agent-stack-manifest.json`.
+[CONTRIBUTING.md](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [SECURITY.md](SECURITY.md) để báo lỗ hổng bảo mật riêng tư, không qua issue công khai.
 
 ---
 

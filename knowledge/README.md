@@ -1,23 +1,23 @@
 # Knowledge base
 
-The content agent-stack selects from. All of it is committed here, so a generate run
-needs no network.
+Nội dung mà agent-stack chọn ra. Tất cả đều được commit ở đây, nên một lần generate không
+cần mạng.
 
-## The one rule
+## Quy tắc duy nhất
 
-**agent-stack never reads or writes what is inside a file.** A selected file is copied
-into the project byte for byte. Everything the generator needs — what the file is, who
-it is for, what it will be called — is read off its **path**.
+**agent-stack không đọc cũng không ghi phần bên trong file.** File được chọn thì copy vào
+dự án nguyên xi từng byte. Mọi thứ generator cần — file là gì, dành cho ai, sẽ mang tên
+nào — đều đọc từ **đường dẫn**.
 
-That is why there is no `id`, `priority`, `layer`, `applies_to` or `type` field to
-declare. There is nothing to declare. Put the file in the right place and name it well.
+Vì vậy không có trường `id`, `priority`, `layer`, `applies_to` hay `type` nào để khai. Đặt
+file đúng chỗ và đặt tên cho chuẩn là xong.
 
-## Layout
+## Bố cục
 
 ```
-catalog.yaml                            the frameworks
-upstream.yaml                           what was copied from where, pinned to a commit
-upstream.lock.json                      what the last sync delivered
+catalog.yaml                            danh sách framework
+upstream.yaml                           copy từ đâu, ghim ở commit nào
+upstream.lock.json                      lần sync trước đã đưa về những file nào
 
 rules/global/<name>.md                  -> .claude/rules/<name>.md
 rules/framework/<fw>/<name>.md          -> .claude/rules/<fw>-<name>.md
@@ -25,91 +25,90 @@ skills/global/<name>/SKILL.md           -> .claude/skills/<name>/
 skills/framework/<fw>/<name>/SKILL.md   -> .claude/skills/<name>/
 commands/<name>.md                      -> .claude/commands/<name>.md
 commands/framework/<fw>/<name>.md       -> .claude/commands/<fw>-<name>.md
-claude-md/<name>.md                     -> inlined into CLAUDE.md
-claude-md/framework/<fw>/<name>.md      -> inlined into CLAUDE.md, only for <fw>
+claude-md/<name>.md                     -> chèn thẳng vào CLAUDE.md
+claude-md/framework/<fw>/<name>.md      -> chèn vào CLAUDE.md, chỉ khi chọn <fw>
 ```
 
-`<fw>` is a framework id from `catalog.yaml`. Any file beside a `SKILL.md` — a
-`references/` directory, a script — is copied with it.
+`<fw>` là id framework trong `catalog.yaml`. File nằm cạnh một `SKILL.md` — thư mục
+`references/`, một script — được copy theo.
 
-## What the path decides
+## Đường dẫn quyết định những gì
 
-| Derived | From | Example |
+| Suy ra | Từ | Ví dụ |
 | --- | --- | --- |
-| type | the top directory | `rules/` → a rule |
-| layer | segment 2, when it is `global` or `framework`; otherwise `global` | `rules/framework/…` → framework |
-| which framework it applies to | the directory under `framework/` | `rails/` → applies to Rails |
-| emitted filename | the rest of the path, joined with `-`, minus `.md` | `rails/security.md` → `rails-security.md` |
+| type | thư mục trên cùng | `rules/` → một rule |
+| layer | segment 2, nếu là `global` hoặc `framework`; còn lại là `global` | `rules/framework/…` → framework |
+| áp dụng cho framework nào | thư mục ngay dưới `framework/` | `rails/` → áp dụng cho Rails |
+| tên file sinh ra | phần còn lại của đường dẫn, nối bằng `-`, bỏ `.md` | `rails/security.md` → `rails-security.md` |
 
-Nest as deep as you like below the framework directory: `rails/db/indexes.md` becomes
-`rails-db-indexes.md`. Use it to group a growing set.
+Lồng sâu bao nhiêu tuỳ ý dưới thư mục framework: `rails/db/indexes.md` thành
+`rails-db-indexes.md`. Dùng nó để nhóm một tập đang phình ra.
 
-**A skill is the exception**: its id is its *own directory name*, not the joined path,
-so `skills/framework/rails/rails-feature/` stays `rails-feature`. Skill names are a flat
-namespace Claude matches a task against, so write the framework into the skill's own
-name rather than relying on the directory above it.
+**Skill là ngoại lệ**: id của nó là *tên thư mục của chính nó*, không phải đường dẫn nối
+lại, nên `skills/framework/rails/rails-feature/` vẫn là `rails-feature`. Tên skill nằm
+trong một namespace phẳng mà Claude đối chiếu với task, nên hãy viết tên framework vào
+chính tên skill thay vì trông chờ thư mục cha.
 
-Every path segment must be lowercase kebab-case, because the path becomes a filename.
-Anything else is refused by name when the knowledge base loads.
+Mọi segment phải là lowercase kebab-case, vì đường dẫn sẽ thành tên file. Khác đi thì
+knowledge base từ chối lúc load và nêu tên file.
 
 ## Front matter
 
-Whatever you write in front matter is Claude's to read, and lands in every generated
-project untouched. agent-stack has no opinion on it.
+Front matter bạn viết là phần của Claude, và đi vào mọi dự án được sinh ra, y nguyên.
+agent-stack không có ý kiến gì về nó.
 
-| File | What Claude needs |
+| File | Claude cần gì |
 | --- | --- |
-| `SKILL.md` | `name` and `description`. The description is what Claude matches a task against — say what it does **and when to use it** |
-| a command | `description` |
-| a rule | nothing. Give it a `# Title` and write Markdown |
-| a fragment | nothing |
+| `SKILL.md` | `name` và `description`. Description là thứ Claude đối chiếu với task — nói nó làm gì **và khi nào dùng** |
+| command | `description` |
+| rule | không cần gì. Cho một `# Title` rồi viết Markdown |
+| fragment | không cần gì |
 
-Do not add metadata for agent-stack. There is none to add, and it would be copied into
-every project that selects the file.
+Đừng thêm metadata cho agent-stack: không có gì để thêm, và nó sẽ bị copy vào mọi dự án
+chọn file đó.
 
-## Four kinds of content
+## Bốn loại nội dung
 
-| Kind | What it is | When it loads |
+| Loại | Là gì | Load khi nào |
 | --- | --- | --- |
-| **Rule** | A convention — *how code must be written* | Always in context, `@`-imported from CLAUDE.md |
-| **Skill** | A procedure — *how to carry out task X*, in steps | When that task comes up |
-| **Command** | Something the developer types | When invoked |
-| **CLAUDE.md fragment** | Guidance that belongs in the project's CLAUDE.md itself | From the first token |
+| **Rule** | Một quy ước — *code phải viết thế nào* | Luôn ở trong context, `@`-import từ CLAUDE.md |
+| **Skill** | Một quy trình — *làm task X ra sao*, theo từng bước | Khi task đó xuất hiện |
+| **Command** | Thứ lập trình viên gõ ra | Khi được gọi |
+| **CLAUDE.md fragment** | Hướng dẫn thuộc về chính CLAUDE.md của dự án | Từ token đầu tiên |
 
-If you are writing numbered steps, it is a skill.
+Nếu bạn đang viết các bước đánh số, đó là skill.
 
-A fragment is the **only** thing not copied as a file: its text is spliced into a
-document agent-stack composes. Only there, and only because of that, are two things
-dropped — a leading front-matter block, which would be nonsense partway down a Markdown
-file, and a leading `# Title`, which would give the project a second `h1`.
+Fragment là thứ **duy nhất** không copy thành file: phần text của nó được ghép vào một tài
+liệu do agent-stack soạn. Chỉ ở đó, và chỉ vì lý do đó, hai thứ bị bỏ — khối front matter
+mở đầu, vốn vô nghĩa khi nằm giữa một file Markdown, và `# Title` mở đầu, vốn sẽ cho dự án
+một `h1` thứ hai.
 
-Keep a `SKILL.md` under ~500 lines. Long reference material goes in a separate file in
-the same directory; it is copied automatically.
+Giữ `SKILL.md` dưới ~500 dòng. Tài liệu tham chiếu dài thì tách ra file riêng cùng thư
+mục; nó được copy tự động.
 
-## Ordering
+## Thứ tự
 
-Alphabetical by emitted filename, on disk and in the `@`-imports alike. There is no
-priority field. To put a rule above another, give it a name that sorts above.
+Theo alphabet của tên file sinh ra, cả trên đĩa lẫn trong các `@`-import. Không có trường
+priority. Muốn một rule đứng trên rule khác thì đặt tên sắp trước.
 
-## More than one framework
+## Nhiều framework
 
-A project can select several. Rules and commands carry their framework directory in
-their name, so two frameworks can each have a `conventions.md`:
+Một dự án chọn được nhiều framework. Rule và command mang sẵn tên thư mục framework trong
+tên, nên hai framework đều có thể có `conventions.md`:
 
 ```
 rules/framework/rails/conventions.md    -> .claude/rules/rails-conventions.md
 rules/framework/laravel/conventions.md  -> .claude/rules/laravel-conventions.md
 ```
 
-Skills have no such prefix, so two skill directories of the same name are a load-time
-error naming both files. agent-stack will not rename one for you: that would change the
-name Claude matches against.
+Skill không có tiền tố đó, nên hai thư mục skill trùng tên là lỗi lúc load, nêu tên cả hai
+file. agent-stack không đổi tên hộ bạn: làm vậy là đổi cái tên Claude đối chiếu.
 
 ## catalog.yaml
 
-Every entry is a framework, because a framework is the only thing an operator selects.
-There is no `kind` field — it would be the same word on every row — and no versions: a
-rule applies to a framework, not to one of its releases.
+Mọi entry đều là một framework, vì framework là thứ duy nhất operator chọn. Không có
+trường `kind` — nó sẽ giống nhau ở mọi dòng — và không có version: một rule áp dụng cho
+framework, không phải cho một bản phát hành của nó.
 
 ```yaml
 version: 1
@@ -122,16 +121,15 @@ technologies:
     name: Laravel
 ```
 
-| Field | Meaning |
+| Trường | Ý nghĩa |
 | --- | --- |
-| `name` | Required. The human name |
-| `requires` | Pulled in automatically, transitively. No entry needs it today |
-| `conflicts_with` | Reported, **never** settled automatically. The run stops and prints the waiver flag |
-| `compatible_with` | Documentation only; not enforced |
+| `name` | Bắt buộc. Tên cho người đọc |
+| `requires` | Tự kéo theo, bắc cầu. Hiện chưa entry nào cần |
+| `conflicts_with` | Chỉ báo cáo, **không bao giờ** tự xử. Run dừng lại và in ra flag để bỏ qua |
+| `compatible_with` | Chỉ để tài liệu; không enforce |
 
-A framework with no content is valid: the validator reports it as `uncovered-technology`
-rather than failing. `agent-stack catalog` prints what each framework has, so the gaps
-are visible at a glance:
+Một framework chưa có nội dung vẫn hợp lệ: validator báo `uncovered-technology` chứ không
+fail. `agent-stack catalog` in ra mỗi framework có gì, để thấy ngay chỗ trống:
 
 ```
   ┌─────────┬───────────────┬───────┬────────┬──────────┐
@@ -140,82 +138,78 @@ are visible at a glance:
   │ rails   │ Ruby on Rails │     3 │     29 │        9 │
   │ laravel │ Laravel       │     — │     26 │        9 │
   └─────────┴───────────────┴───────┴────────┴──────────┘
-
-  Every row counts the global layer too, which applies whatever the framework:
-  0 rule(s), 26 skill(s), 9 command(s), 1 CLAUDE.md fragment(s).
 ```
 
-Each row is what `--framework <id>` actually emits, the global layer included, because
-that layer is selected whatever the framework is. Laravel's blank rules column is the
-gap; its 26 skills and 9 commands are the global layer it gets regardless. The `--json`
-output splits the two, as `counts` and `own`.
+Mỗi dòng là đúng những gì `--framework <id>` sinh ra, tính cả global layer, vì layer đó
+luôn được chọn bất kể framework nào. Cột rules trống của Laravel là chỗ thiếu; 26 skill và
+9 command là global layer nó có sẵn. Output `--json` tách hai phần đó ra thành `counts` và
+`own`.
 
-## Adding content
+## Thêm nội dung
 
-**A rule** — a Markdown file under `rules/framework/<fw>/`. Give it a `# Title` and
-write the convention. Nothing else.
+**Rule** — file Markdown dưới `rules/framework/<fw>/`. Cho một `# Title` rồi viết quy ước.
+Hết.
 
-**A skill** — a directory under `skills/framework/<fw>/<skill-name>/` holding a
-`SKILL.md` with `name` and `description`. Write the steps in order, and end with what to
-report. Name the directory for what Claude should call it, framework included.
+**Skill** — thư mục dưới `skills/framework/<fw>/<skill-name>/` chứa `SKILL.md` có `name`
+và `description`. Viết các bước theo thứ tự, kết bằng việc cần báo cáo gì. Đặt tên thư mục
+theo đúng cái tên Claude nên gọi, kèm framework.
 
-**A command** — a Markdown file under `commands/framework/<fw>/`, or `commands/` for one
-that applies everywhere.
+**Command** — file Markdown dưới `commands/framework/<fw>/`, hoặc `commands/` nếu áp dụng
+mọi nơi.
 
-**A fragment** — a Markdown file under `claude-md/`. Use one only for guidance every
-project needs inline rather than behind an import.
+**Fragment** — file Markdown dưới `claude-md/`. Chỉ dùng cho hướng dẫn mà mọi dự án cần
+nằm inline thay vì sau một import.
 
-**A framework** — an entry in `catalog.yaml`, then a directory named after it.
+**Framework** — một entry trong `catalog.yaml`, rồi một thư mục cùng tên.
 
-Run `npm test` after any change: the suite loads this directory and fails on a duplicate
-name, an unknown framework directory, or a path that cannot become a filename.
+Chạy `npm test` sau mỗi thay đổi: suite load thư mục này và fail khi trùng tên, khi thư
+mục framework lạ, hoặc khi một đường dẫn không thể thành tên file.
 
-## Imported content
+## Nội dung import
 
-The global layer is copied from two MIT-licensed projects and committed here:
+Global layer được copy từ hai dự án MIT và commit ở đây:
 
-- [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) — skills into
-  `skills/global/`, commands into `commands/`.
+- [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) — skill vào
+  `skills/global/`, command vào `commands/`.
 - [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)
-  — its `CLAUDE.md` into `claude-md/karpathy-guidelines.md`, inlined into every project.
+  — `CLAUDE.md` của nó thành `claude-md/karpathy-guidelines.md`, inline vào mọi dự án.
 
-`upstream.yaml` records the repository, the exact commit, the licence, and which upstream
-path maps to which path here. The commit is a **full 40-character SHA** — a branch or tag
-is rejected — so the copy is traceable to one revision.
+`upstream.yaml` ghi repository, commit chính xác, licence, và đường dẫn upstream nào ứng
+với đường dẫn nào ở đây. Commit là **SHA đủ 40 ký tự** — branch hay tag bị từ chối — nên
+bản copy truy được về đúng một revision.
 
 ```bash
-npm run sync                      # re-copy at the pinned commit
-npm run sync -- --ref <sha>       # move the pin, then copy
+npm run sync                      # copy lại ở commit đã ghim
+npm run sync -- --ref <sha>       # dời ghim, rồi copy
 ```
 
-**Never edit an imported file.** The next sync overwrites it.
+**Không bao giờ sửa file import.** Lần sync sau ghi đè lên.
 
-**Writing your own file beside them is fine.** A sync removes only the files the
-*previous* sync delivered, which `upstream.lock.json` records. An upstream deletion still
-propagates — that file was in the record and is not in the new snapshot — while a file
-that was never in the record is never a candidate for removal. Commit the lock file with
-the content it describes; without it a sync cannot tell an upstream deletion from your
-work, so it removes nothing and says so.
+**Viết file của bạn nằm cạnh chúng thì không sao.** Một lần sync chỉ xoá những file mà lần
+sync *trước* đã đưa về, tức những gì `upstream.lock.json` ghi lại. Upstream xoá file thì
+vẫn lan xuống — file đó có trong sổ và không có trong snapshot mới — còn file chưa từng
+nằm trong sổ thì không bao giờ là ứng viên bị xoá. Commit lock file kèm nội dung nó mô tả;
+thiếu nó, sync không phân biệt được upstream xoá với việc bạn tự viết, nên nó không xoá gì
+cả và nói rõ như vậy.
 
-`license`, `license_url` and `copyright` travel into every generated project's
-`.claude/agent-stack-manifest.json` under `imported`. That is where the upstream notices
-live — once per project. Keep them accurate, and do not add a source that cannot be
-attributed there.
+`license`, `license_url` và `copyright` đi vào `.claude/agent-stack-manifest.json` của mọi
+dự án sinh ra, dưới `imported`. Đó là nơi notice của upstream nằm — một lần cho mỗi dự án.
+Giữ chúng chính xác, và đừng thêm nguồn nào không thể ghi nhận ở đó.
 
-### Known limitation
+### Hạn chế đã biết
 
-The imported commands invoke skills by their upstream plugin name, e.g.
-`agent-skills:test-driven-development`. In a generated project those skills live at
-`.claude/skills/<name>/` with no namespace, so the reference only resolves if that project
-*also* installs the upstream plugin. The files are kept as published rather than rewritten.
+Các command import gọi skill bằng tên plugin upstream, ví dụ
+`agent-skills:test-driven-development`. Trong dự án sinh ra, skill đó nằm ở
+`.claude/skills/<name>/` không namespace, nên tham chiếu chỉ resolve được nếu dự án đó
+*cũng* cài plugin upstream. File được giữ đúng như bản phát hành thay vì viết lại.
 
-## When loading fails
+## Khi load thất bại
 
-| Message | Cause |
+| Thông báo | Nguyên nhân |
 | --- | --- |
-| `"X_y" cannot be a filename under .claude/` | A path segment is not lowercase kebab-case |
-| `a framework artifact lives under <type>/framework/<framework>/` | A file sits directly in `framework/` with no framework directory |
-| `the directory "x" is not a framework in catalog.yaml` | The directory under `framework/` names nothing in the catalog |
-| `duplicate <type> id "x" (a, b)` | Two files would be emitted under the same name |
-| `catalog.yaml: x conflicts with itself` | `conflicts_with` lists its own id |
-| `catalog.yaml: x.requires references unknown technology "y"` | A dangling reference in the graph |
+| `"X_y" cannot be a filename under .claude/` | Một segment không phải lowercase kebab-case |
+| `a framework artifact lives under <type>/framework/<framework>/` | File nằm thẳng trong `framework/`, thiếu thư mục framework |
+| `the directory "x" is not a framework in catalog.yaml` | Thư mục dưới `framework/` không ứng với entry nào trong catalog |
+| `duplicate <type> id "x" (a, b)` | Hai file sẽ sinh ra cùng một tên |
+| `catalog.yaml: x conflicts with itself` | `conflicts_with` liệt kê chính id của nó |
+| `catalog.yaml: x.requires references unknown technology "y"` | Tham chiếu treo trong graph |
