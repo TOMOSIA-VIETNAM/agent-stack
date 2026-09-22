@@ -1,14 +1,9 @@
-<!-- MEMO(image): logo lockup. Add ./docs/images/logo/logo-lockup.svg and logo-lockup-dark.svg (width ~400), then uncomment the block below. -->
-<!--
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/images/logo/logo-lockup-dark.svg">
     <img src="./docs/images/logo/logo-lockup.svg" alt="agent-stack" width="400">
   </picture>
 </p>
--->
-
-<h1 align="center">agent-stack</h1>
 
 <p align="center">
   <strong>Rule và skill AI cho dự án của bạn — được <em>chọn</em>, không phải được sinh ra.</strong><br>
@@ -265,14 +260,12 @@ Mọi thứ ở đây xoay quanh hai điều này. Thay đổi nào làm yếu m
 
 ---
 
-<!-- MEMO(image): small square mark for the footer. Add ./docs/images/logo/logo.svg (+ logo-dark.svg), width 44, then uncomment.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/images/logo/logo-dark.svg">
     <img src="./docs/images/logo/logo.svg" alt="" width="44">
   </picture>
 </p>
--->
 
 <p align="center">
   <sub>Thực hiện bởi <a href="https://github.com/TOMOSIA-VIETNAM">TOMOSIA VIETNAM</a> · Xem thêm <a href="https://github.com/TOMOSIA-VIETNAM/open-pr">open-pr</a>, AI code review chạy thẳng trên PR của bạn</sub>
