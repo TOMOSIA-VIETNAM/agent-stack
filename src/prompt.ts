@@ -1,4 +1,4 @@
-import type { InspectedTarget, TargetState } from './emit.js';
+import { belongsToProject, type InspectedTarget, type TargetState } from './emit.js';
 import { artifactKey } from './selector.js';
 import type { ArtifactType } from './schema.js';
 
@@ -49,13 +49,15 @@ const TYPE_LABEL: Record<ArtifactType, string> = {
 const STATE_NOTE: Record<TargetState, string> = {
   new: '',
   owned: 'replaces the last run',
+  modified: 'edited since the last run',
   exists: 'already in the project',
 };
 
 /**
- * Everything starts ticked except a path the project already has. That default
- * is the whole point: an existing file is never carried away by a run the
- * operator did not look at.
+ * Everything starts ticked except a path whose contents are the project's: one
+ * it already had, or one it edited after the last run. That default is the
+ * whole point: the project's work is never carried away by a run the operator
+ * did not look at.
  */
 export function initialState(
   targets: InspectedTarget[],
@@ -72,7 +74,7 @@ export function initialState(
       type: target.type,
       path: target.path,
       state: target.state,
-      checked: options.overwrite === true || target.state !== 'exists',
+      checked: options.overwrite === true || !belongsToProject(target.state),
     }));
 
   return { items, cursor: 0, status: 'open' };
@@ -156,9 +158,9 @@ export function rejected(state: PickerState): PickerItem[] {
   return state.items.filter((item) => !item.checked);
 }
 
-/** Ticked although the project already has the file — an explicit overwrite. */
+/** Ticked although the file is the project's — an explicit overwrite. */
 export function approvedOverwrites(state: PickerState): PickerItem[] {
-  return state.items.filter((item) => item.checked && item.state === 'exists');
+  return state.items.filter((item) => item.checked && belongsToProject(item.state));
 }
 
 const DIM = '\u001b[2m';
@@ -197,7 +199,7 @@ export function render(state: PickerState, rows = 24): string[] {
   });
 
   const chosen = state.items.filter((item) => item.checked).length;
-  const held = state.items.filter((item) => !item.checked && item.state === 'exists').length;
+  const held = state.items.filter((item) => !item.checked && belongsToProject(item.state)).length;
   const header = [
     `${BOLD}Choose what to write into .claude/${RESET}`,
     `${DIM}space toggle · g group · a all · n none · ↑↓/jk move · enter write · q cancel${RESET}`,
@@ -206,7 +208,7 @@ export function render(state: PickerState, rows = 24): string[] {
   const footer = [
     '',
     `${chosen} of ${state.items.length} selected` +
-      (held > 0 ? `, ${held} left untouched because the project already has them` : ''),
+      (held > 0 ? `, ${held} left untouched because the project has or edited them` : ''),
   ];
 
   const room = Math.max(3, height - header.length - footer.length - 1);

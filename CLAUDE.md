@@ -50,12 +50,13 @@ One concern per module. Put a change where the concern already lives:
 | `composer.ts` | Deciding where each file lands, merging the CLAUDE.md block |
 | `prompt.ts` | The terminal approval checklist, and nothing else |
 | `validator.ts` | Completeness and consistency findings |
-| `emit.ts` | The only module that writes or deletes |
+| `emit.ts` | The only module that writes or deletes; what is on disk versus the manifest |
 | `table.ts` | Box-drawn tables for human output, and nothing else |
 | `cli.ts` | Flags, human and `--json` output |
 
-**`emit.ts` may only remove paths listed in the previous run's manifest.** Never widen
-that. Everything outside the manifest belongs to the user.
+**`emit.ts` may only remove paths listed in the previous run's manifest, and not one
+the project has edited since.** Never widen that. Everything outside the manifest
+belongs to the user, and so does anything inside it that the user changed.
 
 The same manifest decides what may be *written over*. `inspectTargets` marks a target
 `owned` when the previous manifest lists it, and `exists` when something is there that
@@ -63,6 +64,13 @@ agent-stack never wrote. An `exists` path is dropped from the selection — not 
 not in the new manifest, not `@`-imported — and reported as a waivable warning. Only
 `--overwrite`, or a tick in the checklist, takes it over. A run must never acquire a
 file by being run twice.
+
+The manifest records a sha256 per copied file under `checksums`. A listed path whose
+bytes no longer match — or a generated skill directory holding a file the manifest does
+not list — is `modified`, and is handled exactly like `exists`: dropped, warned about,
+taken back only by `--overwrite` or a tick. Stale output that is `modified` is
+*retained*, never removed. A deleted file is not an edit. A manifest from before
+`checksums` cannot tell, so it behaves as it did when it was written.
 
 `CLAUDE.md` in a generated project is merged, never replaced: only the text between the
 `agent-stack:begin` / `agent-stack:end` markers changes.

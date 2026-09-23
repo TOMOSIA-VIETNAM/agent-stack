@@ -10,10 +10,8 @@ export const END_MARKER = '<!-- agent-stack:end -->';
 
 export interface PlannedFile {
   path: string;
-  /** Inline contents — only the manifest, which agent-stack does author. */
-  contents?: string;
   /** A knowledge file, copied byte for byte. Every artifact takes this path. */
-  copyFrom?: string;
+  copyFrom: string;
 }
 
 export interface Manifest {
@@ -37,11 +35,18 @@ export interface Manifest {
     licenseUrl: string;
     copyright: string;
   }[];
+  /**
+   * sha256 of every copied file, by its path in the project. It is how the next
+   * run tells its own output from a file the project has edited since. Absent
+   * from a manifest written before it existed, and added by `emit`, which is
+   * the module that reads the bytes.
+   */
+  checksums?: Record<string, string>;
 }
 
 export interface ComposedOutput {
+  /** The copied files. The manifest and CLAUDE.md are written by `emit`. */
   files: PlannedFile[];
-  /** Paths owned by the previous run that this run no longer emits. */
   manifest: Manifest;
   claudeMdBlock: string;
 }
@@ -171,8 +176,6 @@ export function compose(
       copyright,
     })),
   };
-
-  files.push({ path: MANIFEST_PATH, contents: `${JSON.stringify(manifest, null, 2)}\n` });
 
   return { files, manifest, claudeMdBlock: claudeMdBlock(selection.claudeMd, ruleEntries) };
 }

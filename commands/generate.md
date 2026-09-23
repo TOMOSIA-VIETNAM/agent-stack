@@ -77,6 +77,12 @@ those warnings out in full — a rule the user expected may be one of them — a
 whether they want agent-stack's version instead. Only if they say yes, re-run with
 `--overwrite`, which takes over *every* such path, and say so before you do.
 
+**A file the project edited after agent-stack wrote it is the project's too.** It is
+reported as `modified-file` and handled the same way: left as it is, dropped from the
+manifest, taken back only by `--overwrite`. Stale output the project edited is never
+deleted — it is reported as `retained-file`, and is the user's to keep or delete. Read
+both out in full, as you do `existing-file`.
+
 The CLI's own approval checklist needs a terminal, which a command run does not have,
 so it never appears here. **You are the approval step.** Show the preview, wait for the
 user, and run `--write` only once they have agreed. If they want to pick artifact by

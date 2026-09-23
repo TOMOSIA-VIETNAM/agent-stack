@@ -11727,8 +11727,6 @@ function compose(stack, selection, generatorVersion, imported = []) {
       copyright
     }))
   };
-  files.push({ path: MANIFEST_PATH, contents: `${JSON.stringify(manifest, null, 2)}
-` });
   return { files, manifest, claudeMdBlock: claudeMdBlock(selection.claudeMd, ruleEntries) };
 }
 function artifactTargets(selection) {
@@ -11756,8 +11754,9 @@ function artifactTargets(selection) {
 }
 
 // src/emit.ts
-import { access, copyFile, mkdir, readFile as readFile3, rm, writeFile } from "node:fs/promises";
-import { dirname as dirname2, join as join4 } from "node:path";
+import { createHash } from "node:crypto";
+import { copyFile, mkdir, readdir as readdir2, readFile as readFile3, rm, stat, writeFile } from "node:fs/promises";
+import { dirname as dirname2, join as join4, posix as posix2 } from "node:path";
 async function readPreviousManifest(outDir) {
   const raw = await readFile3(join4(outDir, MANIFEST_PATH), "utf8").catch(() => void 0);
   if (!raw) return void 0;
@@ -11766,6 +11765,40 @@ async function readPreviousManifest(outDir) {
   } catch {
     return void 0;
   }
+}
+async function checksum(path) {
+  const bytes = await readFile3(path).catch(() => void 0);
+  return bytes === void 0 ? void 0 : createHash("sha256").update(bytes).digest("hex");
+}
+async function filesUnder(root, path) {
+  const entries = await readdir2(join4(root, path), { withFileTypes: true }).catch(() => []);
+  const files = [];
+  for (const entry of entries) {
+    const child = posix2.join(path, entry.name);
+    if (entry.isDirectory()) files.push(...await filesUnder(root, child));
+    else if (entry.isFile()) files.push(child);
+  }
+  return files;
+}
+async function isModified(outDir, previous, path) {
+  const { checksums } = previous;
+  if (checksums === void 0) return false;
+  const recorded = Object.keys(checksums).filter(
+    (file) => file === path || file.startsWith(`${path}/`)
+  );
+  for (const file of recorded) {
+    const actual = await checksum(join4(outDir, file));
+    if (actual !== void 0 && actual !== checksums[file]) return true;
+  }
+  const isDir = await stat(join4(outDir, path)).then(
+    (entry) => entry.isDirectory(),
+    () => false
+  );
+  if (!isDir) return false;
+  return (await filesUnder(outDir, path)).some((file) => checksums[file] === void 0);
+}
+function belongsToProject(state) {
+  return state === "modified" || state === "exists";
 }
 function ownedPaths(manifest) {
   return [
@@ -11781,8 +11814,11 @@ async function inspectTargets(outDir, targets) {
   return Promise.all(
     targets.map(async (target) => {
       if (target.path === void 0) return { ...target, state: "new" };
-      if (owned.has(target.path)) return { ...target, state: "owned" };
-      const there = await access(join4(outDir, target.path)).then(
+      if (previous && owned.has(target.path)) {
+        const edited = await isModified(outDir, previous, target.path);
+        return { ...target, state: edited ? "modified" : "owned" };
+      }
+      const there = await stat(join4(outDir, target.path)).then(
         () => true,
         () => false
       );
@@ -11790,13 +11826,25 @@ async function inspectTargets(outDir, targets) {
     })
   );
 }
+async function finalManifest(composed) {
+  const checksums = {};
+  for (const file of [...composed.files].sort((a, b) => a.path.localeCompare(b.path))) {
+    const sum = await checksum(file.copyFrom);
+    if (sum !== void 0) checksums[file.path] = sum;
+  }
+  return { ...composed.manifest, checksums };
+}
 async function planEmit(outDir, composed) {
-  const write = [...composed.files.map((file) => file.path), "CLAUDE.md"].sort();
+  const write = [...composed.files.map((file) => file.path), MANIFEST_PATH, "CLAUDE.md"].sort();
   const previous = await readPreviousManifest(outDir);
-  if (!previous) return { write, remove: [] };
+  if (!previous) return { write, remove: [], retained: [] };
   const next = new Set(ownedPaths(composed.manifest));
-  const remove = ownedPaths(previous).filter((path) => !next.has(path)).sort();
-  return { write, remove };
+  const remove = [];
+  const retained = [];
+  for (const path of ownedPaths(previous).filter((path2) => !next.has(path2)).sort()) {
+    (await isModified(outDir, previous, path) ? retained : remove).push(path);
+  }
+  return { write, remove, retained };
 }
 async function emit(outDir, composed, options) {
   const plan = await planEmit(outDir, composed);
@@ -11806,12 +11854,12 @@ async function emit(outDir, composed, options) {
   for (const file of composed.files) {
     const target = join4(outDir, file.path);
     await mkdir(dirname2(target), { recursive: true });
-    if (file.copyFrom) {
-      await copyFile(file.copyFrom, target);
-    } else {
-      await writeFile(target, file.contents ?? "", "utf8");
-    }
+    await copyFile(file.copyFrom, target);
   }
+  const manifestPath = join4(outDir, MANIFEST_PATH);
+  await mkdir(dirname2(manifestPath), { recursive: true });
+  await writeFile(manifestPath, `${JSON.stringify(await finalManifest(composed), null, 2)}
+`, "utf8");
   const claudeMdPath = join4(outDir, "CLAUDE.md");
   const existing = await readFile3(claudeMdPath, "utf8").catch(() => void 0);
   await writeFile(claudeMdPath, mergeClaudeMd(existing, composed.claudeMdBlock), "utf8");
@@ -11908,6 +11956,7 @@ var TYPE_LABEL = {
 var STATE_NOTE = {
   new: "",
   owned: "replaces the last run",
+  modified: "edited since the last run",
   exists: "already in the project"
 };
 function initialState(targets, options = {}) {
@@ -11919,7 +11968,7 @@ function initialState(targets, options = {}) {
     type: target.type,
     path: target.path,
     state: target.state,
-    checked: options.overwrite === true || target.state !== "exists"
+    checked: options.overwrite === true || !belongsToProject(target.state)
   }));
   return { items, cursor: 0, status: "open" };
 }
@@ -12018,7 +12067,7 @@ function render(state, rows = 24) {
     body.push(itemLine(item, index === state.cursor));
   });
   const chosen = state.items.filter((item) => item.checked).length;
-  const held = state.items.filter((item) => !item.checked && item.state === "exists").length;
+  const held = state.items.filter((item) => !item.checked && belongsToProject(item.state)).length;
   const header = [
     `${BOLD}Choose what to write into .claude/${RESET}`,
     `${DIM}space toggle \xB7 g group \xB7 a all \xB7 n none \xB7 \u2191\u2193/jk move \xB7 enter write \xB7 q cancel${RESET}`,
@@ -12026,7 +12075,7 @@ function render(state, rows = 24) {
   ];
   const footer = [
     "",
-    `${chosen} of ${state.items.length} selected` + (held > 0 ? `, ${held} left untouched because the project already has them` : "")
+    `${chosen} of ${state.items.length} selected` + (held > 0 ? `, ${held} left untouched because the project has or edited them` : "")
   ];
   const room = Math.max(3, height - header.length - footer.length - 1);
   if (body.length <= room) return [...header, ...body, ...footer];
@@ -12206,7 +12255,7 @@ function renderTable(columns, rows, indent = "  ") {
 }
 
 // src/validator.ts
-function validate(stack, selection, acceptedConflicts = [], kept = []) {
+function validate(stack, selection, acceptedConflicts = [], kept = [], retained = []) {
   const findings = [];
   const accepted = new Set(acceptedConflicts);
   for (const conflict of stack.conflicts) {
@@ -12227,10 +12276,24 @@ function validate(stack, selection, acceptedConflicts = [], kept = []) {
     });
   }
   for (const entry of kept) {
+    findings.push(
+      entry.state === "modified" ? {
+        severity: "warning",
+        code: "modified-file",
+        message: `${entry.path} was edited after agent-stack wrote it \u2014 ${entry.id} was left out and the file is now the project's [--overwrite to replace it]`
+      } : {
+        severity: "warning",
+        code: "existing-file",
+        message: `${entry.path} already exists and agent-stack did not write it \u2014 ${entry.id} was left out [--overwrite to replace it]`
+      }
+    );
+  }
+  const reported = new Set(kept.map((entry) => entry.path));
+  for (const path of retained.filter((path2) => !reported.has(path2))) {
     findings.push({
       severity: "warning",
-      code: "existing-file",
-      message: `${entry.path} already exists and agent-stack did not write it \u2014 ${entry.id} was left out [--overwrite to replace it]`
+      code: "retained-file",
+      message: `${path} is no longer generated, but it was edited after agent-stack wrote it \u2014 it was left in place and is now the project's to keep or delete`
     });
   }
   for (const warning of stack.warnings) {
@@ -12283,7 +12346,8 @@ Options:
   --out <dir>                 target project directory (default: cwd)
   --write                     write files; without it, generate only previews
   --yes                       skip the approval checklist and take the defaults
-  --overwrite                 replace files the project already has, which are
+  --overwrite                 replace files the project already has or has
+                              edited since the last run, which are
                               otherwise left where they are
   --accept-conflict <id>      proceed despite one conflict, by its reported id
   --knowledge <dir>           knowledge base directory (default: bundled)
@@ -12478,8 +12542,9 @@ async function run(options) {
     return 130;
   }
   const { selection, kept, declined } = approval;
-  const report = fullReport.ok ? validate(stack, selection, options.acceptConflicts, kept) : fullReport;
   const composed = compose(stack, selection, VERSION, kb.imported);
+  const { retained } = await planEmit(options.out, composed);
+  const report = fullReport.ok ? validate(stack, selection, options.acceptConflicts, kept, retained) : fullReport;
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
   if (options.json) {
     process.stdout.write(
@@ -12543,9 +12608,9 @@ async function approve(options, stack, selection) {
       return { cancelled: true, selection, kept, declined };
     }
     for (const item of rejected(picked)) {
-      if (item.state === "exists" && item.path !== void 0) {
-        excluded.set(item.key, "the project already has this file");
-        kept.push({ id: item.id, path: item.path });
+      if (belongsToProject(item.state) && item.path !== void 0) {
+        excluded.set(item.key, "the file is the project's");
+        kept.push({ id: item.id, path: item.path, state: item.state });
       } else {
         excluded.set(item.key, "not approved");
         declined.push(item);
@@ -12553,9 +12618,9 @@ async function approve(options, stack, selection) {
     }
   } else if (!options.overwrite) {
     for (const target of targets) {
-      if (target.state !== "exists" || target.path === void 0) continue;
-      excluded.set(artifactKey(target), "the project already has this file");
-      kept.push({ id: target.id, path: target.path });
+      if (!belongsToProject(target.state) || target.path === void 0) continue;
+      excluded.set(artifactKey(target), "the file is the project's");
+      kept.push({ id: target.id, path: target.path, state: target.state });
     }
   }
   return {

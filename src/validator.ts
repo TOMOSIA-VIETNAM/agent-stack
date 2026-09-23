@@ -9,6 +9,8 @@ export interface Finding {
     | 'uncovered-technology'
     | 'empty-output'
     | 'existing-file'
+    | 'modified-file'
+    | 'retained-file'
     | 'stack-warning';
   message: string;
   /** Conflict id, when the finding can be waived with --accept-conflict. */
@@ -27,10 +29,14 @@ export interface ValidationReport {
   ok: boolean;
 }
 
-/** A path the run declined to take over, because the project already has it. */
+/**
+ * A path the run declined to take over: the project already has it
+ * (`exists`), or edited it after agent-stack wrote it (`modified`).
+ */
 export interface KeptPath {
   id: string;
   path: string;
+  state: 'exists' | 'modified';
 }
 
 /**
@@ -43,6 +49,7 @@ export function validate(
   selection: Selection,
   acceptedConflicts: string[] = [],
   kept: KeptPath[] = [],
+  retained: string[] = [],
 ): ValidationReport {
   const findings: Finding[] = [];
   const accepted = new Set(acceptedConflicts);
@@ -71,10 +78,30 @@ export function validate(
   // the project's own file where it was. Saying which file, and how to take it
   // over, is the part that must not be silent.
   for (const entry of kept) {
+    findings.push(
+      entry.state === 'modified'
+        ? {
+            severity: 'warning',
+            code: 'modified-file',
+            message: `${entry.path} was edited after agent-stack wrote it — ${entry.id} was left out and the file is now the project's [--overwrite to replace it]`,
+          }
+        : {
+            severity: 'warning',
+            code: 'existing-file',
+            message: `${entry.path} already exists and agent-stack did not write it — ${entry.id} was left out [--overwrite to replace it]`,
+          },
+    );
+  }
+
+  // Stale output would be removed, but the project changed it after it was
+  // written. Deleting it would delete that work, so it stays, and says so —
+  // once: an edited file this run also left out is already reported above.
+  const reported = new Set(kept.map((entry) => entry.path));
+  for (const path of retained.filter((path) => !reported.has(path))) {
     findings.push({
       severity: 'warning',
-      code: 'existing-file',
-      message: `${entry.path} already exists and agent-stack did not write it — ${entry.id} was left out [--overwrite to replace it]`,
+      code: 'retained-file',
+      message: `${path} is no longer generated, but it was edited after agent-stack wrote it — it was left in place and is now the project's to keep or delete`,
     });
   }
 

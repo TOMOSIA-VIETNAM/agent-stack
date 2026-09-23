@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { loadKnowledgeBase } from './catalog.js';
 import { artifactTargets, compose } from './composer.js';
-import { emit, inspectTargets } from './emit.js';
+import { belongsToProject, emit, inspectTargets, planEmit } from './emit.js';
 import { isInteractive, rejected, runPicker, type PickerItem } from './prompt.js';
 import { resolveStack, UnknownTechnologyError, type ResolvedStack } from './resolver.js';
 import { renderTable } from './table.js';
@@ -32,7 +32,8 @@ Options:
   --out <dir>                 target project directory (default: cwd)
   --write                     write files; without it, generate only previews
   --yes                       skip the approval checklist and take the defaults
-  --overwrite                 replace files the project already has, which are
+  --overwrite                 replace files the project already has or has
+                              edited since the last run, which are
                               otherwise left where they are
   --accept-conflict <id>      proceed despite one conflict, by its reported id
   --knowledge <dir>           knowledge base directory (default: bundled)
@@ -257,11 +258,12 @@ async function run(options: Options): Promise<number> {
   }
 
   const { selection, kept, declined } = approval;
+  const composed = compose(stack, selection, VERSION, kb.imported);
+  const { retained } = await planEmit(options.out, composed);
   const report = fullReport.ok
-    ? validate(stack, selection, options.acceptConflicts, kept)
+    ? validate(stack, selection, options.acceptConflicts, kept, retained)
     : fullReport;
 
-  const composed = compose(stack, selection, VERSION, kb.imported);
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
 
   if (options.json) {
@@ -338,9 +340,9 @@ async function approve(
       return { cancelled: true, selection, kept, declined };
     }
     for (const item of rejected(picked)) {
-      if (item.state === 'exists' && item.path !== undefined) {
-        excluded.set(item.key, 'the project already has this file');
-        kept.push({ id: item.id, path: item.path });
+      if (belongsToProject(item.state) && item.path !== undefined) {
+        excluded.set(item.key, 'the file is the project\'s');
+        kept.push({ id: item.id, path: item.path, state: item.state });
       } else {
         excluded.set(item.key, 'not approved');
         declined.push(item);
@@ -348,9 +350,9 @@ async function approve(
     }
   } else if (!options.overwrite) {
     for (const target of targets) {
-      if (target.state !== 'exists' || target.path === undefined) continue;
-      excluded.set(artifactKey(target), 'the project already has this file');
-      kept.push({ id: target.id, path: target.path });
+      if (!belongsToProject(target.state) || target.path === undefined) continue;
+      excluded.set(artifactKey(target), 'the file is the project\'s');
+      kept.push({ id: target.id, path: target.path, state: target.state });
     }
   }
 

@@ -48,7 +48,7 @@ Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 - **Xung đột làm dừng cả lần chạy** — generator nêu tên xung đột và cờ để bỏ qua; nó không tự chọn bên thắng
 - **Bạn duyệt trước khi ghi** — checklist liệt kê từng rule, skill và command; tick cái nào ghi cái đó
 - **Chạy offline** — knowledge base đã được commit, nên lúc generate không đụng network
-- **Không phá gì** — `CLAUDE.md` merge trong cặp marker, file dự án tự viết giữ nguyên, và chỉ file nằm trong manifest của lần chạy trước mới bị xoá
+- **Không phá gì** — `CLAUDE.md` merge trong cặp marker, file dự án tự viết hay đã sửa tay đều giữ nguyên, và chỉ file nằm trong manifest của lần chạy trước — chưa bị sửa — mới bị xoá
 
 ## Cài đặt
 
@@ -149,6 +149,8 @@ CLAUDE.md                              hướng dẫn chung và các @-import, t
 
 `CLAUDE.md` được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `agent-stack:begin` / `agent-stack:end` được giữ nguyên. Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
 
+Manifest ghi sha256 của từng file đã copy. **File agent-stack đã ghi mà bạn sửa tay thì thành của bạn**: lần chạy sau không đè (cảnh báo `modified-file`), không xoá kể cả khi nó không còn được chọn (cảnh báo `retained-file`), và rời khỏi manifest. Chỉ `--overwrite`, hoặc tick trong checklist, mới lấy lại. Thêm một file vào thư mục skill đã sinh cũng tính là sửa. Xoá một file thì không — không mất gì của bạn, nên lần sau nó được ghi lại. Manifest của bản 1.0.0 chưa có checksum, nên lần chạy đầu tiên sau khi nâng cấp chưa phân biệt được và xử lý như trước.
+
 ### Duyệt trước khi ghi
 
 `generate --write` trong terminal hiện một **checklist** liệt kê đúng những gì nó định ghi, kèm đường dẫn đích. Không file nào rời knowledge base trước khi bạn duyệt:
@@ -168,7 +170,7 @@ Skills (29)
 
 `space` một dòng · `g` cả nhóm · `a`/`n` tất cả/không cái nào · `enter` ghi · `q` huỷ, không ghi gì.
 
-**File dự án đã có thì mặc định không được tick.** Một file agent-stack chưa từng ghi — không nằm trong manifest lần trước — là của bạn: không bị đè, không vào manifest, không được `@`-import vào `CLAUDE.md`. Tick nó, hoặc chạy `--overwrite`, thì agent-stack mới nhận lấy.
+**File dự án đã có, hoặc đã sửa từ lần chạy trước, thì mặc định không được tick** (`edited since the last run`). Một file agent-stack chưa từng ghi — không nằm trong manifest lần trước — là của bạn: không bị đè, không vào manifest, không được `@`-import vào `CLAUDE.md`. Tick nó, hoặc chạy `--overwrite`, thì agent-stack mới nhận lấy.
 
 Không có terminal — `--json`, CI, hay gọi qua slash command — thì checklist không hiện, nhưng mặc định vẫn y nguyên, và mỗi đường dẫn bị bỏ qua đều in ra kèm cờ để bỏ qua nó.
 
@@ -199,7 +201,7 @@ node dist/agent-stack.mjs generate --framework rails --framework laravel --out .
 | `--out <dir>` | Thư mục dự án đích (mặc định: thư mục hiện tại) |
 | `--write` | Ghi file thật; không có cờ này thì chỉ xem trước |
 | `--yes` | Bỏ qua checklist duyệt, lấy luôn mặc định |
-| `--overwrite` | Đè cả những file dự án đã có, thay vì để yên chúng |
+| `--overwrite` | Đè cả những file dự án đã có hoặc đã sửa, thay vì để yên chúng |
 | `--accept-conflict <id>` | Chấp nhận đúng một xung đột, theo id mà CLI in ra |
 | `--knowledge <dir>` | Dùng knowledge base ở chỗ khác (mặc định: bản đi kèm) |
 | `--json` | Xuất dạng máy đọc — hợp đồng ổn định, `commands/generate.md` parse nó |
