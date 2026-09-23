@@ -9,7 +9,7 @@
   <strong>Rule và skill AI cho dự án của bạn — được <em>chọn</em>, không phải được sinh ra.</strong><br>
   <strong>Mã nguồn mở. Tất định. Chạy offline.</strong><br>
   <sub>Plugin Claude Code dựng <code>CLAUDE.md</code> + <code>.claude/</code> từ một knowledge base có kiểm duyệt, quản lý bằng Git</sub><br>
-  <code>/generate</code> · <code>/catalog</code>
+  <code>/generate</code> · <code>/check</code> · <code>/catalog</code>
 </p>
 
 <p align="center">
@@ -48,7 +48,8 @@ Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 - **Xung đột làm dừng cả lần chạy** — generator nêu tên xung đột và cờ để bỏ qua; nó không tự chọn bên thắng
 - **Bạn duyệt trước khi ghi** — checklist liệt kê từng rule, skill và command; tick cái nào ghi cái đó
 - **Chạy offline** — knowledge base đã được commit, nên lúc generate không đụng network
-- **Không phá gì** — `CLAUDE.md` merge trong cặp marker, file dự án tự viết giữ nguyên, và chỉ file nằm trong manifest của lần chạy trước mới bị xoá
+- **Không phá gì** — `CLAUDE.md` merge trong cặp marker, file dự án tự viết hay đã sửa tay đều giữ nguyên, và chỉ file nằm trong manifest của lần chạy trước — chưa bị sửa — mới bị xoá
+- **Biết dự án nào đã cũ** — `agent-stack check` so dự án với knowledge base hiện tại, không ghi gì, hợp làm bước trong CI
 
 ## Cài đặt
 
@@ -60,7 +61,7 @@ Cần [Node 20+](https://nodejs.org/). Hai đường, dùng chung một generato
 npm install -g @tomosia/agent-stack
 ```
 
-Bản phát hành đầu tiên là **1.0.0** — cờ CLI, hợp đồng `--json` và bố cục `knowledge/` từ đây trở đi theo [SemVer](https://semver.org/lang/vi/): thay đổi phá vỡ chúng phải lên major. Cần ghim cho CI thì `npm install -g @tomosia/agent-stack@1.0.0`; lịch sử từng bản nằm ở [Releases](https://github.com/TOMOSIA-VIETNAM/agent-stack/releases).
+Bản phát hành đầu tiên là **1.0.0** — cờ CLI, hợp đồng `--json` và bố cục `knowledge/` từ đây trở đi theo [SemVer](https://semver.org/lang/vi/): thay đổi phá vỡ chúng phải lên major. Cần ghim cho CI thì `npm install -g @tomosia/agent-stack@1.1.0`; lịch sử từng bản nằm ở [Releases](https://github.com/TOMOSIA-VIETNAM/agent-stack/releases).
 
 ```bash
 cd /đường/dẫn/tới/dự-án
@@ -85,7 +86,7 @@ Không có `--write` thì không file nào bị ghi. Ở terminal tương tác, 
 /plugin install agent-stack@agent-stack
 ```
 
-Repository này vừa là marketplace vừa là plugin. `dist/agent-stack.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build. Plugin thêm `/generate` và `/catalog`, nơi một câu tiếng người được ánh xạ sang cờ CLI ở trên.
+Repository này vừa là marketplace vừa là plugin. `dist/agent-stack.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build. Plugin thêm `/generate`, `/check` và `/catalog`, nơi một câu tiếng người được ánh xạ sang cờ CLI ở trên.
 
 <details>
 <summary>Cài từ bản clone local</summary>
@@ -117,7 +118,17 @@ agent-stack generate --framework rails --write
 
 Command ánh xạ yêu cầu sang id trong catalog, phân giải dependency, dừng lại hỏi khi có xung đột, xem trước danh sách file, rồi mới ghi.
 
-Gõ thoải mái — `rails 7.1` hay `Ruby on Rails` đều được, command quy về id `rails` và bỏ qua version. Nhưng **đầu vào chỉ có framework**: nêu thêm `postgres` hay `rspec` thì command hỏi lại bạn dùng framework nào, vì catalog không có entry cho chúng. `/catalog` cho biết knowledge base đang có gì trước khi bạn chốt stack.
+Gõ thoải mái — `rails 7.1`, `Ruby on Rails`, hay cả câu `/generate một app SaaS bằng Rails, dùng Postgres` đều được. Command quy về id `rails`, bỏ version, rồi **đưa bảng ánh xạ cho bạn duyệt trước khi chạy**: từ nào thành cờ, từ nào không dùng và vì sao.
+
+```
+Framework: rails        ← "Rails"
+Not used:  SaaS — describe the product, not a framework
+           Postgres — not a framework; rules are selected per framework
+
+Command:   agent-stack generate --framework rails
+```
+
+**Đầu vào vẫn chỉ có framework**, và không từ nào bị bỏ đi mà không báo. Không từ nào khớp với framework trong catalog thì command hỏi lại chứ không đoán. `/catalog` cho biết knowledge base đang có gì trước khi bạn chốt stack.
 
 ## Vì sao chọn lại hơn sinh
 
@@ -149,6 +160,17 @@ CLAUDE.md                              hướng dẫn chung và các @-import, t
 
 `CLAUDE.md` được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `agent-stack:begin` / `agent-stack:end` được giữ nguyên. Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
 
+Manifest ghi sha256 của từng file đã copy. **File agent-stack đã ghi mà bạn sửa tay thì thành của bạn**: lần chạy sau không đè (cảnh báo `modified-file`), không xoá kể cả khi nó không còn được chọn (cảnh báo `retained-file`), và rời khỏi manifest. Chỉ `--overwrite`, hoặc tick trong checklist, mới lấy lại. Thêm một file vào thư mục skill đã sinh cũng tính là sửa. Xoá một file thì không — không mất gì của bạn, nên lần sau nó được ghi lại. Manifest của bản 1.0.0 chưa có checksum, nên lần chạy đầu tiên sau khi nâng cấp chưa phân biệt được và xử lý như trước.
+
+### Dự án đã theo kịp knowledge base chưa
+
+```bash
+agent-stack check              # dùng framework mà lần chạy trước ghi trong manifest
+agent-stack check --json       # cho CI
+```
+
+`check` chạy đúng pipeline của một lần `generate` không người trực, **không ghi gì**, rồi liệt kê từng đường dẫn mà `generate` sẽ `add`, `update` hay `remove`. Thời điểm chạy và phiên bản generator trong manifest không tính là thay đổi. Exit `0` là đã cập nhật, `3` là đang cũ. Đặt nó trong CI thì dự án nào chưa nhận bản sửa quy ước mới nhất sẽ lộ ra ngay.
+
 ### Duyệt trước khi ghi
 
 `generate --write` trong terminal hiện một **checklist** liệt kê đúng những gì nó định ghi, kèm đường dẫn đích. Không file nào rời knowledge base trước khi bạn duyệt:
@@ -168,7 +190,7 @@ Skills (29)
 
 `space` một dòng · `g` cả nhóm · `a`/`n` tất cả/không cái nào · `enter` ghi · `q` huỷ, không ghi gì.
 
-**File dự án đã có thì mặc định không được tick.** Một file agent-stack chưa từng ghi — không nằm trong manifest lần trước — là của bạn: không bị đè, không vào manifest, không được `@`-import vào `CLAUDE.md`. Tick nó, hoặc chạy `--overwrite`, thì agent-stack mới nhận lấy.
+**File dự án đã có, hoặc đã sửa từ lần chạy trước, thì mặc định không được tick** (`edited since the last run`). Một file agent-stack chưa từng ghi — không nằm trong manifest lần trước — là của bạn: không bị đè, không vào manifest, không được `@`-import vào `CLAUDE.md`. Tick nó, hoặc chạy `--overwrite`, thì agent-stack mới nhận lấy.
 
 Không có terminal — `--json`, CI, hay gọi qua slash command — thì checklist không hiện, nhưng mặc định vẫn y nguyên, và mỗi đường dẫn bị bỏ qua đều in ra kèm cờ để bỏ qua nó.
 
@@ -177,6 +199,7 @@ Không có terminal — `--json`, CI, hay gọi qua slash command — thì check
 | Gọi bằng | Làm gì | Ai xác định framework |
 | --- | --- | --- |
 | `/generate <stack>` | Phân giải stack, xem trước, rồi ghi `CLAUDE.md` và `.claude/`. Xung đột thì dừng và hỏi; file dự án đã có thì giữ nguyên | Bạn gõ |
+| `/check` | So dự án với knowledge base hiện tại, liệt kê những gì `/generate` sẽ đổi. Không ghi gì | Manifest lần trước |
 | `/catalog` | Liệt kê technology, rule, skill và command knowledge base đang phủ — và cả chỗ còn trống | — |
 | agent `detect` | Đọc repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng `/generate` | Agent suy ra, bạn duyệt |
 
@@ -190,6 +213,7 @@ Plugin chỉ là lớp mỏng bọc một CLI mà bạn chạy trực tiếp đ�
 node dist/agent-stack.mjs catalog  [--json]
 node dist/agent-stack.mjs resolve  --framework rails [--json]
 node dist/agent-stack.mjs generate --framework rails --framework laravel --out . [--write]
+node dist/agent-stack.mjs check    [--framework rails] [--out .] [--json]
 ```
 
 **Đầu vào chỉ có một cờ** — `--framework <id>`, lặp lại được cho dự án nhiều framework. Không có cờ cho ngôn ngữ, database, cache hay hạ tầng, và cũng không có entry nào cho chúng trong catalog. Không có cú pháp `@version`. Framework là thứ operator luôn biết chắc; mỗi cờ thêm vào là thêm một cơ hội để operator bỏ sót và rule biến mất mà không báo gì.
@@ -199,12 +223,12 @@ node dist/agent-stack.mjs generate --framework rails --framework laravel --out .
 | `--out <dir>` | Thư mục dự án đích (mặc định: thư mục hiện tại) |
 | `--write` | Ghi file thật; không có cờ này thì chỉ xem trước |
 | `--yes` | Bỏ qua checklist duyệt, lấy luôn mặc định |
-| `--overwrite` | Đè cả những file dự án đã có, thay vì để yên chúng |
+| `--overwrite` | Đè cả những file dự án đã có hoặc đã sửa, thay vì để yên chúng |
 | `--accept-conflict <id>` | Chấp nhận đúng một xung đột, theo id mà CLI in ra |
 | `--knowledge <dir>` | Dùng knowledge base ở chỗ khác (mặc định: bản đi kèm) |
 | `--json` | Xuất dạng máy đọc — hợp đồng ổn định, `commands/generate.md` parse nó |
 
-Exit code: `0` thành công · `2` lỗi ở bước kiểm tra · `64` sai cách dùng · `65` technology không tồn tại · `130` bạn huỷ ở checklist.
+Exit code: `0` thành công · `2` lỗi ở bước kiểm tra · `3` `check` thấy dự án đang cũ · `64` sai cách dùng · `65` technology không tồn tại · `130` bạn huỷ ở checklist.
 
 ## Knowledge base
 

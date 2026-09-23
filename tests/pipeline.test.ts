@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -10,7 +10,8 @@ import {
   BEGIN_MARKER,
   END_MARKER,
 } from '../src/composer.js';
-import { emit, inspectTargets } from '../src/emit.js';
+import { createHash } from 'node:crypto';
+import { belongsToProject, emit, inspectTargets, pendingChanges } from '../src/emit.js';
 import { resolveStack } from '../src/resolver.js';
 import { techStackInputSchema, type TechStackInput } from '../src/schema.js';
 import { artifactKey, excludeArtifacts, selectArtifacts } from '../src/selector.js';
@@ -510,19 +511,22 @@ describe('a project that is already there', () => {
     const { kb, stack, selection } = await run(framework);
     const targets = await inspectTargets(out, artifactTargets(selection));
     const excluded = new Map<string, string>();
-    const kept: { id: string; path: string }[] = [];
+    const kept: { id: string; path: string; state: 'exists' | 'modified' }[] = [];
     if (!overwrite) {
       for (const target of targets) {
-        if (target.state !== 'exists' || target.path === undefined) continue;
-        excluded.set(artifactKey(target), 'the project already has this file');
-        kept.push({ id: target.id, path: target.path });
+        if (!belongsToProject(target.state) || target.path === undefined) continue;
+        excluded.set(artifactKey(target), 'the file is the project\'s');
+        kept.push({ id: target.id, path: target.path, state: target.state });
       }
     }
     const narrowed = excludeArtifacts(selection, excluded, stack);
     const composed = compose(stack, narrowed, 'test', kb.imported);
-    await emit(out, composed, { dryRun: false });
-    return { targets, kept, selection: narrowed, composed };
+    const result = await emit(out, composed, { dryRun: false });
+    return { targets, kept, selection: narrowed, composed, result };
   }
+
+  const manifestOf = async (out: string) =>
+    JSON.parse(await readFile(join(out, '.claude/agent-stack-manifest.json'), 'utf8'));
 
   it('leaves a file the project wrote exactly where it was', async () => {
     const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
@@ -569,19 +573,150 @@ describe('a project that is already there', () => {
     expect(composed.manifest.skills.map((skill) => skill.id)).not.toContain('rails-feature');
   });
 
-  // The guard is about files agent-stack did not write. Its own output from the
-  // last run is still its own, and regenerating has to keep working.
-  it('still replaces what its own previous run wrote', async () => {
+  // The guard is about the project's work. agent-stack's own output from the
+  // last run, untouched since, is still its own, and regenerating has to keep
+  // working.
+  it('still replaces what its own previous run wrote, while nobody has edited it', async () => {
     const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
     await generateInto(out, 'rails');
-    const written = join(out, '.claude/rules/rails-ruby.md');
-    await writeFile(written, 'drifted\n', 'utf8');
 
     const { targets, kept } = await generateInto(out, 'rails');
 
     expect(targets.find((target) => target.id === 'rails-ruby')?.state).toBe('owned');
     expect(kept).toEqual([]);
-    expect(await readFile(written, 'utf8')).not.toBe('drifted\n');
+  });
+
+  // Before checksums, an edit to generated output was replaced on the next run
+  // without a word. It is the project's work, so it is treated like a file the
+  // project wrote.
+  it('leaves its own earlier output alone once the project has edited it', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await generateInto(out, 'rails');
+    const written = join(out, '.claude/rules/rails-ruby.md');
+    await writeFile(written, 'edited by the team\n', 'utf8');
+
+    const { targets, kept, composed } = await generateInto(out, 'rails');
+
+    expect(targets.find((target) => target.id === 'rails-ruby')?.state).toBe('modified');
+    expect(kept).toEqual([
+      { id: 'rails-ruby', path: '.claude/rules/rails-ruby.md', state: 'modified' },
+    ]);
+    expect(await readFile(written, 'utf8')).toBe('edited by the team\n');
+    expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('rails-ruby');
+    expect(await readFile(join(out, 'CLAUDE.md'), 'utf8')).not.toContain(
+      '@.claude/rules/rails-ruby.md',
+    );
+
+    // Dropped from the manifest, the file now reads as the project's own.
+    const again = await generateInto(out, 'rails');
+    expect(again.targets.find((target) => target.id === 'rails-ruby')?.state).toBe('exists');
+  });
+
+  it('takes an edited file back only when overwrite is approved', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await generateInto(out, 'rails');
+    const written = join(out, '.claude/rules/rails-ruby.md');
+    await writeFile(written, 'edited by the team\n', 'utf8');
+
+    const { kept } = await generateInto(out, 'rails', true);
+
+    expect(kept).toEqual([]);
+    expect(await readFile(written, 'utf8')).toBe(
+      await readFile(join(KNOWLEDGE, 'rules/framework/rails/ruby.md'), 'utf8'),
+    );
+  });
+
+  it('counts a file added inside a generated skill directory as an edit', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await generateInto(out, 'rails');
+    await writeFile(join(out, '.claude/skills/rails-feature/notes.md'), 'ours\n', 'utf8');
+
+    const { targets } = await generateInto(out, 'rails');
+
+    expect(targets.find((target) => target.id === 'rails-feature')?.state).toBe('modified');
+  });
+
+  it('writes a deleted file again, since no work of the project is lost', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await generateInto(out, 'rails');
+    await rm(join(out, '.claude/rules/rails-ruby.md'));
+
+    const { targets } = await generateInto(out, 'rails');
+
+    expect(targets.find((target) => target.id === 'rails-ruby')?.state).toBe('owned');
+    await expect(readFile(join(out, '.claude/rules/rails-ruby.md'), 'utf8')).resolves.toBeTruthy();
+  });
+
+  // Removing stale output is the one place agent-stack deletes. An edit makes
+  // the file the project's, and deleting it would delete that work.
+  it('never removes stale output the project has edited', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await generateInto(out, 'rails');
+    const written = join(out, '.claude/rules/rails-ruby.md');
+    await writeFile(written, 'edited by the team\n', 'utf8');
+
+    const { result } = await generateInto(out, 'laravel');
+
+    expect(result.retained).toEqual(['.claude/rules/rails-ruby.md']);
+    expect(result.remove).not.toContain('.claude/rules/rails-ruby.md');
+    expect(result.remove).toContain('.claude/rules/rails-activerecord.md');
+    expect(await readFile(written, 'utf8')).toBe('edited by the team\n');
+  });
+
+  it('records the checksum of every file it copies', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const { composed } = await generateInto(out, 'rails');
+
+    const { checksums } = await manifestOf(out);
+    expect(Object.keys(checksums).sort()).toEqual(
+      composed.files.map((file) => file.path).sort(),
+    );
+    const source = await readFile(join(KNOWLEDGE, 'rules/framework/rails/ruby.md'));
+    expect(checksums['.claude/rules/rails-ruby.md']).toBe(
+      createHash('sha256').update(source).digest('hex'),
+    );
+  });
+
+  // A manifest written by 1.0.0 carries no checksums. It cannot tell an edit
+  // from its own output, so it keeps behaving the way it did.
+  it('treats output recorded without checksums as its own', async () => {
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await generateInto(out, 'rails');
+    const { checksums: _, ...old } = await manifestOf(out);
+    await writeFile(join(out, '.claude/agent-stack-manifest.json'), JSON.stringify(old), 'utf8');
+    await writeFile(join(out, '.claude/rules/rails-ruby.md'), 'edited\n', 'utf8');
+
+    const { targets } = await generateInto(out, 'rails');
+
+    expect(targets.find((target) => target.id === 'rails-ruby')?.state).toBe('owned');
+  });
+
+  it('reports an edited file and edited stale output as waivable warnings', async () => {
+    const { stack, selection } = await run('rails');
+    const report = validate(
+      stack,
+      selection,
+      [],
+      [{ id: 'rails-ruby', path: '.claude/rules/rails-ruby.md', state: 'modified' }],
+      ['.claude/rules/rails-activerecord.md'],
+    );
+
+    const modified = report.findings.find((entry) => entry.code === 'modified-file');
+    expect(modified?.severity).toBe('warning');
+    expect(modified?.message).toContain('--overwrite');
+    const retained = report.findings.find((entry) => entry.code === 'retained-file');
+    expect(retained?.message).toContain('.claude/rules/rails-activerecord.md');
+    expect(report.ok).toBe(true);
+  });
+
+  it('reports an edited file it left out once, not again as stale output', async () => {
+    const { stack, selection } = await run('rails');
+    const path = '.claude/rules/rails-ruby.md';
+    const report = validate(stack, selection, [], [{ id: 'rails-ruby', path, state: 'modified' }], [
+      path,
+    ]);
+
+    expect(report.findings.filter((entry) => entry.message.includes(path))).toHaveLength(1);
   });
 
   it('reports every kept path as a waivable warning, and stays a success', async () => {
@@ -599,5 +734,96 @@ describe('a project that is already there', () => {
     expect(finding?.message).toContain('.claude/rules/rails-ruby.md');
     expect(finding?.message).toContain('--overwrite');
     expect(report.ok).toBe(true);
+  });
+});
+
+// `check` answers one question: would a generate run change this project? It
+// is answered by the same output a run would write, so it cannot disagree with
+// what generating would actually do.
+describe('checking a project against the knowledge base', () => {
+  async function composeFrom(kbRoot: string, framework = 'rails') {
+    const kb = await loadKnowledgeBase(kbRoot);
+    const stack = resolveStack(kb.catalog, techStackInputSchema.parse({ framework: [framework] }));
+    return compose(stack, selectArtifacts(kb, stack), 'test', kb.imported);
+  }
+
+  async function generated(files: Record<string, string>) {
+    const kbRoot = await tempKnowledge(files);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await emit(out, await composeFrom(kbRoot), { dryRun: false });
+    return { kbRoot, out };
+  }
+
+  const RULES = {
+    'rules/framework/rails/conventions.md': '# Conventions\n',
+    'rules/framework/rails/security.md': '# Security\n',
+  };
+
+  it('finds nothing to change right after a run', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([]);
+  });
+
+  it('ignores a later timestamp and a different build of the generator', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    const composed = await composeFrom(kbRoot);
+    composed.manifest.generator = 'agent-stack@9.9.9';
+    composed.manifest.generatedAt = '2099-01-01T00:00:00.000Z';
+    expect(await pendingChanges(out, composed)).toEqual([]);
+  });
+
+  it('names a rule the knowledge base has changed since', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    await writeFile(join(kbRoot, 'rules/framework/rails/security.md'), '# Security v2\n', 'utf8');
+
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([
+      { path: '.claude/agent-stack-manifest.json', change: 'update' },
+      { path: '.claude/rules/rails-security.md', change: 'update' },
+    ]);
+  });
+
+  it('names a rule added to the knowledge base, and one taken out of it', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    await rm(join(kbRoot, 'rules/framework/rails/security.md'));
+    await writeFile(join(kbRoot, 'rules/framework/rails/testing.md'), '# Testing\n', 'utf8');
+
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([
+      { path: '.claude/agent-stack-manifest.json', change: 'update' },
+      { path: '.claude/rules/rails-security.md', change: 'remove' },
+      { path: '.claude/rules/rails-testing.md', change: 'add' },
+      { path: 'CLAUDE.md', change: 'update' },
+    ]);
+  });
+
+  it('sees an edit to the managed CLAUDE.md block, and not one outside it', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    const path = join(out, 'CLAUDE.md');
+    const original = await readFile(path, 'utf8');
+
+    await writeFile(path, `# Ours\n\n${original}`, 'utf8');
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([]);
+
+    await writeFile(path, original.replace('## Project rules', '## Rules'), 'utf8');
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([
+      { path: 'CLAUDE.md', change: 'update' },
+    ]);
+  });
+
+  it('writes nothing', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    await writeFile(join(kbRoot, 'rules/framework/rails/security.md'), '# Security v2\n', 'utf8');
+    await pendingChanges(out, await composeFrom(kbRoot));
+
+    expect(await readFile(join(out, '.claude/rules/rails-security.md'), 'utf8')).toBe(
+      '# Security\n',
+    );
+  });
+
+  it('has everything to add in a project nothing was generated into', async () => {
+    const kbRoot = await tempKnowledge(RULES);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const changes = await pendingChanges(out, await composeFrom(kbRoot));
+    expect(changes.every((entry) => entry.change === 'add')).toBe(true);
+    expect(changes.map((entry) => entry.path)).toContain('.claude/agent-stack-manifest.json');
   });
 });

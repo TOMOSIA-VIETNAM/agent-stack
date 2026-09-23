@@ -124,9 +124,16 @@ không phải lỗi**. Công cụ báo rõ điều đó thay vì chạy im lặn
 
 ## Hướng đi tiếp
 
-**Bước tiếp theo — nói bằng tiếng người.** Thay vì gõ đúng tên framework, người dùng chỉ
-cần mô tả: "làm một hệ thống SaaS bằng Rails". AI hiểu câu đó và chuyển thành lựa chọn.
-Phần chọn và lắp ráp vẫn giữ nguyên tính tất định — AI chỉ đứng ở cửa vào.
+**Đã làm — nói bằng tiếng người.** Thay vì gõ đúng tên framework, người dùng chỉ cần mô
+tả: "làm một hệ thống SaaS bằng Rails". AI hiểu câu đó và chuyển thành lựa chọn, rồi đưa
+bảng ánh xạ cho người dùng duyệt: từ nào thành lựa chọn, từ nào không dùng và vì sao. Không
+từ nào bị bỏ đi mà không báo. Phần chọn và lắp ráp vẫn giữ nguyên tính tất định — AI chỉ
+đứng ở cửa vào.
+
+**Đã làm — biết dự án nào đã cũ.** Một lệnh kiểm tra so dự án với thư viện hiện tại và
+liệt kê những gì lần chạy kế tiếp sẽ đổi, không ghi gì. Đặt trong CI thì dự án nào chưa
+nhận bản sửa quy ước mới nhất sẽ lộ ra ngay. Đi kèm: file do công cụ tạo mà người dùng đã
+sửa tay thì trở thành của người dùng — không bị ghi đè, không bị xoá.
 
 **Xa hơn — lắp đặt trọn gói.** Không chỉ hướng dẫn cho AI, mà dựng luôn khung dự án đầy
 đủ, phục vụ được nhiều công cụ khác nhau chứ không riêng một loại.

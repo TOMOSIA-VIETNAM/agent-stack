@@ -50,12 +50,13 @@ One concern per module. Put a change where the concern already lives:
 | `composer.ts` | Deciding where each file lands, merging the CLAUDE.md block |
 | `prompt.ts` | The terminal approval checklist, and nothing else |
 | `validator.ts` | Completeness and consistency findings |
-| `emit.ts` | The only module that writes or deletes |
+| `emit.ts` | The only module that writes or deletes; what is on disk versus the manifest |
 | `table.ts` | Box-drawn tables for human output, and nothing else |
 | `cli.ts` | Flags, human and `--json` output |
 
-**`emit.ts` may only remove paths listed in the previous run's manifest.** Never widen
-that. Everything outside the manifest belongs to the user.
+**`emit.ts` may only remove paths listed in the previous run's manifest, and not one
+the project has edited since.** Never widen that. Everything outside the manifest
+belongs to the user, and so does anything inside it that the user changed.
 
 The same manifest decides what may be *written over*. `inspectTargets` marks a target
 `owned` when the previous manifest lists it, and `exists` when something is there that
@@ -63,6 +64,18 @@ agent-stack never wrote. An `exists` path is dropped from the selection — not 
 not in the new manifest, not `@`-imported — and reported as a waivable warning. Only
 `--overwrite`, or a tick in the checklist, takes it over. A run must never acquire a
 file by being run twice.
+
+The manifest records a sha256 per copied file under `checksums`. A listed path whose
+bytes no longer match — or a generated skill directory holding a file the manifest does
+not list — is `modified`, and is handled exactly like `exists`: dropped, warned about,
+taken back only by `--overwrite` or a tick. Stale output that is `modified` is
+*retained*, never removed. A deleted file is not an edit. A manifest from before
+`checksums` cannot tell, so it behaves as it did when it was written.
+
+`check` is an unattended `generate` that writes nothing and reports `pendingChanges`:
+what a run would add, update or remove. Keep it built from the same pipeline — a
+second definition of "up to date" would drift from the generator. It exits 3 when the
+project is behind.
 
 `CLAUDE.md` in a generated project is merged, never replaced: only the text between the
 `agent-stack:begin` / `agent-stack:end` markers changes.
@@ -180,5 +193,7 @@ The global layer is copied from other repositories and committed here, pinned to
 - Conventional Commits, imperative subject under 72 characters. The body explains why.
 
 `MY_IDEA.md` states the project's purpose in plain language — read it for *why*, and this
-file for *how*. What exists today is framework selection; natural-language input and full
-project bootstrap are not built yet.
+file for *how*. What exists today is framework selection, a `check` for drift, and
+natural-language input — which lives only in `commands/generate.md`, mapping a sentence
+to `--framework` flags and listing every term it did not use. Full project bootstrap is
+not built yet.

@@ -57,6 +57,17 @@ describe('the approval checklist', () => {
     expect(approvedOverwrites(ticked).map((item) => item.id)).toEqual(['rails-ruby']);
   });
 
+  it('leaves a file edited since the last run unticked, and says why', () => {
+    const edited: InspectedTarget[] = [
+      { id: 'rails-ruby', type: 'rule', path: '.claude/rules/rails-ruby.md', state: 'modified' },
+    ];
+    const state = initialState(edited);
+
+    expect(rejected(state).map((item) => item.id)).toEqual(['rails-ruby']);
+    expect(render(state).join('\n')).toContain('edited since the last run');
+    expect(approvedOverwrites(press(state, ' ')).map((item) => item.id)).toEqual(['rails-ruby']);
+  });
+
   it('ticks an existing file up front only when --overwrite asked for it', () => {
     const state = initialState(targets, { overwrite: true });
     expect(rejected(state)).toEqual([]);
@@ -111,7 +122,7 @@ describe('rendering the checklist', () => {
     expect(text).toContain('already in the project');
     expect(text).toContain('inlined into CLAUDE.md');
     expect(text).toContain('4 of 5 selected');
-    expect(text).toContain('1 left untouched because the project already has them');
+    expect(text).toContain('1 left untouched because the project has or edited them');
   });
 
   // A knowledge base of forty artifacts must not scroll its own header away.

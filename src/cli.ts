@@ -3,7 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { loadKnowledgeBase } from './catalog.js';
 import { artifactTargets, compose } from './composer.js';
-import { emit, inspectTargets } from './emit.js';
+import {
+  belongsToProject,
+  emit,
+  inspectTargets,
+  pendingChanges,
+  planEmit,
+  readPreviousManifest,
+} from './emit.js';
 import { isInteractive, rejected, runPicker, type PickerItem } from './prompt.js';
 import { resolveStack, UnknownTechnologyError, type ResolvedStack } from './resolver.js';
 import { renderTable } from './table.js';
@@ -13,7 +20,7 @@ import { validate, type KeptPath } from './validator.js';
 
 // Kept as a literal so the bundle carries no part of package.json. A test
 // holds it equal to the published version, and to the plugin manifest's.
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_KNOWLEDGE = resolve(HERE, '..', 'knowledge');
 
@@ -23,6 +30,9 @@ Usage:
   agent-stack catalog [--json]                       list technologies and artifacts
   agent-stack resolve <stack flags> [--json]         resolve dependencies, report conflicts
   agent-stack generate <stack flags> [options]       compose and write the output
+  agent-stack check [<stack flags>] [--out <dir>]    report what generate would change;
+                                                     without flags, the stack the last
+                                                     run recorded in its manifest
 
 Stack flags:
   --framework <id>            the framework the project is built on (repeatable).
@@ -32,7 +42,8 @@ Options:
   --out <dir>                 target project directory (default: cwd)
   --write                     write files; without it, generate only previews
   --yes                       skip the approval checklist and take the defaults
-  --overwrite                 replace files the project already has, which are
+  --overwrite                 replace files the project already has or has
+                              edited since the last run, which are
                               otherwise left where they are
   --accept-conflict <id>      proceed despite one conflict, by its reported id
   --knowledge <dir>           knowledge base directory (default: bundled)
@@ -44,6 +55,9 @@ would write, ticked except for files the project already has. Nothing moves
 into .claude/ until it is approved. Without a terminal — under --json, or from
 a script — the same defaults apply unattended, and every file left alone is
 reported.
+
+Exit codes: 0 success, 2 a check failed, 3 \`check\` found the project behind
+the knowledge base, 64 usage, 65 unknown framework, 130 cancelled.
 `;
 
 class UsageError extends Error {}
@@ -223,6 +237,10 @@ async function run(options: Options): Promise<number> {
     return 0;
   }
 
+  if (options.command === 'check') {
+    return check(options, kb);
+  }
+
   if (options.command !== 'resolve' && options.command !== 'generate') {
     throw new UsageError(`Unknown command: ${options.command}`);
   }
@@ -257,11 +275,12 @@ async function run(options: Options): Promise<number> {
   }
 
   const { selection, kept, declined } = approval;
+  const composed = compose(stack, selection, VERSION, kb.imported);
+  const { retained } = await planEmit(options.out, composed);
   const report = fullReport.ok
-    ? validate(stack, selection, options.acceptConflicts, kept)
+    ? validate(stack, selection, options.acceptConflicts, kept, retained)
     : fullReport;
 
-  const composed = compose(stack, selection, VERSION, kb.imported);
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
 
   if (options.json) {
@@ -305,6 +324,81 @@ async function run(options: Options): Promise<number> {
   return report.ok ? 0 : 2;
 }
 
+/**
+ * Whether the project is what a generate run would make of it today.
+ *
+ * It runs the same pipeline as an unattended `generate`, writes nothing, and
+ * compares the result with the project. That is the only honest answer to "has
+ * this project picked up the knowledge base's last change?": any other measure
+ * could drift from what the generator actually does.
+ */
+async function check(
+  options: Options,
+  kb: Awaited<ReturnType<typeof loadKnowledgeBase>>,
+): Promise<number> {
+  let input = options.stack;
+  if (input.framework.length === 0) {
+    // The frameworks the operator chose last time, not the ones the resolver
+    // pulled in: those are the input, and a dependency follows from it again.
+    const previous = await readPreviousManifest(options.out);
+    if (!previous) {
+      process.stderr.write(
+        `No agent-stack manifest in ${options.out}: nothing has been generated there yet.\n` +
+          `Run generate first, or name the framework with --framework to compare against it.\n`,
+      );
+      return 2;
+    }
+    input = {
+      framework: previous.stack.filter((tech) => tech.origin === 'input').map((tech) => tech.id),
+    };
+  }
+
+  const stack = resolveStack(kb.catalog, input);
+  const fullSelection = selectArtifacts(kb, stack);
+  const fullReport = validate(stack, fullSelection, options.acceptConflicts);
+  if (!fullReport.ok) {
+    if (options.json) {
+      process.stdout.write(`${JSON.stringify({ stack, report: fullReport }, null, 2)}\n`);
+    } else {
+      printReport(fullReport);
+    }
+    return 2;
+  }
+
+  // Never the checklist: a check decides nothing, so it takes the defaults an
+  // unattended run would.
+  const { selection, kept } = await approve({ ...options, write: false }, stack, fullSelection);
+  const composed = compose(stack, selection, VERSION, kb.imported);
+  const { retained } = await planEmit(options.out, composed);
+  const report = validate(stack, selection, options.acceptConflicts, kept, retained);
+  const changes = await pendingChanges(options.out, composed);
+
+  if (options.json) {
+    process.stdout.write(
+      `${JSON.stringify({ stack, report, changes, upToDate: changes.length === 0 }, null, 2)}\n`,
+    );
+    return changes.length === 0 ? 0 : 3;
+  }
+
+  process.stdout.write(`Resolved stack (${stack.technologies.length}):\n`);
+  process.stdout.write(`${formatStack(stack).join('\n')}\n`);
+  printReport(report);
+  if (changes.length === 0) {
+    process.stdout.write(`\n${options.out} is up to date with the knowledge base.\n`);
+    return 0;
+  }
+  process.stdout.write(`\nA generate run would change ${changes.length} path(s) in ${options.out}:\n`);
+  for (const { path, change } of changes) {
+    process.stdout.write(`  ${change.padEnd(7)}${path}\n`);
+  }
+  const flags = [
+    ...input.framework.map((id) => `--framework ${id}`),
+    ...(options.out === process.cwd() ? [] : [`--out ${options.out}`]),
+  ].join(' ');
+  process.stdout.write(`\nTo apply: agent-stack generate ${flags} --write\n`);
+  return 3;
+}
+
 interface Approval {
   cancelled: boolean;
   selection: ReturnType<typeof selectArtifacts>;
@@ -338,9 +432,9 @@ async function approve(
       return { cancelled: true, selection, kept, declined };
     }
     for (const item of rejected(picked)) {
-      if (item.state === 'exists' && item.path !== undefined) {
-        excluded.set(item.key, 'the project already has this file');
-        kept.push({ id: item.id, path: item.path });
+      if (belongsToProject(item.state) && item.path !== undefined) {
+        excluded.set(item.key, 'the file is the project\'s');
+        kept.push({ id: item.id, path: item.path, state: item.state });
       } else {
         excluded.set(item.key, 'not approved');
         declined.push(item);
@@ -348,9 +442,9 @@ async function approve(
     }
   } else if (!options.overwrite) {
     for (const target of targets) {
-      if (target.state !== 'exists' || target.path === undefined) continue;
-      excluded.set(artifactKey(target), 'the project already has this file');
-      kept.push({ id: target.id, path: target.path });
+      if (!belongsToProject(target.state) || target.path === undefined) continue;
+      excluded.set(artifactKey(target), 'the file is the project\'s');
+      kept.push({ id: target.id, path: target.path, state: target.state });
     }
   }
 
