@@ -118,7 +118,17 @@ agent-stack generate --framework rails --write
 
 Command ánh xạ yêu cầu sang id trong catalog, phân giải dependency, dừng lại hỏi khi có xung đột, xem trước danh sách file, rồi mới ghi.
 
-Gõ thoải mái — `rails 7.1` hay `Ruby on Rails` đều được, command quy về id `rails` và bỏ qua version. Nhưng **đầu vào chỉ có framework**: nêu thêm `postgres` hay `rspec` thì command hỏi lại bạn dùng framework nào, vì catalog không có entry cho chúng. `/catalog` cho biết knowledge base đang có gì trước khi bạn chốt stack.
+Gõ thoải mái — `rails 7.1`, `Ruby on Rails`, hay cả câu `/generate một app SaaS bằng Rails, dùng Postgres` đều được. Command quy về id `rails`, bỏ version, rồi **đưa bảng ánh xạ cho bạn duyệt trước khi chạy**: từ nào thành cờ, từ nào không dùng và vì sao.
+
+```
+Framework: rails        ← "Rails"
+Not used:  SaaS — describe the product, not a framework
+           Postgres — not a framework; rules are selected per framework
+
+Command:   agent-stack generate --framework rails
+```
+
+**Đầu vào vẫn chỉ có framework**, và không từ nào bị bỏ đi mà không báo. Không từ nào khớp với framework trong catalog thì command hỏi lại chứ không đoán. `/catalog` cho biết knowledge base đang có gì trước khi bạn chốt stack.
 
 ## Vì sao chọn lại hơn sinh
 

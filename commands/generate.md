@@ -1,13 +1,13 @@
 ---
 description: Generate .claude rules and skills for this project from the agent-stack knowledge base
-argument-hint: "[framework, e.g. rails]"
+argument-hint: "[framework, or a sentence — e.g. rails, \"a SaaS app on Rails\"]"
 allowed-tools: Bash(node:*), Read, AskUserQuestion
 ---
 
 Generate the `.claude` rules and skills for the project in the current working
 directory, using the agent-stack knowledge base.
 
-Requested framework(s): $ARGUMENTS
+Request: $ARGUMENTS
 
 The CLI is the only thing that decides *what* is generated. Your job is to turn the
 request into flags, relay conflicts to the user, and report the result. Never write a
@@ -21,19 +21,48 @@ current is `npm run sync`, run by a maintainer of this plugin, not by this comma
 
 ## 1. Map the request to flags
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs catalog --json` and map each requested
-framework to a catalog id. There is exactly one flag: `--framework <id>`, repeatable.
+Run `node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs catalog --json` and map the request
+to catalog ids. There is exactly one flag: `--framework <id>`, repeatable.
+
+The request may be a bare id (`rails`), a name (`Ruby on Rails`), or a sentence
+("a SaaS billing app on Rails with Postgres and Sidekiq"). Either way, this step is
+the only place a model touches the run, and it only translates: the CLI decides what
+is generated.
 
 - **The catalog holds frameworks and nothing else.** There is no flag for a language,
-  database, cache or deploy target, and no catalog entry for one either. A run is
-  described entirely by which frameworks the project uses.
-- Versions are not part of the input. Do not ask for one and do not append `@`
-  anything — selection does not look at versions.
-- If a requested framework has no catalog id, do not guess a substitute. The CLI exits
-  65, names the near miss, and prints a table of every framework the catalog holds —
-  relay that output as it is, and ask the user which they meant.
-- If the user named something that is not a framework (say `postgresql`), explain that
-  rules are selected per framework, and ask which framework the project uses.
+  database, cache, queue, deploy target or kind of product, and no catalog entry for
+  one either. A run is described entirely by which frameworks the project uses.
+- **Map a term to an id only when the term names that framework** — its id or its
+  catalog `name`, in any case or spacing. Do not infer a framework from anything
+  else: "PHP", "Ruby", "Postgres" or "an e-commerce site" names no framework, even if
+  one framework is the usual choice for it.
+- Versions are not part of the input. "Rails 7" maps to `rails`; never append `@`
+  anything. Say that the version was dropped, because selection does not look at it.
+- **Nothing the user said may disappear without a word.** A term left out silently
+  looks exactly like a term that was understood, and that is the failure this tool
+  exists to prevent. Every term that names a technology, product or requirement ends
+  up in one of two places: a flag, or the list of what was not used.
+
+When the request is anything but bare catalog ids, show the mapping before running
+anything, in this shape:
+
+```
+Framework: rails        ← "Rails 7" (the version is not an input and was dropped)
+Not used:  SaaS, billing — describe the product, not a framework
+           Postgres, Sidekiq — not frameworks; rules are selected per framework
+
+Command:   agent-stack generate --framework rails
+```
+
+Then ask with AskUserQuestion whether that is right, before step 2. Skip the question
+only when the request was nothing but catalog ids.
+
+- If no term maps to a framework, do not pick the nearest one. Say which frameworks
+  the catalog holds, and ask which the project uses. If the project already exists on
+  disk, offer the `detect` agent, which reads its lockfiles to find out.
+- If the user typed something that looks like a framework id but is not one, the CLI
+  exits 65, names the near miss, and prints a table of every framework the catalog
+  holds — relay that output as it is, and ask the user which they meant.
 
 ## 2. Resolve and check
 

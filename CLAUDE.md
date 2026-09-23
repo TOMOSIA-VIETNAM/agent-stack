@@ -193,5 +193,7 @@ The global layer is copied from other repositories and committed here, pinned to
 - Conventional Commits, imperative subject under 72 characters. The body explains why.
 
 `MY_IDEA.md` states the project's purpose in plain language — read it for *why*, and this
-file for *how*. What exists today is framework selection; natural-language input and full
-project bootstrap are not built yet.
+file for *how*. What exists today is framework selection, a `check` for drift, and
+natural-language input — which lives only in `commands/generate.md`, mapping a sentence
+to `--framework` flags and listing every term it did not use. Full project bootstrap is
+not built yet.
