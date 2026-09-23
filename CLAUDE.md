@@ -21,10 +21,8 @@ out loud, not slip through:
    The generator does not pick a winner.
 
 A third holds for the knowledge base: **generating is offline.** A generate run reads
-this repository and writes the target directory. Two scripts touch the network, both
-run deliberately and neither reachable from `src/`: `npm run sync`, and
-`npm run commit-type`, which asks TypeSafe to classify a diff while writing a commit
-message. Nothing in the generator may call either.
+this repository and writes the target directory. Only `npm run sync`, run deliberately,
+touches the network.
 
 ## Commands
 
@@ -34,8 +32,6 @@ npm run try      # generate into .agent-stack-try/ (gitignored) and read the res
 npm run sync     # re-copy imported content at the pinned commit
 
 npm run new-framework -- <id> "<Name>"   # catalog entry + templates/framework/ cloned into knowledge/
-
-npm run commit-type   # ask TypeSafe which Conventional Commit type a change is
 ```
 
 `dist/agent-stack.mjs` is committed so the plugin runs without an install step. **Rebuild and

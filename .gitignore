@@ -5,7 +5,7 @@ node_modules/
 # Scratch target for `npm run try` — generated output, never committed.
 .agent-stack-try/
 
-# Local secrets — TYPESAFE_API_KEY for `npm run commit-type`, and anything like it.
+# Local secrets.
 .env
 .env.local
 

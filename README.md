@@ -14,6 +14,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@tomosia/agent-stack"><img alt="npm" src="https://img.shields.io/npm/v/%40tomosia%2Fagent-stack?style=flat-square&label=npm&color=cb3837"></a>
+  <a href="https://www.npmjs.com/package/@tomosia/agent-stack"><img alt="Lượt tải npm" src="https://img.shields.io/npm/dm/%40tomosia%2Fagent-stack?style=flat-square&label=tải%2Ftháng&color=cb3837"></a>
   <a href="https://github.com/TOMOSIA-VIETNAM/agent-stack/releases"><img alt="Release" src="https://img.shields.io/github/v/release/TOMOSIA-VIETNAM/agent-stack?style=flat-square&label=release&color=2ea44f"></a>
   <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/agent-stack?style=flat-square&color=blue"></a>
   <a href="#phát-triển"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white"></a>
@@ -58,6 +59,8 @@ Cần [Node 20+](https://nodejs.org/). Hai đường, dùng chung một generato
 ```bash
 npm install -g @tomosia/agent-stack
 ```
+
+Bản phát hành đầu tiên là **1.0.0** — cờ CLI, hợp đồng `--json` và bố cục `knowledge/` từ đây trở đi theo [SemVer](https://semver.org/lang/vi/): thay đổi phá vỡ chúng phải lên major. Cần ghim cho CI thì `npm install -g @tomosia/agent-stack@1.0.0`; lịch sử từng bản nằm ở [Releases](https://github.com/TOMOSIA-VIETNAM/agent-stack/releases).
 
 ```bash
 cd /đường/dẫn/tới/dự-án
@@ -278,8 +281,6 @@ npm install
 npm run check      # typecheck + test + bundle — chạy trước mỗi lần push
 npm run sync       # copy lại nội dung import tại commit đã ghim
 npm run try        # generate vào .agent-stack-try/ để đọc kết quả thật
-
-npm run commit-type   # hỏi TypeSafe xem thay đổi này là Conventional Commit type nào
 ```
 
 > [!IMPORTANT]
@@ -311,7 +312,7 @@ Mọi thứ ở đây xoay quanh hai điều này. Thay đổi nào làm yếu m
 1. **Việc chọn là tất định.** Model chỉ làm [đúng hai việc đã nêu ở trên](#không-có-nội-dung-do-llm-viết); phần còn lại là TypeScript trong `src/`. Checklist duyệt chỉ **thu hẹp** kết quả đó — bỏ bớt artifact, không bao giờ thêm vào, và không đổi nội dung file nào.
 2. **Xung đột không bao giờ được hoà giải âm thầm.** Khi hai technology được chọn bị khai là không tương thích, lần chạy dừng lại, nêu tên xung đột, và in ra cờ để bỏ qua.
 
-Điều thứ ba đúng với knowledge base: **generate là offline.** Một lần generate chỉ đọc repository này và ghi vào thư mục đích. Chỉ hai script đụng network, đều phải gõ tay và đều không gọi được từ `src/`: `npm run sync`, và `npm run commit-type` — hỏi TypeSafe xem một diff là commit type nào lúc bạn viết commit message.
+Điều thứ ba đúng với knowledge base: **generate là offline.** Một lần generate chỉ đọc repository này và ghi vào thư mục đích. Chỉ `npm run sync`, chạy có chủ đích, mới đụng network.
 
 ## Giấy phép
 
