@@ -180,6 +180,50 @@ export async function planEmit(outDir: string, composed: ComposedOutput): Promis
   return { write, remove, retained };
 }
 
+export type PendingChange = 'add' | 'update' | 'remove';
+
+/**
+ * What a run with this output would change in the project, left unwritten.
+ *
+ * It answers "is this project behind the knowledge base?" by the only measure
+ * that cannot drift from the generator itself: what writing it would do. The
+ * manifest counts as changed only for what it records — when a run happened,
+ * and which build ran it, are not the project falling behind.
+ */
+export async function pendingChanges(
+  outDir: string,
+  composed: ComposedOutput,
+): Promise<{ path: string; change: PendingChange }[]> {
+  const changes: { path: string; change: PendingChange }[] = [];
+
+  for (const file of composed.files) {
+    const actual = await checksum(join(outDir, file.path));
+    if (actual === undefined) changes.push({ path: file.path, change: 'add' });
+    else if (actual !== (await checksum(file.copyFrom))) {
+      changes.push({ path: file.path, change: 'update' });
+    }
+  }
+
+  const claudeMd = await readFile(join(outDir, 'CLAUDE.md'), 'utf8').catch(() => undefined);
+  if (claudeMd === undefined) changes.push({ path: 'CLAUDE.md', change: 'add' });
+  else if (mergeClaudeMd(claudeMd, composed.claudeMdBlock) !== claudeMd) {
+    changes.push({ path: 'CLAUDE.md', change: 'update' });
+  }
+
+  const previous = await readPreviousManifest(outDir);
+  const recorded = ({ generator, generatedAt, ...rest }: Manifest) => JSON.stringify(rest);
+  if (previous === undefined) changes.push({ path: MANIFEST_PATH, change: 'add' });
+  else if (recorded(previous) !== recorded(await finalManifest(composed))) {
+    changes.push({ path: MANIFEST_PATH, change: 'update' });
+  }
+
+  for (const path of (await planEmit(outDir, composed)).remove) {
+    changes.push({ path, change: 'remove' });
+  }
+
+  return changes.sort((a, b) => a.path.localeCompare(b.path));
+}
+
 export async function emit(
   outDir: string,
   composed: ComposedOutput,

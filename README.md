@@ -9,7 +9,7 @@
   <strong>Rule và skill AI cho dự án của bạn — được <em>chọn</em>, không phải được sinh ra.</strong><br>
   <strong>Mã nguồn mở. Tất định. Chạy offline.</strong><br>
   <sub>Plugin Claude Code dựng <code>CLAUDE.md</code> + <code>.claude/</code> từ một knowledge base có kiểm duyệt, quản lý bằng Git</sub><br>
-  <code>/generate</code> · <code>/catalog</code>
+  <code>/generate</code> · <code>/check</code> · <code>/catalog</code>
 </p>
 
 <p align="center">
@@ -49,6 +49,7 @@ Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 - **Bạn duyệt trước khi ghi** — checklist liệt kê từng rule, skill và command; tick cái nào ghi cái đó
 - **Chạy offline** — knowledge base đã được commit, nên lúc generate không đụng network
 - **Không phá gì** — `CLAUDE.md` merge trong cặp marker, file dự án tự viết hay đã sửa tay đều giữ nguyên, và chỉ file nằm trong manifest của lần chạy trước — chưa bị sửa — mới bị xoá
+- **Biết dự án nào đã cũ** — `agent-stack check` so dự án với knowledge base hiện tại, không ghi gì, hợp làm bước trong CI
 
 ## Cài đặt
 
@@ -85,7 +86,7 @@ Không có `--write` thì không file nào bị ghi. Ở terminal tương tác, 
 /plugin install agent-stack@agent-stack
 ```
 
-Repository này vừa là marketplace vừa là plugin. `dist/agent-stack.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build. Plugin thêm `/generate` và `/catalog`, nơi một câu tiếng người được ánh xạ sang cờ CLI ở trên.
+Repository này vừa là marketplace vừa là plugin. `dist/agent-stack.mjs` đã được commit, nên plugin chạy được trên bất kỳ máy nào có Node 20+ — không cần `npm install`, không cần build. Plugin thêm `/generate`, `/check` và `/catalog`, nơi một câu tiếng người được ánh xạ sang cờ CLI ở trên.
 
 <details>
 <summary>Cài từ bản clone local</summary>
@@ -151,6 +152,15 @@ CLAUDE.md                              hướng dẫn chung và các @-import, t
 
 Manifest ghi sha256 của từng file đã copy. **File agent-stack đã ghi mà bạn sửa tay thì thành của bạn**: lần chạy sau không đè (cảnh báo `modified-file`), không xoá kể cả khi nó không còn được chọn (cảnh báo `retained-file`), và rời khỏi manifest. Chỉ `--overwrite`, hoặc tick trong checklist, mới lấy lại. Thêm một file vào thư mục skill đã sinh cũng tính là sửa. Xoá một file thì không — không mất gì của bạn, nên lần sau nó được ghi lại. Manifest của bản 1.0.0 chưa có checksum, nên lần chạy đầu tiên sau khi nâng cấp chưa phân biệt được và xử lý như trước.
 
+### Dự án đã theo kịp knowledge base chưa
+
+```bash
+agent-stack check              # dùng framework mà lần chạy trước ghi trong manifest
+agent-stack check --json       # cho CI
+```
+
+`check` chạy đúng pipeline của một lần `generate` không người trực, **không ghi gì**, rồi liệt kê từng đường dẫn mà `generate` sẽ `add`, `update` hay `remove`. Thời điểm chạy và phiên bản generator trong manifest không tính là thay đổi. Exit `0` là đã cập nhật, `3` là đang cũ. Đặt nó trong CI thì dự án nào chưa nhận bản sửa quy ước mới nhất sẽ lộ ra ngay.
+
 ### Duyệt trước khi ghi
 
 `generate --write` trong terminal hiện một **checklist** liệt kê đúng những gì nó định ghi, kèm đường dẫn đích. Không file nào rời knowledge base trước khi bạn duyệt:
@@ -179,6 +189,7 @@ Không có terminal — `--json`, CI, hay gọi qua slash command — thì check
 | Gọi bằng | Làm gì | Ai xác định framework |
 | --- | --- | --- |
 | `/generate <stack>` | Phân giải stack, xem trước, rồi ghi `CLAUDE.md` và `.claude/`. Xung đột thì dừng và hỏi; file dự án đã có thì giữ nguyên | Bạn gõ |
+| `/check` | So dự án với knowledge base hiện tại, liệt kê những gì `/generate` sẽ đổi. Không ghi gì | Manifest lần trước |
 | `/catalog` | Liệt kê technology, rule, skill và command knowledge base đang phủ — và cả chỗ còn trống | — |
 | agent `detect` | Đọc repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng `/generate` | Agent suy ra, bạn duyệt |
 
@@ -192,6 +203,7 @@ Plugin chỉ là lớp mỏng bọc một CLI mà bạn chạy trực tiếp đ�
 node dist/agent-stack.mjs catalog  [--json]
 node dist/agent-stack.mjs resolve  --framework rails [--json]
 node dist/agent-stack.mjs generate --framework rails --framework laravel --out . [--write]
+node dist/agent-stack.mjs check    [--framework rails] [--out .] [--json]
 ```
 
 **Đầu vào chỉ có một cờ** — `--framework <id>`, lặp lại được cho dự án nhiều framework. Không có cờ cho ngôn ngữ, database, cache hay hạ tầng, và cũng không có entry nào cho chúng trong catalog. Không có cú pháp `@version`. Framework là thứ operator luôn biết chắc; mỗi cờ thêm vào là thêm một cơ hội để operator bỏ sót và rule biến mất mà không báo gì.
@@ -206,7 +218,7 @@ node dist/agent-stack.mjs generate --framework rails --framework laravel --out .
 | `--knowledge <dir>` | Dùng knowledge base ở chỗ khác (mặc định: bản đi kèm) |
 | `--json` | Xuất dạng máy đọc — hợp đồng ổn định, `commands/generate.md` parse nó |
 
-Exit code: `0` thành công · `2` lỗi ở bước kiểm tra · `64` sai cách dùng · `65` technology không tồn tại · `130` bạn huỷ ở checklist.
+Exit code: `0` thành công · `2` lỗi ở bước kiểm tra · `3` `check` thấy dự án đang cũ · `64` sai cách dùng · `65` technology không tồn tại · `130` bạn huỷ ở checklist.
 
 ## Knowledge base
 

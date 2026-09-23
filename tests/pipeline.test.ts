@@ -11,7 +11,7 @@ import {
   END_MARKER,
 } from '../src/composer.js';
 import { createHash } from 'node:crypto';
-import { belongsToProject, emit, inspectTargets } from '../src/emit.js';
+import { belongsToProject, emit, inspectTargets, pendingChanges } from '../src/emit.js';
 import { resolveStack } from '../src/resolver.js';
 import { techStackInputSchema, type TechStackInput } from '../src/schema.js';
 import { artifactKey, excludeArtifacts, selectArtifacts } from '../src/selector.js';
@@ -734,5 +734,96 @@ describe('a project that is already there', () => {
     expect(finding?.message).toContain('.claude/rules/rails-ruby.md');
     expect(finding?.message).toContain('--overwrite');
     expect(report.ok).toBe(true);
+  });
+});
+
+// `check` answers one question: would a generate run change this project? It
+// is answered by the same output a run would write, so it cannot disagree with
+// what generating would actually do.
+describe('checking a project against the knowledge base', () => {
+  async function composeFrom(kbRoot: string, framework = 'rails') {
+    const kb = await loadKnowledgeBase(kbRoot);
+    const stack = resolveStack(kb.catalog, techStackInputSchema.parse({ framework: [framework] }));
+    return compose(stack, selectArtifacts(kb, stack), 'test', kb.imported);
+  }
+
+  async function generated(files: Record<string, string>) {
+    const kbRoot = await tempKnowledge(files);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await emit(out, await composeFrom(kbRoot), { dryRun: false });
+    return { kbRoot, out };
+  }
+
+  const RULES = {
+    'rules/framework/rails/conventions.md': '# Conventions\n',
+    'rules/framework/rails/security.md': '# Security\n',
+  };
+
+  it('finds nothing to change right after a run', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([]);
+  });
+
+  it('ignores a later timestamp and a different build of the generator', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    const composed = await composeFrom(kbRoot);
+    composed.manifest.generator = 'agent-stack@9.9.9';
+    composed.manifest.generatedAt = '2099-01-01T00:00:00.000Z';
+    expect(await pendingChanges(out, composed)).toEqual([]);
+  });
+
+  it('names a rule the knowledge base has changed since', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    await writeFile(join(kbRoot, 'rules/framework/rails/security.md'), '# Security v2\n', 'utf8');
+
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([
+      { path: '.claude/agent-stack-manifest.json', change: 'update' },
+      { path: '.claude/rules/rails-security.md', change: 'update' },
+    ]);
+  });
+
+  it('names a rule added to the knowledge base, and one taken out of it', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    await rm(join(kbRoot, 'rules/framework/rails/security.md'));
+    await writeFile(join(kbRoot, 'rules/framework/rails/testing.md'), '# Testing\n', 'utf8');
+
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([
+      { path: '.claude/agent-stack-manifest.json', change: 'update' },
+      { path: '.claude/rules/rails-security.md', change: 'remove' },
+      { path: '.claude/rules/rails-testing.md', change: 'add' },
+      { path: 'CLAUDE.md', change: 'update' },
+    ]);
+  });
+
+  it('sees an edit to the managed CLAUDE.md block, and not one outside it', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    const path = join(out, 'CLAUDE.md');
+    const original = await readFile(path, 'utf8');
+
+    await writeFile(path, `# Ours\n\n${original}`, 'utf8');
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([]);
+
+    await writeFile(path, original.replace('## Project rules', '## Rules'), 'utf8');
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([
+      { path: 'CLAUDE.md', change: 'update' },
+    ]);
+  });
+
+  it('writes nothing', async () => {
+    const { kbRoot, out } = await generated(RULES);
+    await writeFile(join(kbRoot, 'rules/framework/rails/security.md'), '# Security v2\n', 'utf8');
+    await pendingChanges(out, await composeFrom(kbRoot));
+
+    expect(await readFile(join(out, '.claude/rules/rails-security.md'), 'utf8')).toBe(
+      '# Security\n',
+    );
+  });
+
+  it('has everything to add in a project nothing was generated into', async () => {
+    const kbRoot = await tempKnowledge(RULES);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const changes = await pendingChanges(out, await composeFrom(kbRoot));
+    expect(changes.every((entry) => entry.change === 'add')).toBe(true);
+    expect(changes.map((entry) => entry.path)).toContain('.claude/agent-stack-manifest.json');
   });
 });

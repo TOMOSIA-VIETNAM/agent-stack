@@ -72,6 +72,11 @@ taken back only by `--overwrite` or a tick. Stale output that is `modified` is
 *retained*, never removed. A deleted file is not an edit. A manifest from before
 `checksums` cannot tell, so it behaves as it did when it was written.
 
+`check` is an unattended `generate` that writes nothing and reports `pendingChanges`:
+what a run would add, update or remove. Keep it built from the same pipeline — a
+second definition of "up to date" would drift from the generator. It exits 3 when the
+project is behind.
+
 `CLAUDE.md` in a generated project is merged, never replaced: only the text between the
 `agent-stack:begin` / `agent-stack:end` markers changes.
 
