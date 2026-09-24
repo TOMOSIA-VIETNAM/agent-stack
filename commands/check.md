@@ -15,16 +15,16 @@ node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs check --out . --json
 
 With no flags, it checks against the frameworks the last run recorded in
 `.claude/agent-stack-manifest.json`. If $ARGUMENTS names frameworks, map each to a
-catalog id exactly as `/generate` does, and pass them as `--framework <id>`.
+catalog id exactly as `/agent-stack:generate` does, and pass them as `--framework <id>`.
 
 The exit code is the answer:
 
 - **0** — up to date. Say so in one line.
 - **3** — behind. `changes` lists every path a generate run would `add`, `update` or
-  `remove`. Report them grouped by change, then offer `/generate` to apply them. Do not
+  `remove`. Report them grouped by change, then offer `/agent-stack:generate` to apply them. Do not
   run it yourself.
-- **2** — either nothing was generated here yet (stderr says so: offer `/generate`),
-  or `report.findings` has an error, which you relay as `/generate` does.
+- **2** — either nothing was generated here yet (stderr says so: offer `/agent-stack:generate`),
+  or `report.findings` has an error, which you relay as `/agent-stack:generate` does.
 - **65** — a recorded or requested framework is not in the catalog any more. Relay the
   CLI's output as it is.
 

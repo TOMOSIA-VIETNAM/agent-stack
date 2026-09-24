@@ -1,6 +1,6 @@
 ---
 name: detect
-description: Work out which framework a project is built on by reading its manifests and lockfiles, confirm it with the operator, then generate the .claude rules and skills for it. Use when the project should be configured but nobody has stated the framework — "set up agent-stack here", "what stack is this", "generate rules for this repo". When the operator already knows the framework and states it, /generate is the shorter path.
+description: Work out which framework a project is built on by reading its manifests and lockfiles, confirm it with the operator, then generate the .claude rules and skills for it. Use when the project should be configured but nobody has stated the framework — "set up agent-stack here", "what stack is this", "generate rules for this repo". When the operator already knows the framework and states it, /agent-stack:generate is the shorter path.
 tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 ---
 
@@ -73,7 +73,7 @@ operator has confirmed.
 
 ## 4. Generate
 
-You now have what `/generate` takes as input. Follow the steps in
+You now have what `/agent-stack:generate` takes as input. Follow the steps in
 `${CLAUDE_PLUGIN_ROOT}/commands/generate.md` from *Resolve and check* onward —
 read that file and follow it rather than reimplementing it here. In short: resolve,
 relay every finding to the operator, preview without `--write`, and only write once

@@ -1,6 +1,6 @@
 {
   "name": "agent-stack",
-  "description": "Generate a project's .claude rules and skills from a curated, version-controlled knowledge base. State the stack with /generate, or let the detect subagent read it off the project's lockfiles. Selection, dependency resolution and composition are deterministic; the model only handles input and conflict decisions.",
+  "description": "Generate a project's .claude rules and skills from a curated, version-controlled knowledge base. State the stack with /agent-stack:generate, or let the detect subagent read it off the project's lockfiles. Selection, dependency resolution and composition are deterministic; the model only handles input and conflict decisions.",
   "version": "1.1.1",
   "author": {
     "name": "TOMOSIA VIETNAM"
