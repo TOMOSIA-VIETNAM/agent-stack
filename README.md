@@ -16,6 +16,7 @@
   <a href="https://www.npmjs.com/package/@tomosia/agent-stack"><img alt="npm" src="https://img.shields.io/npm/v/%40tomosia%2Fagent-stack?style=flat-square&label=npm&color=cb3837"></a>
   <a href="https://www.npmjs.com/package/@tomosia/agent-stack"><img alt="Lượt tải npm" src="https://img.shields.io/npm/dm/%40tomosia%2Fagent-stack?style=flat-square&label=tải%2Ftháng&color=cb3837"></a>
   <a href="https://github.com/TOMOSIA-VIETNAM/agent-stack/releases"><img alt="Release" src="https://img.shields.io/github/v/release/TOMOSIA-VIETNAM/agent-stack?style=flat-square&label=release&color=2ea44f"></a>
+  <a href="https://github.com/TOMOSIA-VIETNAM/agent-stack/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/TOMOSIA-VIETNAM/agent-stack/ci.yml?branch=main&style=flat-square&label=CI"></a>
   <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TOMOSIA-VIETNAM/agent-stack?style=flat-square&color=blue"></a>
   <a href="#phát-triển"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white"></a>
   <a href="#cài-đặt"><img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square&logo=anthropic&logoColor=white"></a>
@@ -309,6 +310,10 @@ npm run try        # generate vào .agent-stack-try/ để đọc kết quả th
 
 > [!IMPORTANT]
 > `dist/agent-stack.mjs` được commit để plugin chạy mà không cần cài đặt gì. **Rebuild và commit nó cùng mọi thay đổi trong `src/`** — `npm run check` lo phần rebuild.
+
+[CI](.github/workflows/ci.yml) chạy `npm run check` trên Node 20 và 22 cho mọi pull request và mọi lần push lên `main`, rồi báo đỏ nếu bản build lại làm `dist/` khác với bản đã commit.
+
+Chạy được CLI chỉ cần Node 20+, nhưng công cụ dev (Vitest, Vite) cần Node **20.19+** hoặc **22.12+**. npm 10.5.1 đi kèm Node 22.0.0 có lỗi `Cannot read properties of null (reading 'edgesOut')` khi `npm install` — nâng Node lên bản vá mới nhất.
 
 ### Pipeline
 
