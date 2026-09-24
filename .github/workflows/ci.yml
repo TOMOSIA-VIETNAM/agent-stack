@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the floor in package.json `engines`; 22 is the current LTS.
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      # typecheck + tests + bundle. The tests load the real knowledge base,
+      # so a content change that breaks an invariant fails here too.
+      - run: npm run check
+
+      # dist/agent-stack.mjs is committed so the plugin runs without an install
+      # step. If the rebuild above changed it, src/ and dist/ were pushed out of step.
+      - name: dist/ matches src/
+        run: |
+          if ! git diff --exit-code -- dist/; then
+            echo "::error::dist/ is out of date. Run \`npm run check\` and commit dist/agent-stack.mjs."
+            exit 1
+          fi
