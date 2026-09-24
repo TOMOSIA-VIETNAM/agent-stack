@@ -20,7 +20,7 @@ import { validate, type KeptPath } from './validator.js';
 
 // Kept as a literal so the bundle carries no part of package.json. A test
 // holds it equal to the published version, and to the plugin manifest's.
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_KNOWLEDGE = resolve(HERE, '..', 'knowledge');
 
