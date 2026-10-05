@@ -9,29 +9,29 @@ paths:
 
 # Laravel Security
 
-## Config & secret
+## Config & secrets
 
-- Chỉ gọi `env()` trong `config/`; code khác dùng `config()`. Sau `config:cache`, `.env` không được load nên `env()` ngoài config chỉ đọc được biến môi trường hệ thống (thường thành `null`; trong Docker có thể vẫn chạy, che mất lỗi).
-- Hành vi khác nhau theo môi trường đặt trong `config/`, không rải `app()->isProduction()`/`App::environment()` trong code nghiệp vụ (khó test, dễ sót môi trường).
-- Key mới trong `config/` đọc từ `env()` thì thêm biến tương ứng (giá trị giả) vào `.env.example`.
-- Không hard-code secret, URL môi trường. Không log password, token, dữ liệu cá nhân.
+- Call `env()` only inside `config/`; everywhere else use `config()`. After `config:cache`, `.env` is not loaded, so `env()` outside config sees only system environment variables (usually `null`; inside Docker it may still work and hide the bug).
+- Environment-dependent behaviour belongs in `config/`; do not scatter `app()->isProduction()`/`App::environment()` through business code (hard to test, easy to miss an environment).
+- A new `config/` key read from `env()` gets a matching variable (with a dummy value) in `.env.example`.
+- Never hard-code secrets or environment URLs. Never log passwords, tokens or personal data.
 
-## Input & truy vấn
+## Input & queries
 
-- Raw SQL: dùng `selectRaw`/`whereRaw`/`havingRaw`/`orderByRaw` với mảng binding (`?`), không nối input vào chuỗi SQL. `DB::raw()` không nhận binding, chỉ dùng cho biểu thức cố định. Tên cột/hướng sort lấy từ input phải whitelist.
-- File upload: validate `mimes`/`max`, lưu qua `Storage`, không dùng tên file gốc làm đường dẫn. File riêng tư lưu disk không public, trả qua route có kiểm tra quyền hoặc `temporaryUrl()`.
-- Không tin dữ liệu từ ngoài (response API, webhook, file import): kiểm tra field cần dùng trước khi xử lý. Webhook phải verify chữ ký.
+- Raw SQL: use `selectRaw`/`whereRaw`/`havingRaw`/`orderByRaw` with a bindings array (`?`); never concatenate input into SQL. `DB::raw()` takes no bindings; use it only for fixed expressions. Column names and sort directions taken from input must be whitelisted.
+- File uploads: validate `mimes`/`max`, store through `Storage`, and never use the original filename as the path. Private files live on a non-public disk and are served through a route that checks authorization, or through `temporaryUrl()`.
+- Do not trust external data (API responses, webhooks, imported files): validate the fields you use before processing. Webhooks must verify their signature.
 
-## Auth & giới hạn
+## Authentication & rate limiting
 
-- Endpoint login, quên mật khẩu, gửi/xác thực OTP, gửi mail/SMS phải có `throttle` (RateLimiter); key theo cả định danh tài khoản và IP.
-- Không tự viết lại cơ chế hash, token, session mà framework/package auth của dự án đã có.
+- Login, password reset, OTP send/verify, and mail/SMS-sending endpoints must be throttled (RateLimiter), keyed on both the account identifier and the IP.
+- Do not reimplement hashing, tokens or sessions that the framework or the project's auth package already provides.
 
 ## Blade
 
-- In dữ liệu bằng `{{ }}`; `{!! !!}` chỉ cho HTML đã sanitize. Truyền dữ liệu vào `<script>` bằng `Js::from()`.
-- Form ghi dữ liệu có `@csrf`. Không thêm route vào ngoại lệ CSRF để chữa lỗi 419; chỉ webhook đã verify chữ ký mới được loại trừ.
+- Output data with `{{ }}`; `{!! !!}` only for sanitized HTML. Pass data into `<script>` with `Js::from()`.
+- Forms that write data include `@csrf`. Do not add a route to the CSRF exceptions to fix a 419; only signature-verified webhooks may be excluded.
 
-## Đặc thù dự án
+## Project-specific
 
-Quy định riêng của dự án. Khi khác hoặc cụ thể hơn quy tắc chung ở trên, làm theo mục này.
+Rules specific to this project. Where they differ from, or are more specific than, the general rules above, follow this section.

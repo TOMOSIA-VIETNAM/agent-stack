@@ -1,66 +1,66 @@
 ---
 name: laravel-migration
-description: Thay đổi schema DB trong dự án Laravel một cách an toàn - tạo bảng, thêm/đổi/xoá cột, index, khoá ngoại - và cập nhật model, factory, validation, Resource, test liên quan. Dùng khi được yêu cầu add/change/drop a column, table, index, foreign key, migration.
+description: Change the database schema of a Laravel project safely - create tables, add/change/drop columns, indexes, foreign keys - and update the related model, factory, validation, Resource and tests. Use when asked to add/change/drop a column, table, index, foreign key, or migration.
 ---
 
 # Laravel Migration
 
-Quy trình thay đổi schema và mọi file bị ảnh hưởng. Quy tắc chi tiết nằm ở `.claude/rules/laravel-database.md`; không chép lại ở đây.
+The procedure for a schema change and every file it affects. The detailed rules live in `.claude/rules/laravel-database.md`; they are not repeated here.
 
-## Bước 0: Đọc bối cảnh
+## Step 0: Read the context
 
-1. Đọc `.claude/rules/laravel-database.md` và `laravel-conventions.md` (mục Model, Đặt tên), cả mục **Đặc thù dự án**.
-2. Xem DB đang kết nối: `php artisan db:show` (không đọc `.env`). Ghi lại engine (MySQL/PostgreSQL/SQLite) vì cách thay đổi an toàn khác nhau. Lệnh báo thiếu `doctrine/dbal` (L10 trở xuống) thì dùng `php artisan tinker --execute="echo DB::connection()->getDriverName().' '.DB::connection()->getDatabaseName();"`, không tự cài package.
-3. Đọc 1–2 migration gần nhất trong `database/migrations/` và làm theo cách viết (anonymous class, kiểu khoá chính, tên index).
-4. Bảng bị đụng đã có:
-   - Đọc schema hiện tại: `php artisan db:table <table>`, hoặc migration tạo bảng và các migration sửa sau đó.
-   - Tìm nơi dùng bảng/cột: model, `$fillable`/casts, factory, FormRequest, Resource, query (`grep` theo tên cột).
+1. Read `.claude/rules/laravel-database.md` and `laravel-conventions.md` (the Models and Laravel naming sections), including their **Project-specific** sections.
+2. Check the connected database: `php artisan db:show` (do not read `.env`). Note the engine (MySQL/PostgreSQL/SQLite), because what is safe differs between them. If the command reports that `doctrine/dbal` is missing (L10 and earlier), use `php artisan tinker --execute="echo DB::connection()->getDriverName().' '.DB::connection()->getDatabaseName();"` instead; do not install the package yourself.
+3. Read the 1–2 most recent migrations in `database/migrations/` and follow their style (anonymous class, primary key type, index naming).
+4. If the affected table already exists:
+   - Read its current schema: `php artisan db:table <table>`, or the migration that created it plus every later migration that altered it.
+   - Find where the table/columns are used: model, `$fillable`/casts, factory, FormRequest, Resource, queries (`grep` for the column name).
 
-## Bước 1: Phân loại thay đổi
+## Step 1: Classify the change
 
-| Loại | Cách làm |
+| Kind | Approach |
 |---|---|
-| Bảng mới | 1 migration, làm tiếp bước 2 |
-| Thêm cột nullable hoặc có default | 1 migration |
-| Thêm cột NOT NULL không default vào bảng có dữ liệu | Nhiều bước: thêm `nullable()` → backfill → migration sau đổi sang NOT NULL |
-| Đổi tên / xoá / đổi kiểu cột đang được code dùng | Nhiều bước (expand/contract), mỗi bước một PR/release |
-| Thêm index trên bảng lớn hoặc không rõ kích thước | 1 migration + ghi chú trong PR để team chọn thời điểm chạy |
+| New table | 1 migration, continue to Step 2 |
+| Add a nullable column, or one with a default | 1 migration |
+| Add a NOT NULL column with no default to a table with data | Multi-step: add it `nullable()` → backfill → a later migration makes it NOT NULL |
+| Rename / drop / change the type of a column the code uses | Multi-step (expand/contract), one PR/release per step |
+| Add an index on a large table, or one of unknown size | 1 migration + a note in the PR so the team can choose when to run it |
 
-Thay đổi nhiều bước: trình bày kế hoạch các bước và hỏi xác nhận trước khi viết. Chỉ làm bước đầu trong lần này, trừ khi được yêu cầu khác.
+For a multi-step change: present the plan for every step and ask for confirmation before writing anything. Do only the first step this time, unless asked otherwise.
 
-## Bước 2: Viết migration
+## Step 2: Write the migration
 
-- Tạo bằng `php artisan make:migration <tên_mô_tả_snake_case>`.
-- Theo `laravel-database.md`: kiểu cột, `nullable`/`default`, khoá ngoại với hành vi xoá chọn theo nghiệp vụ, index cho cột lọc/join/sort, `unique()` cho ràng buộc nghiệp vụ.
-- `down()` đảo ngược đúng `up()`. Không đảo ngược được thì comment lý do.
-- Backfill dữ liệu: dùng `DB::table()` theo `chunkById()`, không dùng Model; dữ liệu lớn tách khỏi migration schema.
-- Không sửa migration đã merge vào nhánh chính.
+- Create it with `php artisan make:migration <descriptive_snake_case_name>`.
+- Follow `laravel-database.md`: column types, `nullable`/`default`, foreign keys with delete behaviour chosen for the domain, indexes for filter/join/sort columns, `unique()` for business constraints.
+- `down()` exactly reverses `up()`. If it cannot be reversed, say why in a comment.
+- Backfilling data: `DB::table()` with `chunkById()`, not Models; keep large data migrations out of the schema migration.
+- Never edit a migration that has been merged to the main branch.
 
-## Bước 3: Cập nhật file liên quan
+## Step 3: Update related files
 
-Đi qua danh sách, bỏ qua mục không áp dụng:
+Go through the list, skipping what does not apply:
 
-| File | Việc cần làm |
+| File | What to do |
 |---|---|
-| Model | `$fillable`, cast (ngày, boolean, JSON, enum) theo cách model đang khai báo; relationship mới kèm return type |
-| Enum | Cột status/type mới: backed enum (`php artisan make:enum` từ L11) |
-| Factory | Cột NOT NULL mới có giá trị trong `definition()`; state cho biến thể; quan hệ dùng factory của model liên quan |
-| FormRequest | Rule cho cột client được gửi lên |
-| Resource | Thêm field client cần, không lộ field nội bộ |
-| Seeder | Chỉ khi dữ liệu master cần cho cột mới (idempotent) |
-| Query, scope, code dùng cột cũ | Đổi/xoá cột: cập nhật mọi nơi đã tìm ở Bước 0 |
+| Model | `$fillable`, casts (dates, booleans, JSON, enums) the way the model already declares them; new relationships with return types |
+| Enum | New status/type column: a backed enum (`php artisan make:enum` from L11) |
+| Factory | New NOT NULL columns get a value in `definition()`; states for variants; relationships through the related model's factory |
+| FormRequest | Rules for columns the client may send |
+| Resource | Add the fields the client needs; expose no internal fields |
+| Seeder | Only when master data is needed for the new column (idempotent) |
+| Queries, scopes, code using the old column | Renamed/dropped column: update every usage found in Step 0 |
 
-## Bước 4: Kiểm tra
+## Step 4: Verify
 
-1. Xác nhận DB đang là local/testing (`php artisan db:show`). Không phải thì dừng và hỏi.
-2. Chạy: `php artisan migrate` → `php artisan migrate:rollback --step=1` → `php artisan migrate`. Cả 3 phải thành công.
-3. Xem lại schema: `php artisan db:table <table>`.
-4. Chạy test liên quan đến model/bảng bị đổi (`--filter`), rồi toàn bộ suite nếu đổi bảng dùng nhiều nơi.
-5. Thêm/sửa test khi hành vi thay đổi (ràng buộc unique, cast enum, cột mới trong response).
+1. Confirm the database is local/testing (`php artisan db:show`). If it is not, stop and ask.
+2. Run `php artisan migrate` → `php artisan migrate:rollback --step=1` → `php artisan migrate`. All three must succeed.
+3. Review the schema: `php artisan db:table <table>`.
+4. Run the tests related to the changed model/table (`--filter`), then the full suite if the table is widely used.
+5. Add or update tests when behaviour changes (unique constraints, enum casts, a new column in the response).
 
-## Bước 5: Báo cáo
+## Step 5: Report
 
-- Migration đã tạo và tóm tắt thay đổi schema
-- File liên quan đã cập nhật
-- Kết quả migrate/rollback/migrate và test
-- Rủi ro khi chạy trên production: lock bảng, thời gian backfill, bước tiếp theo nếu là thay đổi nhiều bước
+- The migration created and a summary of the schema change
+- Related files updated
+- Results of migrate/rollback/migrate and of the tests
+- Production risks: table locks, backfill duration, next steps for a multi-step change

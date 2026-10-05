@@ -1,81 +1,81 @@
 # Laravel Conventions
 
-## Công cụ & style
+## Tooling & style
 
-- Xem `composer.json` (`require-dev`, `scripts`) để biết dự án có Pint/PHP-CS-Fixer, PHPStan/Larastan/Psalm, Rector. Có thì chạy trên file đã sửa trước khi báo xong; vi phạm thì sửa code, không nới config hay thêm ignore/baseline.
-- Có `composer` script (`composer lint`, `composer test`…) thì chạy qua script để giống CI, không tự ghép lệnh khác.
-- Format theo config của dự án (`pint.json`, `.php-cs-fixer.php`…). Có Pint mà không có config thì chạy Pint mặc định (preset `laravel`, không phải `psr12`); không có tool nào thì theo PSR-12.
-- Chỉ format file mình sửa, không reformat hàng loạt file không liên quan.
-- Tạo file bằng `php artisan make:*` khi có lệnh tương ứng (`make:enum`, `make:class`, `make:interface`, `make:trait` chỉ có từ L11). Không tự đặt tên hay timestamp migration.
-- Không để lại `dd()`, `dump()`, `ray()`, `var_dump()`, code comment-out.
-- Lệnh artisan chạy với `--no-interaction` và đủ tham số/option (thiếu thì Laravel Prompts hỏi, lệnh bị treo).
-- Không thay đổi dependency (`composer require`/`remove`, nâng version) khi chưa được đồng ý.
-- Xem config đã resolve bằng `php artisan config:show <file>`, không đọc `.env`. `php artisan tinker --execute '…'` chỉ dùng để đọc; không tạo/sửa dữ liệu khi chưa được đồng ý. Có thể kiểm chứng bằng test thì viết test, không viết script tạm.
+- Check `composer.json` (`require-dev`, `scripts`) for Pint/PHP-CS-Fixer, PHPStan/Larastan/Psalm and Rector. If present, run them on the changed files before reporting done; on a violation, fix the code — do not loosen the config or add an ignore/baseline entry.
+- If there is a `composer` script (`composer lint`, `composer test`…), run through it so the result matches CI; do not assemble your own command.
+- Format with the project's config (`pint.json`, `.php-cs-fixer.php`…). With Pint but no config, run Pint's default (the `laravel` preset, not `psr12`); with no tool at all, follow PSR-12.
+- Format only the files you changed; do not mass-reformat unrelated files.
+- Generate files with `php artisan make:*` when a matching command exists (`make:enum`, `make:class`, `make:interface`, `make:trait` exist only from L11). Never hand-write a migration's name or timestamp.
+- Leave no `dd()`, `dump()`, `ray()`, `var_dump()` or commented-out code behind.
+- Run artisan commands with `--no-interaction` and every argument/option supplied (anything missing triggers a Laravel Prompts question and the command hangs).
+- Do not change dependencies (`composer require`/`remove`, version bumps) without approval.
+- Inspect resolved config with `php artisan config:show <file>`; do not read `.env`. Use `php artisan tinker --execute '…'` for reads only; do not create or modify data without approval. If something can be verified with a test, write a test, not a throwaway script.
 
 ## PHP
 
-- Khai báo type cho tham số, return và property. Dùng cú pháp đúng phiên bản PHP trong `composer.json` (constructor promotion, `readonly`, enum…).
-- `declare(strict_types=1)`: chỉ thêm khi các file cùng loại trong dự án đã dùng. Bật lẻ tẻ có thể làm vỡ code đang dựa vào ép kiểu.
-- Biến, method: camelCase. Class: PascalCase. Hằng: UPPER_SNAKE.
-- So sánh dùng `===`. Không dùng `@` để che lỗi.
-- Chuỗi có thể chứa ký tự đa byte (tiếng Việt, Nhật…) xử lý bằng `Str::` (`Str::length`, `Str::limit`, `Str::lower`) hoặc `mb_*`, không `strlen`/`substr`/`strtolower`.
-- Import mọi class/interface/trait bằng `use`, không viết FQCN inline (`\App\Models\User::`). Xoá `use` không dùng.
-- Không trả `false`/`null` để báo lỗi ở code mới; ném exception. `null` chỉ dùng khi "không có" là kết quả hợp lệ (VD `find()`).
+- Declare types for parameters, return values and properties. Use the syntax the PHP version in `composer.json` supports (constructor promotion, `readonly`, enums…).
+- `declare(strict_types=1)`: add it only when files of the same kind in the project already use it. Enabling it piecemeal can break code that relies on type coercion.
+- Variables and methods: camelCase. Classes: PascalCase. Constants: UPPER_SNAKE.
+- Compare with `===`. Never use `@` to suppress errors.
+- Strings that may contain multibyte characters (Vietnamese, Japanese…) go through `Str::` (`Str::length`, `Str::limit`, `Str::lower`) or `mb_*`, not `strlen`/`substr`/`strtolower`.
+- Import every class/interface/trait with `use`; do not write an inline FQCN (`\App\Models\User::`). Remove unused `use` statements.
+- In new code, do not return `false`/`null` to signal failure; throw an exception. Use `null` only when "nothing" is a valid result (e.g. `find()`).
 
-## Cấu trúc code
+## Code structure
 
-- Ưu tiên early return/guard clause; không lồng `if`/`foreach` quá 3 cấp.
-- Method dài quá ~40 dòng hoặc làm nhiều việc thì tách thành method private có tên rõ.
-- Không dùng magic number/string: ngưỡng, giới hạn, thời gian dùng constant, enum hoặc `config()`.
-- Tên boolean đọc như mệnh đề: `isActive`, `hasPaid`, `canCancel()`.
-- Chỉ tách hàm dùng chung khi logic đã lặp thật (≥2 chỗ); không thêm abstraction, tham số, option cho nhu cầu chưa có.
-- Cần chờ trong code (retry, polling) dùng `Sleep::for(…)->seconds()` (`Illuminate\Support\Sleep`, L10+), không `sleep()`/`usleep()`, để test fake được.
-- Không sửa tham số đầu vào (array, object, Carbon) ngoài ý muốn: trả giá trị mới. Carbon mutable thì `->copy()` trước khi `add*`/`sub*`, hoặc dùng `CarbonImmutable`.
+- Prefer early returns/guard clauses; do not nest `if`/`foreach` more than 3 levels deep.
+- A method longer than ~40 lines, or doing several things, is split into well-named private methods.
+- No magic numbers/strings: thresholds, limits and durations go in a constant, an enum or `config()`.
+- Boolean names read as predicates: `isActive`, `hasPaid`, `canCancel()`.
+- Extract shared code only once the logic is actually duplicated (≥2 places); do not add abstractions, parameters or options for needs that do not exist yet.
+- To wait in code (retries, polling), use `Sleep::for(…)->seconds()` (`Illuminate\Support\Sleep`, L10+), not `sleep()`/`usleep()`, so tests can fake it.
+- Do not mutate input arguments (arrays, objects, Carbon) unintentionally: return a new value. With mutable Carbon, `->copy()` before `add*`/`sub*`, or use `CarbonImmutable`.
 
-## Đặt tên theo Laravel
+## Laravel naming
 
-| Loại | Quy ước | Ví dụ |
+| Kind | Convention | Example |
 |---|---|---|
-| Model | Số ít, PascalCase | `OrderItem` |
-| Bảng | Số nhiều, snake_case | `order_items` |
-| Bảng pivot | 2 model số ít, thứ tự alphabet | `product_tag` |
-| Cột, khoá ngoại | snake_case; FK `belongsTo` = `{tên relationship}_id` | `order_id`, `customer_id` |
-| Relationship | `belongsTo`/`hasOne` số ít, `hasMany`/`belongsToMany` số nhiều, camelCase | `customer()`, `orderItems()` |
-| Controller | Số ít + `Controller` | `OrderController` |
-| FormRequest | `Store{Model}Request`/`Update{Model}Request`; ngoài CRUD đặt theo use-case | `CancelOrderRequest` |
-| Resource | `{Model}Resource`, dùng `::collection()` cho danh sách; chỉ tạo `{Model}Collection` khi cần meta riêng | `OrderResource` |
+| Model | Singular, PascalCase | `OrderItem` |
+| Table | Plural, snake_case | `order_items` |
+| Pivot table | Both models singular, alphabetical order | `product_tag` |
+| Column, foreign key | snake_case; a `belongsTo` FK = `{relationship name}_id` | `order_id`, `customer_id` |
+| Relationship | `belongsTo`/`hasOne` singular, `hasMany`/`belongsToMany` plural, camelCase | `customer()`, `orderItems()` |
+| Controller | Singular + `Controller` | `OrderController` |
+| FormRequest | `Store{Model}Request`/`Update{Model}Request`; outside CRUD, name it after the use case | `CancelOrderRequest` |
+| Resource | `{Model}Resource`, with `::collection()` for lists; create a `{Model}Collection` only when it needs its own meta | `OrderResource` |
 | Policy, Factory, Seeder | `{Model}Policy`, `{Model}Factory`, `{Model}Seeder` | `OrderPolicy` |
-| Job | Động từ + đối tượng | `SyncOrderToErp` |
-| Event | Việc đã xảy ra, quá khứ | `OrderShipped` |
-| Listener | Hành động phản hồi | `SendShipmentNotification` |
-| Route URI | Số nhiều, kebab-case | `/order-items/{order_item}` (tham số do `Route::resource` sinh) |
-| Route name | Dấu chấm, theo resource | `order-items.show` |
-| Config, lang key (file PHP) | snake_case; lang JSON dùng câu gốc làm key | `services.payment.api_key` |
-| Migration | Mô tả hành động, snake_case | `add_status_to_orders_table` |
+| Job | Verb + object | `SyncOrderToErp` |
+| Event | Something that happened, past tense | `OrderShipped` |
+| Listener | The action taken in response | `SendShipmentNotification` |
+| Route URI | Plural, kebab-case | `/order-items/{order_item}` (parameter generated by `Route::resource`) |
+| Route name | Dot-separated, by resource | `order-items.show` |
+| Config, lang key (PHP files) | snake_case; JSON lang files use the source sentence as the key | `services.payment.api_key` |
+| Migration | Describes the action, snake_case | `add_status_to_orders_table` |
 
-FK không theo convention (VD `created_by`) phải truyền key tường minh: `belongsTo(User::class, 'created_by')`.
+A foreign key that breaks the convention (e.g. `created_by`) must be passed explicitly: `belongsTo(User::class, 'created_by')`.
 
-Controller resource dùng đúng tên action chuẩn: `index`, `show`, `store`, `update`, `destroy` (`create`, `edit` cho web).
+Resource controllers use the standard action names: `index`, `show`, `store`, `update`, `destroy` (plus `create`, `edit` for web).
 
-## Model
+## Models
 
-- Khai báo `$fillable` rõ ràng; không dùng `$guarded = []`.
-- Cast ngày giờ, boolean, JSON, enum đầy đủ, theo cách model hiện có: method `casts()` (từ L11) hoặc property `$casts` (vẫn chạy ở L11+). Không chuyển đổi model cũ.
-- Cột status/type cast sang backed enum nếu dự án có enum, không so sánh magic string.
-- Relationship khai báo return type (`BelongsTo`, `HasMany`…).
-- Cột có default ở DB: giá trị đó chỉ có sau insert, model vừa `create()`/`new` vẫn là `null`. Code đọc ngay giá trị (Resource, cast enum) thì khai báo cùng giá trị trong `$attributes` của model, hoặc gọi `->refresh()`.
-- Secret cần đọc lại (token, API key bên thứ ba) cast `encrypted` và thêm vào `$hidden`; cột `text`, không where được. Mật khẩu dùng cast `hashed` (L10+), không `encrypted`.
+- Declare `$fillable` explicitly; never use `$guarded = []`.
+- Cast dates, booleans, JSON and enums completely, the way existing models do: the `casts()` method (from L11) or the `$casts` property (still works on L11+). Do not convert existing models.
+- Cast status/type columns to a backed enum if the project has enums; do not compare against magic strings.
+- Declare relationship return types (`BelongsTo`, `HasMany`…).
+- A column with a database default only gets that value after insert; a model fresh from `create()`/`new` still holds `null`. If code reads the value right away (a Resource, an enum cast), declare the same value in the model's `$attributes`, or call `->refresh()`.
+- Secrets that must be read back (tokens, third-party API keys) use the `encrypted` cast and go in `$hidden`; the column is `text` and cannot be queried with `where`. Passwords use the `hashed` cast (L10+), not `encrypted`.
 
-## Thời gian & chuỗi
+## Time & strings
 
-- Dùng `now()`, `Carbon`/`CarbonImmutable`, không dùng `date()`/`time()`.
-- Thông báo hiển thị cho người dùng dùng `__()` khi dự án có thư mục `lang/` (L11+ mặc định không có).
+- Use `now()` and `Carbon`/`CarbonImmutable`, not `date()`/`time()`.
+- User-facing messages go through `__()` when the project has a `lang/` directory (L11+ ships without one).
 
-## Comment
+## Comments
 
-- Comment và docblock giải thích WHY (lý do nghiệp vụ, edge case), không lặp lại WHAT code đã thể hiện.
-- Docblock chỉ thêm khi type PHP không diễn tả đủ (generic collection, array shape) hoặc tool của dự án yêu cầu.
+- Comments and docblocks explain WHY (business reasons, edge cases), not WHAT the code already says.
+- Add a docblock only when PHP types cannot express enough (generic collections, array shapes) or the project's tooling requires one.
 
-## Đặc thù dự án
+## Project-specific
 
-Quy định riêng của dự án. Khi khác hoặc cụ thể hơn quy tắc chung ở trên, làm theo mục này.
+Rules specific to this project. Where they differ from, or are more specific than, the general rules above, follow this section.

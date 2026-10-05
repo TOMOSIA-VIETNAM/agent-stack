@@ -1,29 +1,29 @@
 # AGENTS.md
 
-# <Tên dự án>
+# <Project name>
 
-<!-- [Bắt buộc] 1–2 dòng: hệ thống làm gì, cho ai. Điểm stack mà agent dễ đoán sai. Có nhiều actor/role hoặc dữ liệu nhạy cảm thì ghi cách phân quyền ngay ở đây. -->
+<!-- [Required] 1–2 lines: what the system does, and for whom. Stack details an agent is likely to guess wrong. If there are several actors/roles or sensitive data, describe how authorization works right here. -->
 
-## Lệnh & môi trường
+## Commands & environment
 
-<!-- [Bắt buộc] Lệnh chạy nguyên văn: cài đặt, dev, test một file, test toàn bộ, lint, typecheck. Ghi rõ chạy trên host hay trong container, và cần chuẩn bị gì (env, service phụ thuộc). -->
+<!-- [Required] Exact commands: install, dev, run one test file, run the full suite, lint, typecheck. Say whether they run on the host or in a container, and what must be set up first (env, dependent services). -->
 
-## Code & kiến trúc
+## Code & architecture
 
-<!-- [Bắt buộc] Layer chính, vị trí đặt code, pattern KHÔNG dùng. Quy tắc code khác mặc định, quy tắc CI fail nếu vi phạm. Điểm đặc thù khi viết test. -->
+<!-- [Required] Main layers, where code goes, patterns NOT used. Code rules that differ from the defaults, and rules CI fails on. Anything specific to writing tests. -->
 
-## Quy trình làm việc
+## Workflow
 
-<!-- [Bắt buộc] Format branch, commit, PR. Tiêu chí "hoàn thành" (lint/test/coverage). -->
+<!-- [Required] Branch, commit and PR format. The definition of "done" (lint/test/coverage). -->
 
-## Bảo mật
+## Security
 
-<!-- [Bắt buộc] Quy tắc về secret/PII, service được phép dùng, việc phải hỏi trước. Việc cần chặn thật thì cấu hình trong công cụ. -->
+<!-- [Required] Rules for secrets/PII, which services may be used, what must be asked first. Anything that must actually be blocked belongs in the tool's configuration. -->
 
-## Lưu ý quan trọng
+## Gotchas
 
-<!-- [Bắt buộc] Bẫy, hành vi khó đoán. Dự án mới có thể ít dòng; bổ sung mỗi khi agent mắc lại cùng một lỗi. -->
+<!-- [Required] Traps and surprising behaviour. A new project may have only a few lines; add one each time an agent repeats the same mistake. -->
 
-## Tài liệu tham khảo
+## References
 
-<!-- [Tuỳ chọn] Link tài liệu (không chép nội dung); nguồn nào đáng tin nhất khi có mâu thuẫn. -->
+<!-- [Optional] Links to documentation (do not copy the content); which source wins when they disagree. -->

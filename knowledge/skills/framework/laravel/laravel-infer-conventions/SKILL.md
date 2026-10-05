@@ -1,117 +1,117 @@
 ---
 name: laravel-infer-conventions
-description: Khảo sát codebase Laravel để tìm lệnh, kiến trúc và convention thật của dự án, rồi ghi vào AGENTS.md và mục "Đặc thù dự án" của .claude/rules/laravel-*.md. Dùng khi setup template cho repo mới, hoặc khi được yêu cầu detect/document/update project conventions.
+description: Survey a Laravel codebase for the project's real commands, architecture and conventions, then record them in AGENTS.md and the "Project-specific" section of .claude/rules/laravel-*.md. Use when setting up the template for a new repo, or when asked to detect/document/update project conventions.
 disable-model-invocation: true
 ---
 
 # Laravel Infer Conventions
 
-Ghi lại cách dự án **đang** làm vào đúng chỗ. Mô tả thực tế, không cải thiện nó.
+Record how the project **currently** does things, in the right place. Describe reality; do not improve it.
 
-Ý tưởng dựa trên skill `infer-conventions` của [laravel/boost](https://github.com/laravel/boost) (MIT).
+Based on the `infer-conventions` skill from [laravel/boost](https://github.com/laravel/boost) (MIT).
 
-## Ghi vào đâu
+## Where things go
 
-| Thông tin | File đích |
+| Information | Destination |
 |---|---|
-| Lệnh cài đặt, test, lint, static analysis; chạy native hay qua Docker/Sail | `AGENTS.md` › Lệnh & môi trường |
-| Kiến trúc tổng quan: lớp chứa nghiệp vụ, layer KHÔNG dùng, module/domain, actor và guard | `AGENTS.md` › Code & kiến trúc (vài dòng) |
-| Chi tiết khi viết code (format response, exception, cast, helper test, DB engine…) | Mục **Đặc thù dự án** của rule tương ứng trong `.claude/rules/laravel-*.md` |
-| Allow rule cho lệnh chạy qua Docker/Sail | `.claude/settings.json` |
+| Install, test, lint and static analysis commands; native or through Docker/Sail | `AGENTS.md` › Commands & environment |
+| Architecture overview: the business layer, layers NOT used, modules/domains, actors and guards | `AGENTS.md` › Code & architecture (a few lines) |
+| Details that matter when writing code (response format, exceptions, casts, test helpers, database engine…) | The **Project-specific** section of the matching rule in `.claude/rules/laravel-*.md` |
+| Allow rules for commands run through Docker/Sail | `.claude/settings.json` |
 
-`AGENTS.md` luôn được nạp và mọi công cụ AI đều đọc; rule chỉ Claude Code đọc, và rule có `paths:` chỉ được nạp khi làm với file khớp.
+`AGENTS.md` is always loaded and every AI tool reads it; rules are read only by Claude Code, and a rule with `paths:` is loaded only when working on matching files.
 
-Mỗi thông tin chỉ ghi ở **một** nơi. Đã có trong `AGENTS.md` thì rule không ghi lại.
+Record each fact in **one** place only. If it is already in `AGENTS.md`, the rules do not repeat it.
 
-Không tự điền các mục `AGENTS.md` không suy ra được từ code: Quy trình làm việc, Bảo mật, Lưu ý quan trọng. Hỏi user ở Bước 3; user không trả lời thì giữ nguyên.
+Do not fill in the `AGENTS.md` sections that cannot be inferred from code: Workflow, Security, Gotchas. Ask the user in Step 3; if they do not answer, leave them as they are.
 
-## Nguyên tắc (đọc trước khi bắt đầu)
+## Principles (read before starting)
 
-- **Thực tế là chuẩn.** Kiểu chiếm đa số trong code là convention, kể cả khi có cách "tốt hơn". Không đề xuất cải tiến trong lúc ghi.
-- **Chỉ ghi lựa chọn, không ghi mặc định.** Câu hỏi cho mỗi ứng viên: *không có dòng này, Claude có viết khác đi không?* Chỉ ghi khi câu trả lời là có. Quy tắc chung trong file rule đã nói thì không ghi lại.
-- **Ghi cả sự vắng mặt có chủ ý.** VD "Không có Service/Repository; controller gọi Eloquent trực tiếp" để Claude không thêm layer.
-- **Kiến trúc là quan trọng nhất**: lớp chứa nghiệp vụ (Service/Action/Job/model), DTO, query object, module/domain folder, cách gọi (`handle`/`execute`/`__invoke`).
-- **Phải có bằng chứng**: ≥3 ví dụ nhất quán, kiểu cạnh tranh dưới ~20%. Thiếu thì bỏ qua. Với lệnh chạy, bằng chứng là CI config, composer scripts hoặc chạy thử thành công.
-- **Xung đột thì báo, không chọn hộ.** Hai kiểu cùng tồn tại đáng kể: hỏi user có ranh giới nào giải thích không (VD module cũ/mới); không có thì ghi là xung đột chưa giải quyết, không ghi.
-- **Tool lo thì bỏ.** Style mà Pint/Rector/PHPStan đang ép (theo config đã bật) thì không ghi.
-- **Chỉ nêu convention**: 1–2 câu mệnh lệnh, tối đa 1 đoạn cú pháp ngắn. Không ghi số đếm, tỉ lệ, danh sách file làm bằng chứng.
+- **Reality is the standard.** The style used by the majority of the code is the convention, even when a "better" way exists. Do not propose improvements while recording.
+- **Record choices, not defaults.** The question for every candidate: *without this line, would Claude write the code differently?* Record it only if the answer is yes. Anything the general rules in the rule files already say is not repeated.
+- **Record deliberate absences too.** E.g. "No Service/Repository layer; controllers call Eloquent directly", so Claude does not add a layer.
+- **Architecture matters most**: the business layer (Service/Action/Job/model), DTOs, query objects, module/domain folders, the entry-point method (`handle`/`execute`/`__invoke`).
+- **Evidence is required**: ≥3 consistent examples, with any competing style under ~20%. Otherwise skip it. For commands, the evidence is the CI config, composer scripts, or a successful trial run.
+- **Report conflicts; do not pick for the user.** If two styles both have a significant share, ask the user whether a boundary explains them (e.g. old vs. new modules); if not, report it as an unresolved conflict and record nothing.
+- **Leave what the tools enforce.** Style that Pint/Rector/PHPStan already enforce (per their enabled config) is not recorded.
+- **State the convention only**: 1–2 imperative sentences, at most one short syntax snippet. No counts, ratios or lists of evidence files.
 
-## Bước 0: Định hướng
+## Step 0: Orientation
 
-1. Đọc `AGENTS.md`, `CLAUDE.md` và 6 file `.claude/rules/laravel-*.md`: phần quy tắc chung (để biết gì đã là mặc định) và nội dung dự án đã điền (đã ghi thì bỏ qua, trừ khi được yêu cầu cập nhật).
-2. Đọc `composer.json` (phiên bản, package: Pest, Sanctum/Passport/JWT, Livewire/Inertia, Horizon, spatie/laravel-data…), `pint.json`, `phpstan.neon*`, `rector.php`, `phpunit.xml`, CI config.
-3. Liệt kê mọi thư mục trong `app/` (và `Modules/`, `src/`, `Domain/` nếu có). Thư mục ngoài skeleton mặc định (`Http`, `Models`, `Providers`, `Console`, `Exceptions`) là dấu hiệu kiến trúc cần xác nhận ở Bước 2.
-4. Xác định cách chạy lệnh: native, Sail, Docker (`docker-compose.yml`, `Makefile`, script trong `composer.json`, CI).
+1. Read `AGENTS.md`, `CLAUDE.md` and the 6 `.claude/rules/laravel-*.md` files: the general rules (to know what is already the default) and whatever the project has already filled in (skip anything already recorded, unless asked to update it).
+2. Read `composer.json` (versions; packages such as Pest, Sanctum/Passport/JWT, Livewire/Inertia, Horizon, spatie/laravel-data…), `pint.json`, `phpstan.neon*`, `rector.php`, `phpunit.xml`, and the CI config.
+3. List every directory under `app/` (and `Modules/`, `src/`, `Domain/` if present). Directories outside the default skeleton (`Http`, `Models`, `Providers`, `Console`, `Exceptions`) are architectural signals to confirm in Step 2.
+4. Determine how commands are run: natively, through Sail, or Docker (`docker-compose.yml`, `Makefile`, scripts in `composer.json`, CI).
 
-**Xong khi:** có danh sách package, tool, thư mục ngoài skeleton, cách chạy lệnh.
+**Done when:** you have the list of packages, tools, non-skeleton directories, and how commands are run.
 
-## Bước 1: Quét theo checklist
+## Step 1: Scan against the checklist
 
-Mở `references/checklist.md`, đi qua từng mục áp dụng được với dự án. Mỗi mục đọc vài file thật (không kết luận chỉ từ số đếm grep), rồi gán đúng 1 kết luận:
+Open `references/checklist.md` and go through every item that applies to the project. For each item, read a few real files (never conclude from grep counts alone), then assign exactly one verdict:
 
-| Kết luận | Ý nghĩa | Xử lý |
+| Verdict | Meaning | Action |
 |---|---|---|
-| Pattern | Đủ bằng chứng, là lựa chọn thật | Ứng viên ghi, kèm 2–3 file ví dụ |
-| Xung đột | 2 kiểu cùng đáng kể | Báo cáo kèm số lượng và file, hỏi user |
-| Mặc định | Nhất quán nhưng trùng quy tắc chung/mặc định Laravel | Bỏ qua |
-| Không đủ tín hiệu | Ít ví dụ hoặc không dùng | Bỏ qua |
-| Tool lo / đã ghi | Theo nguyên tắc ở trên | Bỏ qua |
+| Pattern | Enough evidence; a real choice | Candidate to record, with 2–3 example files |
+| Conflict | Two styles both significant | Report with counts and files; ask the user |
+| Default | Consistent, but the same as the general rules/Laravel defaults | Skip |
+| Insufficient signal | Too few examples, or not used | Skip |
+| Tool-enforced / already recorded | Per the principles above | Skip |
 
-Dự án lớn và có công cụ subagent: chia các nhóm checklist cho subagent chạy song song, mỗi subagent trả về (mục, kết luận, bằng chứng, câu đề xuất, file đích).
+On a large project, if a subagent tool is available: split the checklist groups across subagents running in parallel, each returning (item, verdict, evidence, proposed wording, destination file).
 
-**Xong khi:** mọi mục áp dụng được đều có đúng 1 kết luận.
+**Done when:** every applicable item has exactly one verdict.
 
-## Bước 2: Kiến trúc và đặc thù riêng
+## Step 2: Architecture and project quirks
 
-1. Với mỗi thư mục ngoài skeleton ở Bước 0: xác nhận cách dùng (VD Action gọi bằng `handle()`, inject vào controller; DTO là readonly class hay spatie/laravel-data) và áp dụng cùng tiêu chuẩn bằng chứng.
-2. Tìm thêm điểm riêng của codebase: base class/trait hầu hết code kế thừa, scope tenant/actor trong query, helper riêng, format response chung, exception riêng. Tối đa ~5 mục ngoài kiến trúc.
+1. For each non-skeleton directory from Step 0: confirm how it is used (e.g. Actions are called through `handle()` and injected into controllers; DTOs are readonly classes or spatie/laravel-data), applying the same evidence standard.
+2. Look for other codebase-specific traits: base classes/traits most code extends, tenant/actor scoping in queries, custom helpers, a shared response format, custom exceptions. At most ~5 items beyond architecture.
 
-## Bước 3: Xác nhận với user
+## Step 3: Confirm with the user
 
-Trình bày tất cả ứng viên **trong một lần**, nhóm theo file đích:
+Present all candidates **at once**, grouped by destination file:
 
 ```
-### AGENTS.md › Lệnh & môi trường
-1. [Pattern] Lệnh chạy trong container. Bằng chứng: .github/workflows/ci.yml, Makefile.
-   Đề xuất: "Test: `docker compose exec -T app ./vendor/bin/pest`"
+### AGENTS.md › Commands & environment
+1. [Pattern] Commands run inside a container. Evidence: .github/workflows/ci.yml, Makefile.
+   Proposed: "Test: `docker compose exec -T app ./vendor/bin/pest`"
 
-### AGENTS.md › Code & kiến trúc
-2. [Pattern] Nghiệp vụ trong Action (app/Actions, handle()). 14 Action, 0 Service.
-   Đề xuất: "Nghiệp vụ đặt trong Action (`app/Actions`, method `handle()`), inject vào controller. Không tạo Service, Repository."
+### AGENTS.md › Code & architecture
+2. [Pattern] Business logic in Actions (app/Actions, handle()). 14 Actions, 0 Services.
+   Proposed: "Business logic lives in Actions (`app/Actions`, method `handle()`), injected into controllers. Do not create Services or Repositories."
 
 ### laravel-pattern.md
-3. [Xung đột] Validation: 22 FormRequest, 9 controller dùng $request->validate(). Có ranh giới nào không?
+3. [Conflict] Validation: 22 FormRequests, 9 controllers use $request->validate(). Is there a boundary?
 
-### Cần user cung cấp (không suy ra từ code)
-- AGENTS.md › Quy trình làm việc: format branch, commit, PR?
-- AGENTS.md › Bảo mật: service bên ngoài được phép dùng, việc phải hỏi trước?
+### Needs the user (cannot be inferred from code)
+- AGENTS.md › Workflow: branch, commit and PR format?
+- AGENTS.md › Security: which external services are allowed, what must be asked first?
 ```
 
-Chỉ ghi những mục user đồng ý. User nói rõ "ghi hết", "không cần hỏi" thì ghi mọi Pattern; Xung đột vẫn phải hỏi.
+Record only the items the user approves. If the user explicitly says "record everything" or "no need to ask", record every Pattern; Conflicts still need asking.
 
-## Bước 4: Ghi
+## Step 4: Write
 
 **AGENTS.md:**
-- Ghi vào đúng mục; thay placeholder và xoá comment `<!-- -->` hướng dẫn của mục vừa điền. Mục chưa có thông tin thì giữ nguyên.
-- Lệnh ghi nguyên văn, chạy được ngay (kèm runner Docker/Sail nếu có).
-- Giữ toàn file dưới 200 dòng.
+- Write into the right section; replace the placeholder and delete the guidance `<!-- -->` comment of each section you fill. Leave sections with no information as they are.
+- Commands are recorded verbatim and runnable as-is (including the Docker/Sail runner if there is one).
+- Keep the whole file under 200 lines.
 
-**Rule** (`.claude/rules/laravel-*.md`):
-- Ghi vào mục `## Đặc thù dự án` của file đích, dưới câu mở đầu của mục. Không sửa phần quy tắc chung.
-- Mỗi convention 1 gạch đầu dòng, viết dạng mệnh lệnh, bỏ hết bằng chứng.
+**Rules** (`.claude/rules/laravel-*.md`):
+- Write into the `## Project-specific` section of the destination file, below the section's opening sentence. Do not edit the general rules.
+- One bullet per convention, in the imperative, with all evidence removed.
 
-Ghi thế này:
-> - Nghiệp vụ đặt trong Action (`app/Actions`, method `handle()`), inject vào controller. Không tạo Service.
+Write it like this:
+> - Business logic lives in Actions (`app/Actions`, method `handle()`), injected into controllers. Do not create Services.
 
-Không ghi thế này:
-> - Dự án có 14 Action và 0 Service (VD `app/Actions/CreateOrder.php`), nên dùng Action.
+Not like this:
+> - The project has 14 Actions and 0 Services (e.g. `app/Actions/CreateOrder.php`), so use Actions.
 
-**settings.json:** lệnh chạy qua Docker/Sail thì đề xuất allow rule tương ứng (VD `Bash(docker compose exec -T app ./vendor/bin/pest *)`), chỉ sửa khi user đồng ý. Allow rule không đặt `*` trước lệnh con.
+**settings.json:** for commands run through Docker/Sail, propose the matching allow rule (e.g. `Bash(docker compose exec -T app ./vendor/bin/pest *)`), and edit only with the user's approval. Allow rules never put `*` before the subcommand.
 
-## Bước 5: Báo cáo
+## Step 5: Report
 
-- Nội dung đã ghi (file, mục, nội dung)
-- Xung đột user chưa quyết định
-- Mục `AGENTS.md` còn trống, cần user điền
-- Mục không đủ tín hiệu đáng chú ý (1 dòng)
-- Nhắc commit `AGENTS.md`, `.claude/rules/laravel-*.md` và `.claude/settings.json` để cả team dùng chung
+- What was recorded (file, section, content)
+- Conflicts the user has not decided yet
+- `AGENTS.md` sections still empty, for the user to fill in
+- Notable items with insufficient signal (1 line)
+- A reminder to commit `AGENTS.md`, `.claude/rules/laravel-*.md` and `.claude/settings.json` so the whole team shares them

@@ -1,82 +1,82 @@
 ---
 name: laravel-endpoint
-description: Thêm hoặc sửa một endpoint Laravel (API hoặc web form) từ đầu đến cuối - route, FormRequest, phân quyền, controller, Resource, test. Dùng khi được yêu cầu add/change an endpoint, route, API, CRUD action.
+description: Add or change a Laravel endpoint (API or web form) end to end - route, FormRequest, authorization, controller, Resource, tests. Use when asked to add/change an endpoint, route, API, or CRUD action.
 ---
 
 # Laravel Endpoint
 
-Quy trình thêm/sửa một endpoint. Mỗi bước trỏ tới rule trong `.claude/rules/laravel-*.md`; không chép lại rule ở đây.
+The procedure for adding or changing one endpoint. Each step points to a rule in `.claude/rules/laravel-*.md`; the rules are not repeated here.
 
-## Bước 0: Đọc bối cảnh (bắt buộc, trước khi viết code)
+## Step 0: Read the context (mandatory, before writing code)
 
-1. Đọc `.claude/rules/laravel-pattern.md`, `laravel-security.md`, `laravel-conventions.md`, `laravel-testing.md`, đặc biệt mục **Đặc thù dự án** của từng file. Endpoint dispatch job hoặc gọi dịch vụ ngoài thì đọc thêm `laravel-queue.md`.
-2. Xác định:
-   - **Actor** gọi endpoint (guest, user, admin…) và **guard** tương ứng.
-   - **Loại**: API (JSON) hay web (redirect/view/Inertia).
-   - Endpoint **mới** hay **sửa** endpoint có sẵn. Sửa thì đọc test hiện có của nó trước.
-3. Tìm 1–2 endpoint gần nhất cùng loại, cùng actor. Ghi lại cách chúng làm và làm theo:
-   - file route và group, middleware, cách đặt tên route
-   - vị trí và tên FormRequest, Policy, controller, lớp chứa nghiệp vụ (Service/Action/model…)
-   - format response (Resource, wrapper), cách trả lỗi
-4. Yêu cầu thiếu thông tin quyết định hành vi (ai được gọi, trường nào bắt buộc, status trả về) thì hỏi, không tự đoán.
+1. Read `.claude/rules/laravel-pattern.md`, `laravel-security.md`, `laravel-conventions.md` and `laravel-testing.md`, especially each file's **Project-specific** section. If the endpoint dispatches jobs or calls external services, also read `laravel-queue.md`.
+2. Establish:
+   - The **actor** calling the endpoint (guest, user, admin…) and its **guard**.
+   - The **kind**: API (JSON) or web (redirect/view/Inertia).
+   - Whether the endpoint is **new** or an **existing** one being changed. If existing, read its current tests first.
+3. Find the 1–2 nearest endpoints of the same kind and actor. Note how they do it and follow suit:
+   - route file and group, middleware, route naming
+   - location and name of the FormRequest, Policy, controller, and the class holding the business logic (Service/Action/model…)
+   - response format (Resource, wrapper), how errors are returned
+4. If the request lacks information that decides behaviour (who may call it, which fields are required, which status to return), ask; do not guess.
 
-## Bước 1: Route
+## Step 1: Route
 
-- Thêm vào **đúng file và group** của actor/guard; không khai báo lại middleware group đã có.
-- CRUD dùng `Route::apiResource`/`resource` (`->only([...])` nếu không đủ action); route lẻ đặt tên bằng `->name()`.
-- Route lồng có tham số con: `->scopeBindings()` hoặc giới hạn query theo cha.
-- Sinh URL trong code/test bằng `route('name')`, không hard-code path.
-- Kiểm tra: `php artisan route:list --path=<uri>` thấy đúng method, URI, name, middleware.
+- Add it to the **right file and group** for the actor/guard; do not redeclare an existing middleware group.
+- CRUD uses `Route::apiResource`/`resource` (`->only([...])` when not every action is needed); name standalone routes with `->name()`.
+- Nested routes with a child parameter: `->scopeBindings()`, or scope the query to the parent.
+- Generate URLs in code and tests with `route('name')`; never hard-code paths.
+- Check: `php artisan route:list --path=<uri>` shows the right method, URI, name and middleware.
 
-## Bước 2: Validation
+## Step 2: Validation
 
-- FormRequest mới theo quy ước tên (`Store{Model}Request`/`Update{Model}Request` hoặc theo use-case). Tạo bằng `php artisan make:request`.
-- Rule cho mọi field ghi vào DB; update dùng `sometimes` cho field không bắt buộc; `unique` khi update phải bỏ qua bản ghi hiện tại.
-- Upload, endpoint login/OTP/gửi mail: theo `laravel-security.md`.
+- A new FormRequest follows the naming convention (`Store{Model}Request`/`Update{Model}Request`, or named after the use case). Create it with `php artisan make:request`.
+- A rule for every field written to the database; updates use `sometimes` for optional fields; a `unique` rule on update must ignore the current record.
+- Uploads, and login/OTP/mail-sending endpoints: follow `laravel-security.md`.
 
-## Bước 3: Phân quyền
+## Step 3: Authorization
 
-- Endpoint mới **luôn** có kiểm tra quyền: Policy/Gate, `authorize()` trong FormRequest, hoặc middleware, theo cách dự án đang làm.
-- Bản ghi lấy theo ID phải giới hạn theo actor (relationship của user, Policy sau route model binding, hoặc `scopeBindings()`). Không để user A đọc/sửa bản ghi của user B (IDOR). Dữ liệu multi-tenant thiết kế mới: query qua relationship của actor để bản ghi ngoài phạm vi trả 404, không lộ là bản ghi tồn tại.
-- Policy chưa có cho model thì tạo bằng `php artisan make:policy {Model}Policy --model={Model}`.
+- A new endpoint **always** checks authorization: a Policy/Gate, `authorize()` in the FormRequest, or middleware, the way the project already does it.
+- Records fetched by ID must be scoped to the actor (the user's relationship, a Policy after route model binding, or `scopeBindings()`). User A must not be able to read or change user B's records (IDOR). For a new multi-tenant design, query through the actor's relationship so out-of-scope records return 404 and do not reveal that they exist.
+- If the model has no Policy yet, create one with `php artisan make:policy {Model}Policy --model={Model}`.
 
-## Bước 4: Controller & nghiệp vụ
+## Step 4: Controller & business logic
 
-- Controller: nhận FormRequest → gọi lớp nghiệp vụ theo cách dự án đang dùng → trả response. Không query Eloquent hay viết nghiệp vụ trong controller nếu dự án tách lớp.
-- Chỉ dùng `$request->validated()` (hoặc DTO nếu dự án có).
-- Ghi ≥2 bảng: transaction; job/mail/event phát ra bên trong phải chạy sau commit (xem `laravel-pattern.md` › Transaction).
-- Trả danh sách: paginate, eager load relationship mà Resource dùng.
+- The controller takes the FormRequest → calls the business layer the project uses → returns the response. If the project separates layers, do not query Eloquent or write business logic in the controller.
+- Use only `$request->validated()` (or a DTO, if the project has them).
+- Writes to ≥2 tables: a transaction; any job/mail/event dispatched inside it must run after commit (see `laravel-pattern.md` › Transactions & concurrency).
+- Returning a list: paginate, and eager load the relationships the Resource uses.
 
-## Bước 5: Response
+## Step 5: Response
 
-- API: trả qua Resource (hoặc format dự án dùng). Không trả thẳng Model. Chỉ lộ field client cần, không lộ field nội bộ/nhạy cảm.
-- Status: tạo mới 201, xoá 204 (hoặc theo dự án), lỗi nghiệp vụ qua exception của dự án.
-- Web: redirect kèm flash message hoặc view/Inertia theo trang cùng loại.
+- API: return through a Resource (or the project's format), never a Model directly. Expose only the fields the client needs; no internal or sensitive fields.
+- Status: 201 for creation, 204 for deletion (or the project's choice); business errors through the project's exceptions.
+- Web: redirect with a flash message, or render a view/Inertia page like similar pages do.
 
-## Bước 6: Test
+## Step 6: Tests
 
-Trước khi viết test, rà lại code vừa viết và code endpoint dùng tới. Gặp lỗi thiết kế thì báo user thay vì viết test hợp thức hoá nó, VD: action ghi dữ liệu mà không có validation, Policy có nhưng không được gọi, method rỗng.
+Before writing tests, review the code you just wrote and the code the endpoint relies on. If you find a design flaw, report it to the user rather than writing a test that enshrines it — e.g. an action that writes data without validation, a Policy that exists but is never called, an empty method.
 
-Viết Feature test theo `laravel-testing.md`, tối thiểu:
+Write Feature tests per `laravel-testing.md`, at minimum:
 
-| Case | Kiểm tra |
+| Case | Verify |
 |---|---|
-| Happy path | status, nội dung response (`assertJsonPath`/`assertJsonStructure`), DB (`assertDatabaseHas`…) |
-| Validation | 1 field bắt buộc thiếu hoặc sai → 422 + lỗi đúng field |
-| Chưa đăng nhập | status theo handler của dự án (API thường 401, web thường 302) |
-| Sai quyền | user không đủ quyền → 403 (hoặc 404 nếu dự án dùng) và DB không đổi |
-| Bản ghi của người khác | user/tenant A gọi lên bản ghi của B → bị chặn, DB không đổi |
+| Happy path | status, response content (`assertJsonPath`/`assertJsonStructure`), database (`assertDatabaseHas`…) |
+| Validation | 1 required field missing or invalid → 422 + error on the right field |
+| Unauthenticated | status per the project's handler (API usually 401, web usually 302) |
+| Unauthorized | a user without permission → 403 (or 404 if the project uses it) and the database unchanged |
+| Someone else's record | user/tenant A calling on B's record → blocked, database unchanged |
 
-Thêm case cho từng nhánh nghiệp vụ quan trọng và side-effect (fake + assert cả trường hợp không xảy ra).
+Add a case for each significant business branch and side effect (fake it and assert the negative case too).
 
-Chạy test vừa viết bằng `--filter`, rồi chạy các test cùng thư mục.
+Run the new tests with `--filter`, then the tests in the same directory.
 
-## Bước 7: Hoàn tất
+## Step 7: Wrap up
 
-1. Chạy format/static analysis theo `laravel-conventions.md` › Công cụ & style trên file đã sửa.
-2. Báo cáo:
-   - File đã tạo/sửa
+1. Run formatting/static analysis per `laravel-conventions.md` › Tooling & style on the changed files.
+2. Report:
+   - Files created/changed
    - Route (method, URI, name, middleware)
-   - Quyền: ai được gọi, kiểm tra ở đâu
-   - Test đã thêm và kết quả lệnh chạy
-   - Điểm cần người review quyết định (nếu có)
+   - Authorization: who may call it, and where that is checked
+   - Tests added and the output of the test run
+   - Points the reviewer needs to decide (if any)

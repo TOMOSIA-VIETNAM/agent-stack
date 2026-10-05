@@ -5,72 +5,72 @@ paths:
 
 # Laravel Testing
 
-## Trước khi viết test
+## Before writing tests
 
-- Xác định framework: có `tests/Pest.php` hoặc `pestphp/pest` trong `composer.json` thì viết Pest, không thì PHPUnit. Không trộn 2 kiểu trong cùng thư mục.
-- Đọc `tests/Pest.php`, `tests/TestCase.php`, `phpunit.xml` để biết: DB test (SQLite/MySQL/Postgres), trait đã bật sẵn (`RefreshDatabase`…), helper dùng chung, setup chung. Không thêm lại thứ đã có.
-- Đọc 1–2 test cùng loại gần nhất và làm theo cách viết của chúng.
-- Test cũ viết theo convention của dự án mà khác rule này: không xoá, không viết lại. Có nhược điểm thì nêu ra để user quyết định.
-- Chỉ dùng tool test dự án đã cài; thêm package/plugin test (browser test, mutation…) thì hỏi trước.
+- Identify the framework: if there is a `tests/Pest.php` or `pestphp/pest` in `composer.json`, write Pest; otherwise PHPUnit. Do not mix the two in one directory.
+- Read `tests/Pest.php`, `tests/TestCase.php` and `phpunit.xml` to learn: the test database (SQLite/MySQL/Postgres), traits already applied (`RefreshDatabase`…), shared helpers, shared setup. Do not add any of it again.
+- Read the 1–2 nearest tests of the same kind and follow their style.
+- Existing tests written to a project convention that differs from this rule: do not delete or rewrite them. If they have weaknesses, point them out and let the user decide.
+- Use only the testing tools the project already has installed; ask before adding a testing package/plugin (browser testing, mutation testing…).
 
-## Chạy test
+## Running tests
 
-- Chạy qua lệnh dự án đang dùng (`composer test`, `php artisan test`, `./vendor/bin/pest`…).
-- Khi đang code: chạy test liên quan (`--filter`). Trước khi báo xong: chạy toàn bộ suite.
-- Coverage: `pest --coverage` hoặc `php artisan test --coverage` (có `--min=N`); PHPUnit thuần dùng `--coverage-text` (không có `--min`). Cần PCOV hoặc Xdebug với `XDEBUG_MODE=coverage`. Ngưỡng lấy từ CI config/`composer.json`, không tự đặt ngưỡng khác.
-- Test fail thì sửa code hoặc sửa test sai, không xoá test, không `->skip()`/`->todo()` (Pest), `markTestSkipped()`/`markTestIncomplete()` (PHPUnit), không nới assertion để qua.
+- Run through the project's command (`composer test`, `php artisan test`, `./vendor/bin/pest`…).
+- While coding: run the relevant tests (`--filter`). Before reporting done: run the full suite.
+- Coverage: `pest --coverage` or `php artisan test --coverage` (supports `--min=N`); plain PHPUnit uses `--coverage-text` (no `--min`). Requires PCOV, or Xdebug with `XDEBUG_MODE=coverage`. Take the threshold from the CI config/`composer.json`; never set a different one.
+- When a test fails, fix the code or fix the wrong test; never delete the test, `->skip()`/`->todo()` it (Pest), `markTestSkipped()`/`markTestIncomplete()` it (PHPUnit), or weaken the assertion to make it pass.
 
-## Đặt test ở đâu
+## Where tests go
 
-- Tạo test bằng `php artisan make:test {Name}Test` (thêm `--unit`/`--pest` theo dự án); `{Name}` không kèm `Feature/`/`Unit/`.
-- Mặc định viết Feature test; Unit test chỉ cho logic không dùng framework (tính toán, chuyển đổi dữ liệu).
-- `tests/Feature/`: gọi qua HTTP, console, job; kiểm tra behavior xuyên nhiều lớp, authorization, validation.
-- `tests/Unit/`: logic của một class, mirror cấu trúc `app/`. Tên file `{Class}Test.php`. Mặc định Unit test không boot Laravel nên không dùng được DB, facade, container; cần những thứ đó thì viết Feature test, trừ khi `tests/Pest.php`/`TestCase` của dự án đã cấu hình khác.
-- HTTP test tập trung vào status, validation, quyền và format response. Logic nhiều nhánh test ở lớp chứa logic đó (Service/Action/Model…), không dồn hết vào HTTP test.
-- Tên test mô tả behavior (`it('rejects cancel after shipment')`), không mô tả implementation.
+- Create tests with `php artisan make:test {Name}Test` (add `--unit`/`--pest` to match the project); `{Name}` has no `Feature/`/`Unit/` prefix.
+- Default to Feature tests; Unit tests only for framework-independent logic (calculations, data transformation).
+- `tests/Feature/`: exercised through HTTP, console or jobs; verifies behaviour across layers, authorization, validation.
+- `tests/Unit/`: one class's logic, mirroring the `app/` structure. Filename `{Class}Test.php`. By default Unit tests do not boot Laravel, so the database, facades and container are unavailable; if you need them, write a Feature test, unless the project's `tests/Pest.php`/`TestCase` is configured otherwise.
+- HTTP tests focus on status, validation, authorization and response format. Branch-heavy logic is tested at the layer that holds it (Service/Action/Model…), not piled into HTTP tests.
+- Test names describe behaviour (`it('rejects cancel after shipment')`), not implementation.
 
-## Dữ liệu
+## Test data
 
-- Tạo dữ liệu bằng factory và state (`User::factory()->admin()->create()`), không insert tay, không hard-code ID.
-- Mỗi test tự tạo dữ liệu nó cần, không phụ thuộc thứ tự chạy hay dữ liệu test khác để lại.
-- Chỉ tạo đúng lượng dữ liệu test cần; thiếu state thì thêm vào factory thay vì lặp attribute ở nhiều test.
+- Build data with factories and states (`User::factory()->admin()->create()`); no manual inserts, no hard-coded IDs.
+- Each test creates the data it needs; never depend on run order or on data another test left behind.
+- Create only as much data as the test needs; if a state is missing, add it to the factory instead of repeating attributes across tests.
 
-## HTTP test
+## HTTP tests
 
-- API dùng `getJson`/`postJson`/`putJson`/`patchJson`/`deleteJson` (tự gửi `Accept: application/json`).
-- Assert status cụ thể (`assertCreated()`, `assertForbidden()`…), không chỉ `assertSuccessful()`.
-- Assert nội dung response bằng `assertJsonPath()`/`assertJsonStructure()`; lỗi validate bằng `assertJsonValidationErrors(['field'])` (chỉ JSON) hoặc `assertInvalid(['field'])` (cả JSON lẫn session).
-- Sau khi ghi, verify DB bằng assertion trên test case (`$this->…`, không phải `$response`): `assertDatabaseHas`/`assertDatabaseMissing`/`assertDatabaseCount`/`assertSoftDeleted`/`assertModelExists`.
-- Test validation bằng cách gửi input sai qua request rồi assert lỗi; không assert nội dung mảng `rules()`.
-- Đăng nhập bằng `actingAs($user, '<guard>')`; dự án nhiều guard thì luôn ghi rõ guard.
-- Dự án dùng Inertia: `use Inertia\Testing\AssertableInertia;` rồi `->assertInertia(fn (AssertableInertia $page) => $page->component('Orders/Show')->has('order'))`, không assert HTML/JSON thô.
+- APIs use `getJson`/`postJson`/`putJson`/`patchJson`/`deleteJson` (they send `Accept: application/json`).
+- Assert a specific status (`assertCreated()`, `assertForbidden()`…), not just `assertSuccessful()`.
+- Assert response content with `assertJsonPath()`/`assertJsonStructure()`; validation errors with `assertJsonValidationErrors(['field'])` (JSON only) or `assertInvalid(['field'])` (JSON and session).
+- After a write, verify the database with assertions on the test case (`$this->…`, not `$response`): `assertDatabaseHas`/`assertDatabaseMissing`/`assertDatabaseCount`/`assertSoftDeleted`/`assertModelExists`.
+- Test validation by sending invalid input through the request and asserting the errors; do not assert the contents of the `rules()` array.
+- Authenticate with `actingAs($user, '<guard>')`; in a multi-guard project always name the guard.
+- In an Inertia project: `use Inertia\Testing\AssertableInertia;` then `->assertInertia(fn (AssertableInertia $page) => $page->component('Orders/Show')->has('order'))`; do not assert raw HTML/JSON.
 
-## Phạm vi tối thiểu
+## Minimum coverage
 
-- Endpoint mới: 1 happy path, 1 lỗi validate (nếu có input), 1 lỗi quyền. Status thật xem test hiện có hoặc exception handler, không đoán. Mặc định của Laravel:
-  - Chưa đăng nhập: request JSON → 401 (`assertUnauthorized()`); request web → 302 về login.
-  - Không đủ quyền: 403 (`assertForbidden()`); 404 chỉ khi code dùng `denyAsNotFound()` hoặc query theo scope của user.
-- Logic có nhánh (điều kiện, tính tiền, trạng thái): mỗi nhánh quan trọng 1 test, gồm cả giá trị biên.
-- Sửa bug: viết test tái hiện bug (fail) trước, rồi mới sửa.
-- Thay đổi chỉ về câu chữ, style, layout không cần test mới.
-- Giá trị mong đợi viết cứng trong test (cố định input/thời gian), không tính lại bằng cùng công thức của code. So sánh chặt: `assertSame()` (PHPUnit), `toBe()` (Pest), không `assertEquals()`/`toEqual()` trừ khi cố ý so sánh lỏng.
+- A new endpoint: 1 happy path, 1 validation failure (if it takes input), 1 authorization failure. Take the actual status from existing tests or the exception handler; do not guess. Laravel's defaults:
+  - Unauthenticated: JSON request → 401 (`assertUnauthorized()`); web request → 302 to login.
+  - Unauthorized: 403 (`assertForbidden()`); 404 only when the code uses `denyAsNotFound()` or queries through the user's scope.
+- Branching logic (conditions, pricing, state transitions): one test per significant branch, including boundary values.
+- Fixing a bug: first write a test that reproduces it (and fails), then fix.
+- Changes to wording, style or layout alone need no new test.
+- Expected values are hard-coded in the test (with fixed input/time), not recomputed with the same formula as the code. Compare strictly: `assertSame()` (PHPUnit), `toBe()` (Pest), not `assertEquals()`/`toEqual()` unless loose comparison is intended.
 
-## Side-effect & phụ thuộc ngoài
+## Side effects & external dependencies
 
-- Gọi HTTP ra ngoài qua `Http`: `Http::fake([...pattern => response])` kèm `Http::preventStrayRequests()` (`Http::fake()` không tham số fake mọi request nên `preventStrayRequests` vô tác dụng). SDK tự dùng Guzzle (AWS, Stripe…) không bị `Http::fake` chặn: mock qua interface/container. Không gọi dịch vụ thật.
-- Code gọi `Http` có nhánh xử lý lỗi thì test cả response lỗi (`Http::response([], 500)`) và lỗi kết nối (`Http::failedConnection()` từ L11, hoặc callback ném `ConnectionException`).
-- Dùng fake của Laravel thay vì mock, đúng assertion của từng fake, và assert cả trường hợp không xảy ra:
+- Outbound HTTP through `Http`: `Http::fake([...pattern => response])` together with `Http::preventStrayRequests()` (`Http::fake()` with no arguments fakes every request, so `preventStrayRequests` does nothing). SDKs with their own Guzzle client (AWS, Stripe…) are not intercepted by `Http::fake`: mock them through an interface/the container. Never call the real service.
+- Code calling `Http` with an error-handling branch: test both an error response (`Http::response([], 500)`) and a connection failure (`Http::failedConnection()` from L11, or a callback that throws `ConnectionException`).
+- Prefer Laravel's fakes over mocks, use each fake's own assertions, and assert the negative case too:
   - `Queue::fake()`: `assertPushed`/`assertNotPushed`/`assertNothingPushed`
   - `Bus::fake()`: `assertDispatched`/`assertNotDispatched`/`assertChained`/`assertBatched`
-  - `Event::fake()`: `assertDispatched`/`assertNotDispatched`; fake chặn mọi listener (kể cả event của model), nên gọi sau khi tạo dữ liệu bằng factory hoặc dùng `Event::fake([OnlyThis::class])`
-  - `Mail::fake()`: `assertSent`/`assertNotSent`/`assertNothingSent`; mailable có queue dùng `assertQueued`/`assertNothingQueued`
+  - `Event::fake()`: `assertDispatched`/`assertNotDispatched`; the fake suppresses every listener (model events included), so call it after creating data with factories, or use `Event::fake([OnlyThis::class])`
+  - `Mail::fake()`: `assertSent`/`assertNotSent`/`assertNothingSent`; queued mailables use `assertQueued`/`assertNothingQueued`
   - `Notification::fake()`: `assertSentTo`/`assertNotSentTo`/`assertNothingSent`
   - `Storage::fake('disk')`: `Storage::disk('disk')->assertExists()`/`assertMissing()`
-- `Event::fake()`/`Queue::fake()` không tham số chỉ dùng khi test assert toàn bộ kết quả (`assertNothingPushed`…); còn lại truyền class cần fake. Assert cả payload khi dữ liệu là một phần hành vi (`assertPushed(X::class, fn ($job) => $job->orderId === $order->id)`).
-- Mock (Mockery, `$this->mock()`) chỉ cho phụ thuộc qua interface hoặc dịch vụ ngoài không có fake. Không mock Eloquent model, chính class đang test, facade `Request`/`Config` (dùng input của request test và `Config::set()`).
-- Thời gian: `$this->freezeTime()`/`$this->travelTo()`, không `sleep()`, không assert theo giờ thật. Code dùng `Sleep` thì `Sleep::fake()` + `Sleep::assertSlept(...)`.
-- Không để lại `withoutExceptionHandling()` trong test (làm đổi response đang kiểm tra). Kiểm tra exception được report dùng `Exceptions::fake()` + `Exceptions::assertReported(X::class)` (L11+).
+- Use `Event::fake()`/`Queue::fake()` with no arguments only when the test asserts the complete outcome (`assertNothingPushed`…); otherwise pass the classes to fake. Assert the payload too when the data is part of the behaviour (`assertPushed(X::class, fn ($job) => $job->orderId === $order->id)`).
+- Mocks (Mockery, `$this->mock()`) only for dependencies behind an interface, or external services with no fake. Never mock Eloquent models, the class under test, or the `Request`/`Config` facades (use the test request's input and `Config::set()`).
+- Time: `$this->freezeTime()`/`$this->travelTo()`; no `sleep()`, no assertions against the real clock. Code using `Sleep` gets `Sleep::fake()` + `Sleep::assertSlept(...)`.
+- Do not leave `withoutExceptionHandling()` in a test (it changes the response under test). To check that an exception is reported, use `Exceptions::fake()` + `Exceptions::assertReported(X::class)` (L11+).
 
-## Đặc thù dự án
+## Project-specific
 
-Quy định riêng của dự án. Khi khác hoặc cụ thể hơn quy tắc chung ở trên, làm theo mục này.
+Rules specific to this project. Where they differ from, or are more specific than, the general rules above, follow this section.
