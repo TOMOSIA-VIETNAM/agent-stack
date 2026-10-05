@@ -276,7 +276,7 @@ Nếu bạn đang viết các bước được đánh số thì đó là **skill
 
 **Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record, tất cả gate bằng `rails`.
 
-**Catalog đúng hai entry: Rails và Laravel.** Laravel hiện chưa có nội dung nào, và validator báo nó là `uncovered-technology` chứ không làm hỏng lần chạy.
+**Catalog đúng hai entry: Rails và Laravel**, và cả hai đều đã có rule và skill riêng. Framework nào có trong catalog mà chưa có nội dung thì validator báo là `uncovered-technology` chứ không làm hỏng lần chạy.
 
 > [!NOTE]
 > Một framework có trong catalog mà chưa có rule nào là **khoảng trống đã được ghi nhận, không phải bug**. Bổ sung nội dung cho nó là đóng góp có giá trị nhất.
