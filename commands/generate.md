@@ -95,13 +95,15 @@ node ${CLAUDE_PLUGIN_ROOT}/dist/agent-stack.mjs generate <flags> --out .
 ```
 
 The output lists every file that would be created, and any stale file from a previous
-run that would be removed. `CLAUDE.md` is merged, not replaced: only the block between
-the `agent-stack:begin` / `agent-stack:end` markers changes.
+run that would be removed. agent-stack writes no `CLAUDE.md`: Claude Code loads
+`.claude/rules/` on its own, and reads `AGENTS.md` only while there is no `CLAUDE.md`.
+In a project an earlier version generated into, the `agent-stack:begin` /
+`agent-stack:end` block is taken out of `CLAUDE.md`, and the file is removed if nothing
+else is left in it.
 
 **A file the project already has is left where it is.** The CLI compares every target
 path against the previous run's manifest: a path agent-stack has never written is the
-project's, so it is skipped, kept out of the manifest, and not `@`-imported into
-`CLAUDE.md`. Each one is reported as an `existing-file` warning naming the path. Read
+project's, so it is skipped and kept out of the manifest. Each one is reported as an `existing-file` warning naming the path. Read
 those warnings out in full — a rule the user expected may be one of them — and ask
 whether they want agent-stack's version instead. Only if they say yes, re-run with
 `--overwrite`, which takes over *every* such path, and say so before you do.
@@ -111,6 +113,17 @@ reported as `modified-file` and handled the same way: left as it is, dropped fro
 manifest, taken back only by `--overwrite`. Stale output the project edited is never
 deleted — it is reported as `retained-file`, and is the user's to keep or delete. Read
 both out in full, as you do `existing-file`.
+
+**`AGENTS.md` is written once.** When the knowledge base has an AGENTS.md template,
+agent-stack copies it only if the project has no `AGENTS.md`. An existing `AGENTS.md` is listed under `emit.leftAlone` and is never
+changed, not even by `--overwrite`. Tell the user a new `AGENTS.md` is a template for
+the team to fill in, and that later template changes do not reach it.
+
+**An `agents-md-shadowed` warning means `AGENTS.md` goes unread.** A `CLAUDE.md` or
+`CLAUDE.local.md` with the project's own content is still there, and while it is,
+Claude Code reads it instead of `AGENTS.md`. Read the warning out and suggest moving
+that content into `AGENTS.md`, or adding an `@AGENTS.md` line to the file. Do not edit
+either file yourself. Reading `AGENTS.md` directly needs Claude Code v2.1.277 or later.
 
 The CLI's own approval checklist needs a terminal, which a command run does not have,
 so it never appears here. **You are the approval step.** Show the preview, wait for the

@@ -18,7 +18,7 @@ const targets: InspectedTarget[] = [
   { id: 'rails-ruby', type: 'rule', path: '.claude/rules/rails-ruby.md', state: 'exists' },
   { id: 'rails-conventions', type: 'rule', path: '.claude/rules/rails-conventions.md', state: 'owned' },
   { id: 'rails-feature', type: 'skill', path: '.claude/skills/rails-feature', state: 'new' },
-  { id: 'preamble', type: 'claude-md', state: 'new' },
+  { id: 'guidelines', type: 'agent-md', state: 'new' },
 ];
 
 /** Drive the picker the way a keyboard would, one key at a time. */
@@ -38,7 +38,7 @@ describe('the approval checklist', () => {
       'rails-ruby',
       'rails-feature',
       'test',
-      'preamble',
+      'guidelines',
     ]);
     expect(state.items.filter((item) => !item.checked).map((item) => item.id)).toEqual([
       'rails-ruby',

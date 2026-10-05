@@ -32,12 +32,13 @@ thì commit `dist/` kèm theo, `npm run check` tự rebuild.
 | `knowledge/skills/framework/<fw>/<name>/SKILL.md` | `.claude/skills/<name>/`, kèm mọi file cạnh nó |
 | `knowledge/commands/<name>.md` | `.claude/commands/<name>.md` |
 | `knowledge/commands/framework/<fw>/<name>.md` | `.claude/commands/<fw>-<name>.md` |
-| `knowledge/claude-md/<name>.md` | inline vào `CLAUDE.md`, không ra file riêng |
+| `knowledge/agent-md/<name>.md` | `AGENTS.md`, chỉ khi dự án chưa có |
 
-**Rule** = quy ước, luôn trong context, `@`-import từ `CLAUDE.md`. **Skill** = quy trình
+**Rule** = quy ước, Claude Code tự nạp từ `.claude/rules/` (có `paths:` thì chỉ khi đụng file khớp). **Skill** = quy trình
 có các bước, chỉ nạp khi gặp việc — đang đánh số bước thì đó là skill; giữ `SKILL.md` dưới
 ~500 dòng, tài liệu dài để ra file riêng cùng thư mục. **Command** = thứ lập trình viên gõ.
-**Fragment `claude-md/`** = hướng dẫn thuộc về chính `CLAUDE.md` của dự án đích.
+**Template `agent-md/`** = khung `AGENTS.md` seed một lần; sau đó file là của dự án, sửa
+template không tới được dự án đã có. Hai template cùng khớp một stack là lỗi `ambiguous-agents-md`.
 
 Sáu điều dễ sai:
 
@@ -54,7 +55,7 @@ Sáu điều dễ sai:
   trong command, rule thì không cần gì.
 - **Việc chọn không nhìn version.** Nội dung chỉ đúng từ một release nào đó thì nói rõ
   trong thân file.
-- Thứ tự `@`-import theo alphabet của tên đầu ra. Muốn rule nằm trên thì đặt tên xếp trước.
+- Thứ tự là alphabet của tên đầu ra trên đĩa — không có trường `priority` để đẩy rule lên trên.
 
 Rule và skill sẽ được áp lên code thật: ưu tiên thứ đã thấy hiệu quả hơn thứ nghe có vẻ
 đúng, cụ thể đủ để làm theo, và nói *vì sao* khi lý do không hiển nhiên.
@@ -88,9 +89,9 @@ chất liệu của hai invariant.
 
 Sau đó là phần viết nội dung, và xoá phần không cần: một framework chỉ có rule vẫn hợp lệ —
 validator báo `uncovered-technology` chứ không fail; một file còn nguyên placeholder thì tệ
-hơn là không có file đó. Cần hướng dẫn nằm inline trong `CLAUDE.md` của dự án đích thì thêm
-`knowledge/claude-md/framework/<fw>/<name>.md` — không có khung, vì nó chỉ là Markdown bắt
-đầu bằng `##`.
+hơn là không có file đó. Cần khung `AGENTS.md` riêng cho framework thì thêm
+`knowledge/agent-md/framework/<fw>/<name>.md` — không có khung, và chỉ một template được
+khớp mỗi stack.
 
 Khung rule có khối `paths:` với glob placeholder — thay bằng glob thật của framework, hoặc
 xoá cả khối nếu quy ước áp dụng cho mọi file. Khung skill thì không: `description` là thứ
@@ -124,8 +125,7 @@ it('selects the Laravel layer from the framework alone', async () => {
 });
 ```
 
-`npm run try` seed sẵn một `CLAUDE.md` viết tay, nên mỗi lần chạy cũng chứng minh generator
-chỉ merge block của nó mà không đụng chữ xung quanh. Đọc cây file thật thay vì chỉ tin test;
+`npm run try` in ra `AGENTS.md` có được seed hay không. Đọc cây file thật thay vì chỉ tin test;
 mở `.agent-stack-try/` bằng Claude Code để thấy rule và skill được nạp.
 
 ## Nội dung import — đừng đụng vào

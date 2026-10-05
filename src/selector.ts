@@ -17,8 +17,11 @@ export interface Selection {
   rules: SelectedArtifact[];
   skills: SelectedArtifact[];
   commands: SelectedArtifact[];
-  /** Fragments inlined into CLAUDE.md. */
-  claudeMd: SelectedArtifact[];
+  /**
+   * The template that seeds AGENTS.md. More than one is a finding, not a
+   * choice: they would all claim the same file.
+   */
+  agentMd: SelectedArtifact[];
   skipped: SkippedArtifact[];
   /** Selected technologies with no artifact covering them at all. */
   uncovered: ResolvedTech[];
@@ -49,7 +52,7 @@ function matches(artifact: Artifact, stack: ResolvedStack): MatchResult {
 
 /** Choose the rules and skills that cover the resolved stack. */
 export function selectArtifacts(kb: KnowledgeBase, stack: ResolvedStack): Selection {
-  const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
+  const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.agentMd];
 
   const selected = new Map<string, SelectedArtifact>();
   const skipped: SkippedArtifact[] = [];
@@ -57,7 +60,8 @@ export function selectArtifacts(kb: KnowledgeBase, stack: ResolvedStack): Select
   for (const artifact of all) {
     const result = matches(artifact, stack);
     if (result.ok) {
-      selected.set(artifact.meta.id, { artifact, matchedBy: result.matchedBy });
+      // Keyed by type and id: a template and a rule may share a name.
+      selected.set(artifactKey(artifact.meta), { artifact, matchedBy: result.matchedBy });
     } else {
       skipped.push({ artifact, reason: result.reason });
     }
@@ -77,7 +81,7 @@ export function selectArtifacts(kb: KnowledgeBase, stack: ResolvedStack): Select
     rules: [...selected.values()].filter((e) => e.artifact.meta.type === 'rule').sort(order),
     skills: [...selected.values()].filter((e) => e.artifact.meta.type === 'skill').sort(order),
     commands: [...selected.values()].filter((e) => e.artifact.meta.type === 'command').sort(order),
-    claudeMd: [...selected.values()].filter((e) => e.artifact.meta.type === 'claude-md').sort(order),
+    agentMd: [...selected.values()].filter((e) => e.artifact.meta.type === 'agent-md').sort(order),
     skipped: skipped.sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
     uncovered,
   };
@@ -119,10 +123,10 @@ export function excludeArtifacts(
   const rules = keep(selection.rules);
   const skills = keep(selection.skills);
   const commands = keep(selection.commands);
-  const claudeMd = keep(selection.claudeMd);
+  const agentMd = keep(selection.agentMd);
 
   const covered = new Set(
-    [...rules, ...skills, ...commands, ...claudeMd].flatMap(
+    [...rules, ...skills, ...commands, ...agentMd].flatMap(
       (entry) => entry.artifact.meta.applies_to,
     ),
   );
@@ -131,13 +135,13 @@ export function excludeArtifacts(
     rules,
     skills,
     commands,
-    claudeMd,
+    agentMd,
     skipped: [
       ...selection.skipped,
       ...dropped(selection.rules),
       ...dropped(selection.skills),
       ...dropped(selection.commands),
-      ...dropped(selection.claudeMd),
+      ...dropped(selection.agentMd),
     ].sort((a, b) => a.artifact.meta.id.localeCompare(b.artifact.meta.id)),
     uncovered: stack.technologies.filter((tech) => !covered.has(tech.id)),
   };

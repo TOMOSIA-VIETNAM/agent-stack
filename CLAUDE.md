@@ -11,8 +11,10 @@ out loud, not slip through:
 1. **Selection is deterministic.** Resolution, compatibility checking, composition and
    validation run in TypeScript under `src/`. A model maps a request to CLI flags and
    relays conflicts to the operator. It decides nothing else and writes no content.
-   Neither does the generator: a selected file is **copied byte for byte**. The one
-   exception is `CLAUDE.md`, which agent-stack composes rather than copies.
+   Neither does the generator: a selected file is **copied byte for byte**, with no
+   exception. agent-stack composes no document: it writes no `CLAUDE.md`. `AGENTS.md`
+   is copied too, but only when the project has none: it is a template the team fills
+   in, so it belongs to the project from the moment it is written.
    The approval checklist only **narrows** that result: it drops artifacts, never adds
    one, and never touches what a kept artifact contains. An unattended run and an
    approved one differ in what was dropped and in nothing else.
@@ -47,7 +49,7 @@ One concern per module. Put a change where the concern already lives:
 | `upstream.ts` | What was copied from where, and under which licence |
 | `resolver.ts` | Expanding the technology graph over `requires`, reporting conflicts |
 | `selector.ts` | Which artifacts apply to a resolved stack |
-| `composer.ts` | Deciding where each file lands, merging the CLAUDE.md block |
+| `composer.ts` | Deciding where each file lands, the manifest, the legacy CLAUDE.md block |
 | `prompt.ts` | The terminal approval checklist, and nothing else |
 | `validator.ts` | Completeness and consistency findings |
 | `emit.ts` | The only module that writes or deletes; what is on disk versus the manifest |
@@ -58,10 +60,18 @@ One concern per module. Put a change where the concern already lives:
 the project has edited since.** Never widen that. Everything outside the manifest
 belongs to the user, and so does anything inside it that the user changed.
 
+One exception, and only one: a `CLAUDE.md` an earlier version wrote its
+`agent-stack:begin` / `agent-stack:end` block into. Claude Code reads `AGENTS.md` only
+while no `CLAUDE.md` exists, so the block is taken out — and the file removed when
+nothing else is left in it. It is bounded like the rule it bends: only in a project
+with a previous manifest, only the text between agent-stack's own markers, and the
+file only when nothing of the project's remains. A `CLAUDE.md` with the project's own
+text, or a `CLAUDE.local.md`, is never touched; it is reported as `agents-md-shadowed`.
+
 The same manifest decides what may be *written over*. `inspectTargets` marks a target
 `owned` when the previous manifest lists it, and `exists` when something is there that
 agent-stack never wrote. An `exists` path is dropped from the selection — not emitted,
-not in the new manifest, not `@`-imported — and reported as a waivable warning. Only
+not in the new manifest — and reported as a waivable warning. Only
 `--overwrite`, or a tick in the checklist, takes it over. A run must never acquire a
 file by being run twice.
 
@@ -77,8 +87,9 @@ what a run would add, update or remove. Keep it built from the same pipeline —
 second definition of "up to date" would drift from the generator. It exits 3 when the
 project is behind.
 
-`CLAUDE.md` in a generated project is merged, never replaced: only the text between the
-`agent-stack:begin` / `agent-stack:end` markers changes.
+Nothing is `@`-imported. Claude Code loads `.claude/rules/` on its own — a rule without
+`paths:` front matter at launch, one with it only when Claude touches a matching file —
+and an import would load a path-scoped rule at launch, undoing its scope.
 
 ## Input
 
@@ -114,7 +125,7 @@ knowledge/
 ├── rules/framework/<fw>/<name>.md        -> .claude/rules/<fw>-<name>.md
 ├── skills/framework/<fw>/<name>/SKILL.md -> .claude/skills/<name>/, with its files
 ├── commands/<name>.md                    -> .claude/commands/<name>.md
-└── claude-md/<name>.md                   -> inlined into CLAUDE.md, no file emitted
+└── agent-md/<name>.md                    -> AGENTS.md, written only if absent
 ```
 
 **The path is the metadata, and the file is never touched.** Four things are read off
@@ -122,7 +133,7 @@ the path and nothing at all is read out of the file:
 
 | Derived | From |
 | --- | --- |
-| `type` | the top directory — `rules/`, `skills/`, `commands/`, `claude-md/` |
+| `type` | the top directory — `rules/`, `skills/`, `commands/`, `agent-md/` |
 | `layer` | segment 2, when it is `global` or `framework`; otherwise `global` |
 | `applies_to` | the framework directory under `framework/` |
 | `id` | the rest of the path joined with `-`, minus `.md`. A skill's is its own directory name |
@@ -142,24 +153,29 @@ A skill has no such prefix, so two skill directories of the same name are a load
 naming both files — renaming one behind the author's back would change the name Claude
 matches against.
 
-Ordering is alphabetical by that id, on disk and in the `@`-imports alike. There is no
+Ordering is alphabetical by that id, on disk and in every listing. There is no
 `priority` field, and no numeric prefix, because a field that exists only to fight the
 sort order is one more thing to keep in sync.
 
-Rule = a convention, always in context, `@`-imported from CLAUDE.md. Skill = a procedure
+Rule = a convention, loaded by Claude Code from `.claude/rules/`. Skill = a procedure
 with steps, loaded when the task comes up. Command = something the developer types.
-CLAUDE.md fragment = guidance that belongs in the project's CLAUDE.md itself.
+AGENTS.md template = a skeleton the team fills in, which Claude Code reads (v2.1.277+).
+
+A top-level directory under `knowledge/` that is none of these fails lint by name, so
+content cannot sit where the loader never looks. `claude-md/` was a type until
+agent-stack stopped writing `CLAUDE.md`.
+
+**The AGENTS.md template is a seed, not output.** `emit` copies it with `COPYFILE_EXCL`
+when the project has no `AGENTS.md`, and otherwise reports it under `leftAlone`. It is
+never in the manifest, has no checksum, is never removed and is out of `--overwrite`'s
+reach: once written, every byte of it is the project's. Two templates matching one stack
+is an `ambiguous-agents-md` error — picking one would be resolving a conflict silently.
 
 **agent-stack does not read or write front matter.** Whatever a file carries is Claude's
 to read: `name` and `description` in a `SKILL.md`, `description` in a command, nothing at
 all in a rule if you want nothing. Put no agent-stack metadata in a file — there is none
 to put, and anything you add is copied into every generated project.
 `knowledge/README.md` is the full reference for the layout.
-
-**A fragment is the one thing inlined rather than copied**, because it becomes part of a
-document agent-stack composes. Only there, and only for that reason, are two things
-dropped: a leading front-matter block, which would be nonsense partway down a Markdown
-file, and a leading `# Title`, which would give the project a second `h1`.
 
 ## Imported content
 

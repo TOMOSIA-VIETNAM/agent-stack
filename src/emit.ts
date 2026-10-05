@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
+import { constants } from 'node:fs';
 import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import {
+  AGENTS_MD_PATH,
   MANIFEST_PATH,
-  mergeClaudeMd,
+  withoutManagedBlock,
   type ArtifactTarget,
   type ComposedOutput,
   type Manifest,
@@ -20,6 +22,18 @@ export interface EmitPlan {
    * agent-stack's: deleting them would delete the project's work.
    */
   retained: string[];
+  /**
+   * Paths this run would seed, but that the project already has — AGENTS.md
+   * once it exists. Not a warning: a seed is written once and then belongs to
+   * the project, so finding it there is the normal case.
+   */
+  leftAlone: string[];
+  /**
+   * Files Claude Code reads *instead of* AGENTS.md: while a CLAUDE.md or
+   * CLAUDE.local.md is there, AGENTS.md is not loaded. They are the project's,
+   * so they are reported, never touched.
+   */
+  shadowing: string[];
 }
 
 export interface EmitResult extends EmitPlan {
@@ -166,18 +180,74 @@ export async function finalManifest(composed: ComposedOutput): Promise<Manifest>
  * it did write that the project has edited since.
  */
 export async function planEmit(outDir: string, composed: ComposedOutput): Promise<EmitPlan> {
-  const write = [...composed.files.map((file) => file.path), MANIFEST_PATH, 'CLAUDE.md'].sort();
-  const previous = await readPreviousManifest(outDir);
-  if (!previous) return { write, remove: [], retained: [] };
-
-  const next = new Set(ownedPaths(composed.manifest));
-  const remove: string[] = [];
-  const retained: string[] = [];
-  for (const path of ownedPaths(previous).filter((path) => !next.has(path)).sort()) {
-    (await isModified(outDir, previous, path) ? retained : remove).push(path);
+  const write = [...composed.files.map((file) => file.path), MANIFEST_PATH];
+  const leftAlone: string[] = [];
+  const agentsMdThere =
+    composed.agentsMd !== undefined && (await exists(join(outDir, composed.agentsMd.path)));
+  if (composed.agentsMd) {
+    (agentsMdThere ? leftAlone : write).push(composed.agentsMd.path);
   }
 
-  return { write, remove, retained };
+  const previous = await readPreviousManifest(outDir);
+  const remove: string[] = [];
+  const retained: string[] = [];
+  if (previous) {
+    const next = new Set(ownedPaths(composed.manifest));
+    for (const path of ownedPaths(previous).filter((path) => !next.has(path))) {
+      (await isModified(outDir, previous, path) ? retained : remove).push(path);
+    }
+  }
+
+  const cleanup = await claudeMdCleanup(outDir, previous);
+  if (cleanup?.next === '') remove.push(CLAUDE_MD);
+  else if (cleanup) write.push(CLAUDE_MD);
+
+  const shadowing: string[] = [];
+  if (composed.agentsMd || (await exists(join(outDir, AGENTS_MD_PATH)))) {
+    for (const path of [CLAUDE_MD, CLAUDE_LOCAL_MD]) {
+      if (path === CLAUDE_MD && cleanup?.next === '') continue;
+      if (await exists(join(outDir, path))) shadowing.push(path);
+    }
+  }
+
+  return {
+    write: write.sort(),
+    remove: remove.sort(),
+    retained: retained.sort(),
+    leftAlone,
+    shadowing,
+  };
+}
+
+const CLAUDE_MD = 'CLAUDE.md';
+const CLAUDE_LOCAL_MD = 'CLAUDE.local.md';
+
+/**
+ * What becomes of a CLAUDE.md an earlier version of agent-stack wrote its block
+ * into: the block comes out, and a file left with nothing else in it goes —
+ * a CLAUDE.md that exists at all stops Claude Code reading AGENTS.md.
+ *
+ * This is the one removal the previous manifest does not list. It is bounded
+ * the same way: only in a project agent-stack has generated into, only the
+ * text between its own markers, and the file only when nothing of the
+ * project's is left in it.
+ */
+async function claudeMdCleanup(
+  outDir: string,
+  previous: Manifest | undefined,
+): Promise<{ next: string } | undefined> {
+  if (previous === undefined) return undefined;
+  const existing = await readFile(join(outDir, CLAUDE_MD), 'utf8').catch(() => undefined);
+  if (existing === undefined) return undefined;
+  const next = withoutManagedBlock(existing);
+  return next === undefined ? undefined : { next };
+}
+
+async function exists(path: string): Promise<boolean> {
+  return stat(path).then(
+    () => true,
+    () => false,
+  );
 }
 
 export type PendingChange = 'add' | 'update' | 'remove';
@@ -204,10 +274,10 @@ export async function pendingChanges(
     }
   }
 
-  const claudeMd = await readFile(join(outDir, 'CLAUDE.md'), 'utf8').catch(() => undefined);
-  if (claudeMd === undefined) changes.push({ path: 'CLAUDE.md', change: 'add' });
-  else if (mergeClaudeMd(claudeMd, composed.claudeMdBlock) !== claudeMd) {
-    changes.push({ path: 'CLAUDE.md', change: 'update' });
+  // Only ever an addition: once AGENTS.md exists it is the project's, so how far
+  // it has moved from the template is not the project falling behind.
+  if (composed.agentsMd && !(await exists(join(outDir, composed.agentsMd.path)))) {
+    changes.push({ path: composed.agentsMd.path, change: 'add' });
   }
 
   const previous = await readPreviousManifest(outDir);
@@ -217,7 +287,9 @@ export async function pendingChanges(
     changes.push({ path: MANIFEST_PATH, change: 'update' });
   }
 
-  for (const path of (await planEmit(outDir, composed)).remove) {
+  const plan = await planEmit(outDir, composed);
+  if (plan.write.includes(CLAUDE_MD)) changes.push({ path: CLAUDE_MD, change: 'update' });
+  for (const path of plan.remove) {
     changes.push({ path, change: 'remove' });
   }
 
@@ -233,6 +305,9 @@ export async function emit(
   if (options.dryRun) {
     return { ...plan, outDir, dryRun: true };
   }
+  // Worked out before this run's manifest replaces the previous one, which is
+  // what decides whether there is a block of agent-stack's to take out.
+  const cleanup = await claudeMdCleanup(outDir, await readPreviousManifest(outDir));
 
   for (const file of composed.files) {
     const target = join(outDir, file.path);
@@ -244,9 +319,21 @@ export async function emit(
   await mkdir(dirname(manifestPath), { recursive: true });
   await writeFile(manifestPath, `${JSON.stringify(await finalManifest(composed), null, 2)}\n`, 'utf8');
 
-  const claudeMdPath = join(outDir, 'CLAUDE.md');
-  const existing = await readFile(claudeMdPath, 'utf8').catch(() => undefined);
-  await writeFile(claudeMdPath, mergeClaudeMd(existing, composed.claudeMdBlock), 'utf8');
+  // COPYFILE_EXCL, not a check-then-copy: the copy itself refuses to replace a
+  // file, so an AGENTS.md that appeared since planning still survives.
+  if (composed.agentsMd) {
+    await copyFile(
+      composed.agentsMd.copyFrom,
+      join(outDir, composed.agentsMd.path),
+      constants.COPYFILE_EXCL,
+    ).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== 'EEXIST') throw error;
+    });
+  }
+
+  if (cleanup && cleanup.next !== '') {
+    await writeFile(join(outDir, CLAUDE_MD), cleanup.next, 'utf8');
+  }
 
   for (const path of plan.remove) {
     await rm(join(outDir, path), { recursive: true, force: true });

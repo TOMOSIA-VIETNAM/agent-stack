@@ -15,7 +15,7 @@ export interface PickerItem {
   key: string;
   id: string;
   type: ArtifactType;
-  /** Where it lands; absent for a fragment, which is spliced into CLAUDE.md. */
+  /** Where it lands; absent for the AGENTS.md template, which never collides. */
   path?: string;
   state: TargetState;
   checked: boolean;
@@ -37,13 +37,13 @@ export type PickerKey =
   | 'confirm'
   | 'cancel';
 
-const TYPE_ORDER: ArtifactType[] = ['rule', 'skill', 'command', 'claude-md'];
+const TYPE_ORDER: ArtifactType[] = ['rule', 'skill', 'command', 'agent-md'];
 
 const TYPE_LABEL: Record<ArtifactType, string> = {
   rule: 'Rules',
   skill: 'Skills',
   command: 'Commands',
-  'claude-md': 'CLAUDE.md fragments',
+  'agent-md': 'AGENTS.md template (written only if absent)',
 };
 
 const STATE_NOTE: Record<TargetState, string> = {

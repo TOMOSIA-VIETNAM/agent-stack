@@ -26,8 +26,6 @@ export interface Artifact {
   meta: ArtifactMeta;
   /** The file itself, absolute. Copied into the project unchanged. */
   path: string;
-  /** Loaded only for `claude-md`, which is inlined rather than copied. */
-  contents?: string;
   /** Directory the file sits in; for a skill, the root of the whole skill. */
   dir: string;
   /** Path relative to the knowledge root, used in diagnostics. */
@@ -43,8 +41,8 @@ export interface KnowledgeBase {
   rules: Artifact[];
   skills: Artifact[];
   commands: Artifact[];
-  /** Inlined into the project's CLAUDE.md; nothing is emitted for these. */
-  claudeMd: Artifact[];
+  /** Seeds the project's AGENTS.md, written only when the project has none. */
+  agentMd: Artifact[];
   imported: ImportedSource[];
 }
 
@@ -135,11 +133,8 @@ async function loadArtifact(path: string, root: string, type: ArtifactType): Pro
     type === 'skill'
       ? (await listFiles(dir)).filter((file) => file !== path).map((file) => relative(dir, file))
       : [];
-  // Only a fragment's text is read. Every other type is copied without ever
-  // being opened.
-  const contents = type === 'claude-md' ? await readFile(path, 'utf8') : undefined;
-
-  return { meta: metaFromPath(source, type), path, dir, source, files, contents };
+  // Nothing is opened: every type is copied as it is.
+  return { meta: metaFromPath(source, type), path, dir, source, files };
 }
 
 function attachProvenance(artifacts: Artifact[], imported: ImportedSource[]): void {
@@ -186,9 +181,9 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
   const rules = await collect('rules', 'rule', (path) => path.endsWith('.md'));
   const skills = await collect('skills', 'skill', (path) => basename(path) === 'SKILL.md');
   const commands = await collect('commands', 'command', (path) => path.endsWith('.md'));
-  const claudeMd = await collect('claude-md', 'claude-md', (path) => path.endsWith('.md'));
+  const agentMd = await collect('agent-md', 'agent-md', (path) => path.endsWith('.md'));
 
-  attachProvenance([...rules, ...skills, ...commands, ...claudeMd], imported);
+  attachProvenance([...rules, ...skills, ...commands, ...agentMd], imported);
 
   const kb: KnowledgeBase = {
     root,
@@ -196,21 +191,40 @@ export async function loadKnowledgeBase(root: string): Promise<KnowledgeBase> {
     rules,
     skills,
     commands,
-    claudeMd,
+    agentMd,
     imported,
   };
-  const problems = lintKnowledgeBase(kb);
+  const problems = [...lintKnowledgeBase(kb), ...(await unknownDirectories(root))].sort();
   if (problems.length > 0) {
     throw new Error(`Knowledge base is inconsistent:\n  - ${problems.join('\n  - ')}`);
   }
   return kb;
 }
 
+/** The directories the loader reads. Anything else at the top would be skipped. */
+const CONTENT_DIRS = ['rules', 'skills', 'commands', 'agent-md'];
+
+/**
+ * A top-level directory the loader does not read is content that would never
+ * be emitted, without a word. `claude-md/` is the likely one: it was a type
+ * until agent-stack stopped writing CLAUDE.md.
+ */
+async function unknownDirectories(root: string): Promise<string[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory() && !CONTENT_DIRS.includes(entry.name))
+    .map((entry) =>
+      entry.name === 'claude-md'
+        ? `claude-md/: agent-stack no longer writes CLAUDE.md — put project guidance in an agent-md/ template, or a rule`
+        : `${entry.name}/: not a content directory — the loader reads only ${CONTENT_DIRS.map((dir) => `${dir}/`).join(', ')}`,
+    );
+}
+
 /** Referential integrity of the knowledge base itself, independent of any stack. */
 export function lintKnowledgeBase(kb: KnowledgeBase): string[] {
   const problems: string[] = [];
   const techIds = new Set(Object.keys(kb.catalog.technologies));
-  const artifacts = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
+  const artifacts = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.agentMd];
   const byId = new Map<string, Artifact>();
 
   for (const artifact of artifacts) {

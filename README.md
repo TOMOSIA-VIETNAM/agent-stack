@@ -8,7 +8,7 @@
 <p align="center">
   <strong>Rule và skill AI cho dự án của bạn — được <em>chọn</em>, không phải được sinh ra.</strong><br>
   <strong>Mã nguồn mở. Tất định. Chạy offline.</strong><br>
-  <sub>Plugin Claude Code dựng <code>CLAUDE.md</code> + <code>.claude/</code> từ một knowledge base có kiểm duyệt, quản lý bằng Git</sub><br>
+  <sub>Plugin Claude Code dựng <code>.claude/</code> + <code>AGENTS.md</code> từ một knowledge base có kiểm duyệt, quản lý bằng Git</sub><br>
   <code>/agent-stack:generate</code> · <code>/agent-stack:check</code> · <code>/agent-stack:catalog</code>
 </p>
 
@@ -49,7 +49,7 @@ Chọn  →  Phân giải  →  Kết hợp  →  Kiểm tra
 - **Xung đột làm dừng cả lần chạy** — generator nêu tên xung đột và cờ để bỏ qua; nó không tự chọn bên thắng
 - **Bạn duyệt trước khi ghi** — checklist liệt kê từng rule, skill và command; tick cái nào ghi cái đó
 - **Chạy offline** — knowledge base đã được commit, nên lúc generate không đụng network
-- **Không phá gì** — `CLAUDE.md` merge trong cặp marker, file dự án tự viết hay đã sửa tay đều giữ nguyên, và chỉ file nằm trong manifest của lần chạy trước — chưa bị sửa — mới bị xoá
+- **Không phá gì** — `AGENTS.md` chỉ được tạo khi dự án chưa có, file dự án tự viết hay đã sửa tay đều giữ nguyên, và chỉ file nằm trong manifest của lần chạy trước — chưa bị sửa — mới bị xoá
 - **Biết dự án nào đã cũ** — `agent-stack check` so dự án với knowledge base hiện tại, không ghi gì, hợp làm bước trong CI
 
 ## Cài đặt
@@ -152,14 +152,18 @@ Model trong vòng lặp chỉ có đúng hai việc: biến một câu tiếng n
 ## Nó ghi ra những gì
 
 ```
-CLAUDE.md                              hướng dẫn chung và các @-import, trong cặp marker agent-stack
-.claude/rules/<tên>.md                 mỗi rule được chọn một file, copy nguyên văn
+AGENTS.md                              chỉ khi dự án chưa có — copy từ template, từ đó là của bạn
+.claude/rules/<tên>.md                 mỗi rule được chọn một file, copy nguyên văn, Claude Code tự nạp
 .claude/skills/<tên>/SKILL.md          mỗi skill được chọn một thư mục, kèm file của nó
 .claude/commands/<tên>.md              mỗi command được chọn một file
 .claude/agent-stack-manifest.json      lần chạy này sinh ra gì, và copy từ đâu
 ```
 
-`CLAUDE.md` được **merge chứ không bị thay thế**: chữ nằm ngoài cặp marker `agent-stack:begin` / `agent-stack:end` được giữ nguyên. Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
+agent-stack **không ghi `CLAUDE.md`**. Claude Code (v2.1.277+) đọc `AGENTS.md` trực tiếp, nhưng chỉ khi không có `CLAUDE.md` hay `CLAUDE.local.md`; còn `.claude/rules/*.md` thì Claude Code tự nạp — rule không có `paths:` nạp ngay lúc khởi động, rule có `paths:` chỉ nạp khi Claude đọc hoặc sửa file khớp glob. `AGENTS.md` được copy từ template **chỉ khi dự án chưa có**; sau đó nó là của bạn: không vào manifest, không bao giờ bị đè hay xoá, `--overwrite` cũng không đụng tới, và template đổi thì dự án đã có file không nhận được.
+
+Dự án agent-stack từng generate theo kiểu cũ: block `agent-stack:begin` / `agent-stack:end` bị gỡ khỏi `CLAUDE.md`, chữ ngoài cặp marker được giữ nguyên, và file chỉ bị xoá khi không còn gì khác. Nếu vẫn còn `CLAUDE.md` có nội dung của dự án, hoặc `CLAUDE.local.md`, cảnh báo `agents-md-shadowed` báo rằng Claude Code sẽ đọc nó thay vì `AGENTS.md` — chuyển nội dung sang `AGENTS.md`, hoặc thêm `@AGENTS.md` vào đó. Ngoài việc gỡ block của chính nó, agent-stack không sửa hai file này.
+
+Khi chạy lại, file nào có trong manifest lần trước mà lần này không còn được chọn sẽ bị xoá — và ngoài ra không xoá gì khác. Mọi thứ ngoài manifest là của bạn.
 
 Manifest ghi sha256 của từng file đã copy. **File agent-stack đã ghi mà bạn sửa tay thì thành của bạn**: lần chạy sau không đè (cảnh báo `modified-file`), không xoá kể cả khi nó không còn được chọn (cảnh báo `retained-file`), và rời khỏi manifest. Chỉ `--overwrite`, hoặc tick trong checklist, mới lấy lại. Thêm một file vào thư mục skill đã sinh cũng tính là sửa. Xoá một file thì không — không mất gì của bạn, nên lần sau nó được ghi lại. Manifest của bản 1.0.0 chưa có checksum, nên lần chạy đầu tiên sau khi nâng cấp chưa phân biệt được và xử lý như trước.
 
@@ -191,7 +195,7 @@ Skills (29)
 
 `space` một dòng · `g` cả nhóm · `a`/`n` tất cả/không cái nào · `enter` ghi · `q` huỷ, không ghi gì.
 
-**File dự án đã có, hoặc đã sửa từ lần chạy trước, thì mặc định không được tick** (`edited since the last run`). Một file agent-stack chưa từng ghi — không nằm trong manifest lần trước — là của bạn: không bị đè, không vào manifest, không được `@`-import vào `CLAUDE.md`. Tick nó, hoặc chạy `--overwrite`, thì agent-stack mới nhận lấy.
+**File dự án đã có, hoặc đã sửa từ lần chạy trước, thì mặc định không được tick** (`edited since the last run`). Một file agent-stack chưa từng ghi — không nằm trong manifest lần trước — là của bạn: không bị đè, không vào manifest. Tick nó, hoặc chạy `--overwrite`, thì agent-stack mới nhận lấy.
 
 Không có terminal — `--json`, CI, hay gọi qua slash command — thì checklist không hiện, nhưng mặc định vẫn y nguyên, và mỗi đường dẫn bị bỏ qua đều in ra kèm cờ để bỏ qua nó.
 
@@ -199,7 +203,7 @@ Không có terminal — `--json`, CI, hay gọi qua slash command — thì check
 
 | Gọi bằng | Làm gì | Ai xác định framework |
 | --- | --- | --- |
-| `/agent-stack:generate <stack>` | Phân giải stack, xem trước, rồi ghi `CLAUDE.md` và `.claude/`. Xung đột thì dừng và hỏi; file dự án đã có thì giữ nguyên | Bạn gõ |
+| `/agent-stack:generate <stack>` | Phân giải stack, xem trước, rồi ghi `.claude/` (và `AGENTS.md` nếu dự án chưa có). Xung đột thì dừng và hỏi; file dự án đã có thì giữ nguyên | Bạn gõ |
 | `/agent-stack:check` | So dự án với knowledge base hiện tại, liệt kê những gì `/agent-stack:generate` sẽ đổi. Không ghi gì | Manifest lần trước |
 | `/agent-stack:catalog` | Liệt kê technology, rule, skill và command knowledge base đang phủ — và cả chỗ còn trống | — |
 | agent `detect` | Đọc repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng `/agent-stack:generate` | Agent suy ra, bạn duyệt |
@@ -233,7 +237,7 @@ Exit code: `0` thành công · `2` lỗi ở bước kiểm tra · `3` `check` t
 
 ## Knowledge base
 
-`knowledge/` chính là sản phẩm. **Đường dẫn là metadata, và file không bao giờ bị đụng tới**: agent-stack không đọc, không sửa, không dựng lại front matter — file sinh ra giống file trong `knowledge/` từng byte. Ngoại lệ duy nhất là `claude-md/`, được inline vào `CLAUDE.md` chứ không copy.
+`knowledge/` chính là sản phẩm. **Đường dẫn là metadata, và file không bao giờ bị đụng tới**: agent-stack không đọc, không sửa, không dựng lại front matter — file sinh ra giống file trong `knowledge/` từng byte. Template `agent-md/` cũng được copy nguyên văn, nhưng chỉ ra `AGENTS.md` khi dự án chưa có file đó.
 
 ```
 knowledge/
@@ -243,21 +247,21 @@ knowledge/
 ├── rules/framework/<fw>/<tên>.md         ra .claude/rules/<fw>-<tên>.md
 ├── skills/framework/<fw>/<tên>/SKILL.md  ra .claude/skills/<tên>/
 ├── commands/<tên>.md                     ra .claude/commands/<tên>.md
-└── claude-md/<tên>.md                    inline vào CLAUDE.md, không sinh file riêng
+└── agent-md/<tên>.md                     ra AGENTS.md, chỉ khi dự án chưa có
 ```
 
 Bốn loại nội dung, và phân biệt được chúng là quan trọng:
 
 | Loại | Nó là gì | Nạp khi nào |
 | --- | --- | --- |
-| **Rule** | Một quy ước — *code phải viết thế nào* | Luôn ở trong context, qua `@`-import |
+| **Rule** | Một quy ước — *code phải viết thế nào* | Claude Code tự nạp: lúc khởi động, hoặc khi đụng file khớp `paths:` |
 | **Skill** | Một quy trình — *làm việc X theo các bước nào* | Khi gặp đúng việc đó |
 | **Command** | Thứ developer gõ ra | Khi được gọi |
-| **Đoạn CLAUDE.md** | Hướng dẫn mọi dự án đều cần sẵn inline | Ngay từ token đầu tiên |
+| **Template AGENTS.md** | Khung `AGENTS.md` để dự án tự điền, chỉ seed một lần | Ngay từ token đầu tiên |
 
 Nếu bạn đang viết các bước được đánh số thì đó là **skill**, không phải rule.
 
-[knowledge/README.md](knowledge/README.md) là tham chiếu đầy đủ: đường dẫn quyết định những gì, front matter nào Claude cần, thứ tự `@`-import, và cách xử lý khi chọn nhiều framework cùng lúc.
+[knowledge/README.md](knowledge/README.md) là tham chiếu đầy đủ: đường dẫn quyết định những gì, front matter nào Claude cần, thứ tự sắp xếp, và cách xử lý khi chọn nhiều framework cùng lúc.
 
 <p align="center">
   <picture>
@@ -268,7 +272,7 @@ Nếu bạn đang viết các bước được đánh số thì đó là **skill
 
 ## Phạm vi hiện có
 
-**Layer 1 — global.** Copy từ hai dự án MIT tại commit được ghim trong `upstream.yaml`: 26 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills), và bộ hướng dẫn hành vi từ [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills), inline thẳng vào `CLAUDE.md` của mọi dự án.
+**Layer 1 — global.** Copy từ một dự án MIT tại commit được ghim trong `upstream.yaml`: 26 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills).
 
 **Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record, tất cả gate bằng `rails`.
 
@@ -325,10 +329,10 @@ Mỗi module một mối quan tâm. Sửa gì thì đặt vào đúng chỗ mố
 | `upstream.ts` | Cái gì copy từ đâu, theo giấy phép nào |
 | `resolver.ts` | Mở rộng đồ thị technology qua `requires`, báo cáo xung đột |
 | `selector.ts` | Artifact nào áp dụng cho một stack đã phân giải |
-| `composer.ts` | Dựng output trong bộ nhớ, merge block `CLAUDE.md` |
+| `composer.ts` | Quyết định mỗi file nằm ở đâu, dựng manifest |
 | `validator.ts` | Các phát hiện về tính đầy đủ và nhất quán |
 | `prompt.ts` | Checklist duyệt trên terminal, và không gì khác |
-| `emit.ts` | Module **duy nhất** được ghi hoặc xoá |
+| `emit.ts` | Module **duy nhất** được ghi hoặc xoá; cả việc seed `AGENTS.md` và gỡ block `CLAUDE.md` cũ |
 | `cli.ts` | Cờ dòng lệnh, output cho người và `--json` |
 
 > [!CAUTION]

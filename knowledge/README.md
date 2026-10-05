@@ -25,8 +25,8 @@ skills/global/<name>/SKILL.md           -> .claude/skills/<name>/
 skills/framework/<fw>/<name>/SKILL.md   -> .claude/skills/<name>/
 commands/<name>.md                      -> .claude/commands/<name>.md
 commands/framework/<fw>/<name>.md       -> .claude/commands/<fw>-<name>.md
-claude-md/<name>.md                     -> chèn thẳng vào CLAUDE.md
-claude-md/framework/<fw>/<name>.md      -> chèn vào CLAUDE.md, chỉ khi chọn <fw>
+agent-md/<name>.md                      -> AGENTS.md, chỉ khi dự án chưa có
+agent-md/framework/<fw>/<name>.md       -> AGENTS.md, chỉ khi chọn <fw> và dự án chưa có
 ```
 
 `<fw>` là id framework trong `catalog.yaml`. File nằm cạnh một `SKILL.md` — thư mục
@@ -62,7 +62,7 @@ agent-stack không có ý kiến gì về nó.
 | `SKILL.md` | `name` và `description`. Description là thứ Claude đối chiếu với task — nói nó làm gì **và khi nào dùng** |
 | command | `description` |
 | rule | không cần gì. Cho một `# Title` rồi viết Markdown |
-| fragment | không cần gì |
+| template AGENTS.md | không cần gì |
 
 Đừng thêm metadata cho agent-stack: không có gì để thêm, và nó sẽ bị copy vào mọi dự án
 chọn file đó.
@@ -71,25 +71,31 @@ chọn file đó.
 
 | Loại | Là gì | Load khi nào |
 | --- | --- | --- |
-| **Rule** | Một quy ước — *code phải viết thế nào* | Luôn ở trong context, `@`-import từ CLAUDE.md |
+| **Rule** | Một quy ước — *code phải viết thế nào* | Claude Code tự nạp `.claude/rules/`: lúc launch, hoặc chỉ khi đụng file khớp `paths:` nếu rule có khai báo |
 | **Skill** | Một quy trình — *làm task X ra sao*, theo từng bước | Khi task đó xuất hiện |
 | **Command** | Thứ lập trình viên gõ ra | Khi được gọi |
-| **CLAUDE.md fragment** | Hướng dẫn thuộc về chính CLAUDE.md của dự án | Từ token đầu tiên |
+| **Template AGENTS.md** | Khung để team tự điền thông tin của dự án | Từ token đầu tiên — Claude Code đọc `AGENTS.md` khi dự án không có `CLAUDE.md` |
 
 Nếu bạn đang viết các bước đánh số, đó là skill.
 
-Fragment là thứ **duy nhất** không copy thành file: phần text của nó được ghép vào một tài
-liệu do agent-stack soạn. Chỉ ở đó, và chỉ vì lý do đó, hai thứ bị bỏ — khối front matter
-mở đầu, vốn vô nghĩa khi nằm giữa một file Markdown, và `# Title` mở đầu, vốn sẽ cho dự án
-một `h1` thứ hai.
+Template AGENTS.md là thứ **duy nhất** chỉ được ghi một lần. Nó được copy y nguyên khi dự
+án chưa có `AGENTS.md`, và từ đó file là của dự án: không có checksum trong manifest, không
+bao giờ bị ghi đè hay xoá, kể cả với `--overwrite`. Sửa template ở đây chỉ có tác dụng với
+dự án sinh sau. Mỗi stack chỉ được khớp đúng một template: hai template cùng khớp thì run
+dừng và nêu tên cả hai.
+
+agent-stack không sinh `CLAUDE.md`: còn `CLAUDE.md` thì Claude Code bỏ qua `AGENTS.md`. Ở dự
+án đã sinh bằng bản cũ, khối `agent-stack:begin`/`end` được gỡ khỏi `CLAUDE.md`, và file bị
+xoá nếu không còn gì khác. Không có thư mục `claude-md/`: một thư mục lạ ở cấp trên cùng
+làm knowledge base từ chối lúc load và nêu tên nó.
 
 Giữ `SKILL.md` dưới ~500 dòng. Tài liệu tham chiếu dài thì tách ra file riêng cùng thư
 mục; nó được copy tự động.
 
 ## Thứ tự
 
-Theo alphabet của tên file sinh ra, cả trên đĩa lẫn trong các `@`-import. Không có trường
-priority. Muốn một rule đứng trên rule khác thì đặt tên sắp trước.
+Theo alphabet của tên file sinh ra. Không có trường priority: rule không được import theo
+thứ tự nào cả, Claude Code tự nạp cả thư mục `.claude/rules/`.
 
 ## Nhiều framework
 
@@ -157,8 +163,8 @@ theo đúng cái tên Claude nên gọi, kèm framework.
 **Command** — file Markdown dưới `commands/framework/<fw>/`, hoặc `commands/` nếu áp dụng
 mọi nơi.
 
-**Fragment** — file Markdown dưới `claude-md/`. Chỉ dùng cho hướng dẫn mà mọi dự án cần
-nằm inline thay vì sau một import.
+**Template AGENTS.md** — file Markdown dưới `agent-md/`, hoặc `agent-md/framework/<fw>/`
+nếu chỉ dành cho một framework. Viết sẵn heading và comment hướng dẫn để team điền.
 
 **Framework** — `npm run new-framework -- <id> "<Name>"` thêm entry vào `catalog.yaml` và clone [`templates/framework/`](../templates/framework/) vào đúng chỗ. Chi tiết ở [CONTRIBUTING.md](../CONTRIBUTING.md#thêm-một-framework).
 
@@ -167,12 +173,9 @@ mục framework lạ, hoặc khi một đường dẫn không thể thành tên 
 
 ## Nội dung import
 
-Global layer được copy từ hai dự án MIT và commit ở đây:
-
-- [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) — skill vào
-  `skills/global/`, command vào `commands/`.
-- [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)
-  — `CLAUDE.md` của nó thành `claude-md/karpathy-guidelines.md`, inline vào mọi dự án.
+Global layer được copy từ một dự án MIT và commit ở đây:
+[addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) — skill vào
+`skills/global/`, command vào `commands/`.
 
 `upstream.yaml` ghi repository, commit chính xác, licence, và đường dẫn upstream nào ứng
 với đường dẫn nào ở đây. Commit là **SHA đủ 40 ký tự** — branch hay tag bị từ chối — nên

@@ -18,14 +18,3 @@ sources:
     copy:
       skills: skills/global
       .claude/commands: commands
-
-  karpathy-guidelines:
-    repo: https://github.com/multica-ai/andrej-karpathy-skills.git
-    ref: 2c606141936f1eeef17fa3043a72095b4765b9c2
-    license: MIT
-    # Declared in the upstream README and .claude-plugin/plugin.json; that repository
-    # ships no LICENSE file of its own.
-    license_url: https://github.com/multica-ai/andrej-karpathy-skills#license
-    copyright: Copyright (c) multica-ai
-    copy:
-      CLAUDE.md: claude-md/karpathy-guidelines.md
