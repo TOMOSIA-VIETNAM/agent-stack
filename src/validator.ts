@@ -8,6 +8,8 @@ export interface Finding {
     | 'missing-framework'
     | 'uncovered-technology'
     | 'empty-output'
+    | 'ambiguous-agents-md'
+    | 'agents-md-shadowed'
     | 'existing-file'
     | 'modified-file'
     | 'retained-file'
@@ -23,7 +25,7 @@ export interface ValidationReport {
     rules: number;
     skills: number;
     commands: number;
-    claudeMd: number;
+    agentMd: number;
     technologies: number;
   };
   ok: boolean;
@@ -50,6 +52,7 @@ export function validate(
   acceptedConflicts: string[] = [],
   kept: KeptPath[] = [],
   retained: string[] = [],
+  shadowing: string[] = [],
 ): ValidationReport {
   const findings: Finding[] = [];
   const accepted = new Set(acceptedConflicts);
@@ -105,6 +108,28 @@ export function validate(
     });
   }
 
+  // Every template claims the same AGENTS.md. Picking one would be resolving a
+  // conflict silently, so the run stops and names them all instead.
+  if (selection.agentMd.length > 1) {
+    findings.push({
+      severity: 'error',
+      code: 'ambiguous-agents-md',
+      message: `${selection.agentMd.length} AGENTS.md templates match this stack and only one can seed the file: ${selection.agentMd
+        .map((entry) => entry.artifact.source)
+        .join(', ')}`,
+    });
+  }
+
+  // Not an error: the files are the project's. But AGENTS.md going unread is
+  // exactly the kind of thing that must not happen without a word.
+  for (const path of shadowing) {
+    findings.push({
+      severity: 'warning',
+      code: 'agents-md-shadowed',
+      message: `${path} exists, so Claude Code reads it instead of AGENTS.md — move its content into AGENTS.md and delete it, or add an @AGENTS.md line to it`,
+    });
+  }
+
   for (const warning of stack.warnings) {
     findings.push({ severity: 'warning', code: 'stack-warning', message: warning });
   }
@@ -113,7 +138,7 @@ export function validate(
     selection.rules.length === 0 &&
     selection.skills.length === 0 &&
     selection.commands.length === 0 &&
-    selection.claudeMd.length === 0
+    selection.agentMd.length === 0
   ) {
     findings.push({
       severity: 'error',
@@ -128,7 +153,7 @@ export function validate(
       rules: selection.rules.length,
       skills: selection.skills.length,
       commands: selection.commands.length,
-      claudeMd: selection.claudeMd.length,
+      agentMd: selection.agentMd.length,
       technologies: stack.technologies.length,
     },
     ok: !findings.some((finding) => finding.severity === 'error'),

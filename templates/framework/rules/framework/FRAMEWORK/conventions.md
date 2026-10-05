@@ -13,10 +13,9 @@ paths:
      path-specific rules: `**/*.rb`, `app/**/*`, `src/**/*.{ts,tsx}`. Bỏ hẳn
      khối đó thì rule nạp vô điều kiện.
 
-     LƯU Ý: hôm nay `paths:` chưa có tác dụng — agent-stack `@`-import mọi rule
-     được chọn từ CLAUDE.md, và file đã import thì nạp hết lúc launch. Viết
-     đúng glob ngay từ giờ để không phải sửa lại khi cơ chế import thay đổi;
-     cần gate theo task *ngay* thì viết skill, nơi `paths:` đã chạy.
+     Claude Code tự nạp `.claude/rules/`: rule không có `paths:` nạp lúc
+     launch, rule có `paths:` chỉ nạp khi Claude đọc/sửa file khớp glob.
+     agent-stack không `@`-import rule ở đâu cả, nên `paths:` có tác dụng.
 -->
 
 # <Framework> Conventions

@@ -183,16 +183,16 @@ async function run(options: Options): Promise<number> {
         rules: emitted(kb.rules, id).length,
         skills: emitted(kb.skills, id).length,
         commands: emitted(kb.commands, id).length,
-        claudeMd: emitted(kb.claudeMd, id).length,
+        agentMd: emitted(kb.agentMd, id).length,
       },
       /** Of those, the ones written for this framework — where the gaps show. */
       own: {
         rules: own(kb.rules, id).length,
         skills: own(kb.skills, id).length,
         commands: own(kb.commands, id).length,
-        claudeMd: own(kb.claudeMd, id).length,
+        agentMd: own(kb.agentMd, id).length,
       },
-      artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd]
+      artifacts: [...kb.rules, ...kb.skills, ...kb.commands, ...kb.agentMd]
         .filter((artifact) => artifact.meta.applies_to.includes(id))
         .map((artifact) => artifact.meta.id),
     }));
@@ -224,10 +224,10 @@ async function run(options: Options): Promise<number> {
     process.stdout.write(
       `\n  Every row counts the global layer too, which applies whatever the framework:\n` +
         `  ${global(kb.rules).length} rule(s), ${global(kb.skills).length} skill(s), ` +
-        `${global(kb.commands).length} command(s), ` +
-        `${global(kb.claudeMd).length} CLAUDE.md fragment(s).\n`,
+        `${global(kb.commands).length} command(s) and ` +
+        `${global(kb.agentMd).length} AGENTS.md template(s).\n`,
     );
-    const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.claudeMd];
+    const all = [...kb.rules, ...kb.skills, ...kb.commands, ...kb.agentMd];
     for (const source of kb.imported) {
       const count = all.filter((a) => a.provenance?.source === source.name).length;
       process.stdout.write(
@@ -276,9 +276,9 @@ async function run(options: Options): Promise<number> {
 
   const { selection, kept, declined } = approval;
   const composed = compose(stack, selection, VERSION, kb.imported);
-  const { retained } = await planEmit(options.out, composed);
+  const { retained, shadowing } = await planEmit(options.out, composed);
   const report = fullReport.ok
-    ? validate(stack, selection, options.acceptConflicts, kept, retained)
+    ? validate(stack, selection, options.acceptConflicts, kept, retained, shadowing)
     : fullReport;
 
   const result = await emit(options.out, composed, { dryRun: !options.write || !report.ok });
@@ -314,6 +314,9 @@ async function run(options: Options): Promise<number> {
     `\n${result.dryRun ? 'Would write' : 'Wrote'} ${result.write.length} file(s) in ${result.outDir}:\n`,
   );
   for (const path of result.write) process.stdout.write(`  ${path}\n`);
+  for (const path of result.leftAlone) {
+    process.stdout.write(`Left ${path} as it is: it is the project's once it exists.\n`);
+  }
   if (result.remove.length > 0) {
     process.stdout.write(`${result.dryRun ? 'Would remove' : 'Removed'} stale output:\n`);
     for (const path of result.remove) process.stdout.write(`  ${path}\n`);
@@ -369,8 +372,8 @@ async function check(
   // unattended run would.
   const { selection, kept } = await approve({ ...options, write: false }, stack, fullSelection);
   const composed = compose(stack, selection, VERSION, kb.imported);
-  const { retained } = await planEmit(options.out, composed);
-  const report = validate(stack, selection, options.acceptConflicts, kept, retained);
+  const { retained, shadowing } = await planEmit(options.out, composed);
+  const report = validate(stack, selection, options.acceptConflicts, kept, retained, shadowing);
   const changes = await pendingChanges(options.out, composed);
 
   if (options.json) {
@@ -470,7 +473,7 @@ function summarize(selection: ReturnType<typeof selectArtifacts>) {
     rules: describe(selection.rules),
     skills: describe(selection.skills),
     commands: describe(selection.commands),
-    claudeMd: describe(selection.claudeMd),
+    agentMd: describe(selection.agentMd),
     skipped: selection.skipped.map((entry) => ({
       id: entry.artifact.meta.id,
       reason: entry.reason,
@@ -481,7 +484,7 @@ function summarize(selection: ReturnType<typeof selectArtifacts>) {
 function printReport(report: ReturnType<typeof validate>): void {
   const { counts } = report;
   process.stdout.write(
-    `\nSelected ${counts.rules} rule(s), ${counts.skills} skill(s), ${counts.commands} command(s) and ${counts.claudeMd} CLAUDE.md fragment(s) for ${counts.technologies} framework(s).\n`,
+    `\nSelected ${counts.rules} rule(s), ${counts.skills} skill(s), ${counts.commands} command(s) and ${counts.agentMd} AGENTS.md template(s) for ${counts.technologies} framework(s).\n`,
   );
   const errors = report.findings.filter((f) => f.severity === 'error');
   const warnings = report.findings.filter((f) => f.severity === 'warning');

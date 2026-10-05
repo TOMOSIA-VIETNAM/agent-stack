@@ -32,7 +32,7 @@ function kb(rules: Artifact[]) {
     rules,
     skills: [],
     commands: [],
-    claudeMd: [],
+    agentMd: [],
     imported: [],
   };
 }

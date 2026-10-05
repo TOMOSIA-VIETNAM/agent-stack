@@ -6,7 +6,7 @@ import { loadKnowledgeBase, metaFromPath } from '../src/catalog.js';
 import {
   artifactTargets,
   compose,
-  mergeClaudeMd,
+  withoutManagedBlock,
   BEGIN_MARKER,
   END_MARKER,
 } from '../src/composer.js';
@@ -38,7 +38,7 @@ async function tempKnowledge(files: Record<string, string>) {
 /** The framework directories that exist under any `<type>/framework/`. */
 async function frameworkDirs(root: string): Promise<string[]> {
   const dirs = new Set<string>();
-  for (const type of ['rules', 'skills', 'commands', 'claude-md']) {
+  for (const type of ['rules', 'skills', 'commands', 'agent-md']) {
     const entries = await readdir(join(root, type, 'framework'), { withFileTypes: true }).catch(
       () => [],
     );
@@ -54,7 +54,11 @@ async function contentFiles(root: string): Promise<string[]> {
 }
 
 async function run(...framework: string[]) {
-  const kb = await loadKnowledgeBase(KNOWLEDGE);
+  return runOn(KNOWLEDGE, ...framework);
+}
+
+async function runOn(knowledge: string, ...framework: string[]) {
+  const kb = await loadKnowledgeBase(knowledge);
   const stack = resolveStack(
     kb.catalog,
     techStackInputSchema.parse({ framework }) as TechStackInput,
@@ -114,7 +118,7 @@ describe('the catalog and the framework directories', () => {
     for (const path of [
       'skills/framework/django/django-feature/SKILL.md',
       'commands/framework/django/review.md',
-      'claude-md/framework/django/stack-notes.md',
+      'agent-md/framework/django/guidelines.md',
     ]) {
       const kbRoot = await tempKnowledge({ [path]: '# Django\n' });
       await expect(loadKnowledgeBase(kbRoot)).rejects.toThrow(
@@ -123,23 +127,37 @@ describe('the catalog and the framework directories', () => {
     }
   });
 
-  // The legal direction: laravel is in the real catalog with no directory of
-  // its own yet. The run completes, and says which framework is bare.
-  it('lets a catalog framework have no directory yet, and names it as uncovered', async () => {
-    const kb = await loadKnowledgeBase(KNOWLEDGE);
-    const dirs = await frameworkDirs(KNOWLEDGE);
-    const bare = Object.keys(kb.catalog.technologies).filter((id) => !dirs.includes(id));
-    expect(bare.length).toBeGreaterThan(0);
+  // CLAUDE.md fragments were a content type until agent-stack stopped writing
+  // CLAUDE.md. A leftover directory would otherwise be skipped without a word.
+  it('refuses a top-level directory the loader does not read, naming it', async () => {
+    const leftover = await tempKnowledge({ 'claude-md/notes.md': '# Notes\n' });
+    await expect(loadKnowledgeBase(leftover)).rejects.toThrow(
+      /claude-md\/: agent-stack no longer writes CLAUDE\.md/,
+    );
 
-    for (const id of bare) {
-      const { report } = await run(id);
-      expect(report.ok).toBe(true);
-      expect(
-        report.findings.filter(
-          (finding) => finding.code === 'uncovered-technology' && finding.message.startsWith(id),
-        ),
-      ).toHaveLength(1);
-    }
+    const stray = await tempKnowledge({ 'rule/conventions.md': '# Typo\n' });
+    await expect(loadKnowledgeBase(stray)).rejects.toThrow(/rule\/: not a content directory/);
+  });
+
+  // The legal direction: a framework in the catalog with no directory of its
+  // own yet. The run completes, and says which framework is bare. The real
+  // knowledge base may cover every framework it lists, so this one is built,
+  // with a global rule so the bare framework still has output to write.
+  it('lets a catalog framework have no directory yet, and names it as uncovered', async () => {
+    const kbRoot = await tempKnowledge({
+      'rules/global/style.md': '# Style\n',
+      'rules/framework/rails/conventions.md': '# Rails\n',
+    });
+    expect(await frameworkDirs(kbRoot)).toEqual(['rails']);
+
+    const { report } = await runOn(kbRoot, 'laravel');
+    expect(report.ok).toBe(true);
+    expect(
+      report.findings.filter(
+        (finding) =>
+          finding.code === 'uncovered-technology' && finding.message.startsWith('laravel'),
+      ),
+    ).toHaveLength(1);
   });
 });
 
@@ -262,7 +280,8 @@ describe('validation', () => {
   });
 
   it('flags a framework the knowledge base does not cover yet', async () => {
-    const { report } = await run('laravel');
+    const kbRoot = await tempKnowledge({ 'rules/framework/rails/conventions.md': '# Rails\n' });
+    const { report } = await runOn(kbRoot, 'laravel');
     expect(report.findings.filter((f) => f.code === 'uncovered-technology').length).toBeGreaterThan(
       0,
     );
@@ -298,12 +317,15 @@ describe('emitted files are byte-for-byte copies', () => {
 });
 
 describe('emit', () => {
-  it('writes rules, skills, a manifest, and a CLAUDE.md block', async () => {
+  // Claude Code loads `.claude/rules/` itself, and reads AGENTS.md only while
+  // there is no CLAUDE.md — so writing one would hide the project's AGENTS.md.
+  it('writes rules, skills and a manifest, and no CLAUDE.md', async () => {
     const { out, selection } = await generate('rails');
 
-    const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
-    expect(claudeMd).toContain('@.claude/rules/rails-conventions.md');
-    expect(claudeMd).toContain('@.claude/rules/rails-ruby.md');
+    await expect(readFile(join(out, 'CLAUDE.md'), 'utf8')).rejects.toThrow();
+    expect(await readFile(join(out, '.claude/rules/rails-conventions.md'), 'utf8')).toBe(
+      await readFile(join(KNOWLEDGE, 'rules/framework/rails/conventions.md'), 'utf8'),
+    );
 
     const manifest = JSON.parse(await readFile(join(out, '.claude/agent-stack-manifest.json'), 'utf8'));
     expect(manifest.rules.length).toBe(selection.rules.length);
@@ -369,37 +391,6 @@ describe('imported content', () => {
     expect(imported?.provenance?.license).toBe('MIT');
   });
 
-  // The one type that is inlined rather than copied: it becomes part of the
-  // project's own CLAUDE.md, which is agent-stack's document to compose.
-  it('inlines the imported guidelines into CLAUDE.md instead of a rule file', async () => {
-    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
-    await writeFile(join(out, 'CLAUDE.md'), '# My project\n\nHand written.\n', 'utf8');
-
-    const { kb, stack, selection } = await run('rails');
-    const fragment = selection.claudeMd.find(
-      (entry) => entry.artifact.meta.id === 'karpathy-guidelines',
-    );
-    expect(fragment?.artifact.meta.layer).toBe('global');
-    expect(fragment?.artifact.provenance?.license).toBe('MIT');
-
-    const composed = compose(stack, selection, 'test', kb.imported);
-    await emit(out, composed, { dryRun: false });
-
-    const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
-    expect(claudeMd).toContain('Hand written.');
-    expect(claudeMd).toContain('## 1. Think Before Coding');
-    expect(claudeMd).not.toContain('Copyright');
-    // The fragment's own title is dropped, so the project keeps a single h1.
-    expect(claudeMd.match(/^# /gm)?.length).toBe(1);
-    expect(claudeMd).not.toContain('@.claude/rules/karpathy-guidelines.md');
-
-    // Nothing is emitted for it, and the manifest still records where it came from.
-    expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('karpathy-guidelines');
-    expect(composed.manifest.imported.map((entry) => entry.source)).toContain(
-      'karpathy-guidelines',
-    );
-  });
-
   it('rejects a source pinned to anything but a full SHA', () => {
     const base = {
       repo: 'https://github.com/addyosmani/agent-skills.git',
@@ -416,14 +407,20 @@ describe('imported content', () => {
   });
 });
 
-describe('mergeClaudeMd', () => {
-  it('replaces only the managed block', () => {
+// What an earlier version wrote into CLAUDE.md is taken back out, and only that.
+describe('withoutManagedBlock', () => {
+  it('takes out the block and keeps everything around it', () => {
     const existing = `# Title\n\nkeep me\n\n${BEGIN_MARKER}\nold\n${END_MARKER}\n\ntrailing\n`;
-    const merged = mergeClaudeMd(existing, `${BEGIN_MARKER}\nnew\n${END_MARKER}`);
-    expect(merged).toContain('keep me');
-    expect(merged).toContain('trailing');
-    expect(merged).toContain('new');
-    expect(merged).not.toContain('old');
+    expect(withoutManagedBlock(existing)).toBe('# Title\n\nkeep me\n\ntrailing\n');
+  });
+
+  it('leaves nothing when the block was all there was', () => {
+    expect(withoutManagedBlock(`${BEGIN_MARKER}\nold\n${END_MARKER}\n`)).toBe('');
+  });
+
+  it('has nothing to take out of a file without the markers', () => {
+    expect(withoutManagedBlock('# Ours\n')).toBeUndefined();
+    expect(withoutManagedBlock(`${END_MARKER}\n${BEGIN_MARKER}\n`)).toBeUndefined();
   });
 });
 
@@ -458,10 +455,6 @@ describe('two frameworks at once', () => {
         await readFile(join(out, `.claude/rules/${framework}-conventions.md`), 'utf8'),
       ).toBe(await readFile(join(kbRoot, `rules/framework/${framework}/conventions.md`), 'utf8'));
     }
-
-    const claudeMd = await readFile(join(out, 'CLAUDE.md'), 'utf8');
-    expect(claudeMd).toContain('@.claude/rules/laravel-conventions.md');
-    expect(claudeMd).toContain('@.claude/rules/rails-conventions.md');
   });
 
   it('keeps each framework out of the other, selecting only one at a time', async () => {
@@ -540,10 +533,6 @@ describe('a project that is already there', () => {
     expect(kept.map((entry) => entry.path)).toContain('.claude/rules/rails-ruby.md');
     // Not written, so not claimed: a later run must not remove it as stale.
     expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('rails-ruby');
-    // And not imported either, because agent-stack did not put it there.
-    expect(await readFile(join(out, 'CLAUDE.md'), 'utf8')).not.toContain(
-      '@.claude/rules/rails-ruby.md',
-    );
   });
 
   it('replaces that same file once overwrite is approved', async () => {
@@ -603,9 +592,6 @@ describe('a project that is already there', () => {
     ]);
     expect(await readFile(written, 'utf8')).toBe('edited by the team\n');
     expect(composed.manifest.rules.map((rule) => rule.id)).not.toContain('rails-ruby');
-    expect(await readFile(join(out, 'CLAUDE.md'), 'utf8')).not.toContain(
-      '@.claude/rules/rails-ruby.md',
-    );
 
     // Dropped from the manifest, the file now reads as the project's own.
     const again = await generateInto(out, 'rails');
@@ -791,19 +777,21 @@ describe('checking a project against the knowledge base', () => {
       { path: '.claude/agent-stack-manifest.json', change: 'update' },
       { path: '.claude/rules/rails-security.md', change: 'remove' },
       { path: '.claude/rules/rails-testing.md', change: 'add' },
-      { path: 'CLAUDE.md', change: 'update' },
     ]);
   });
 
-  it('sees an edit to the managed CLAUDE.md block, and not one outside it', async () => {
+  it('names the block an earlier version left in CLAUDE.md', async () => {
     const { kbRoot, out } = await generated(RULES);
-    const path = join(out, 'CLAUDE.md');
-    const original = await readFile(path, 'utf8');
+    await writeFile(join(out, 'CLAUDE.md'), `${BEGIN_MARKER}\nold\n${END_MARKER}\n`, 'utf8');
+    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([
+      { path: 'CLAUDE.md', change: 'remove' },
+    ]);
 
-    await writeFile(path, `# Ours\n\n${original}`, 'utf8');
-    expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([]);
-
-    await writeFile(path, original.replace('## Project rules', '## Rules'), 'utf8');
+    await writeFile(
+      join(out, 'CLAUDE.md'),
+      `# Ours\n\n${BEGIN_MARKER}\nold\n${END_MARKER}\n`,
+      'utf8',
+    );
     expect(await pendingChanges(out, await composeFrom(kbRoot))).toEqual([
       { path: 'CLAUDE.md', change: 'update' },
     ]);
@@ -825,5 +813,214 @@ describe('checking a project against the knowledge base', () => {
     const changes = await pendingChanges(out, await composeFrom(kbRoot));
     expect(changes.every((entry) => entry.change === 'add')).toBe(true);
     expect(changes.map((entry) => entry.path)).toContain('.claude/agent-stack-manifest.json');
+  });
+});
+
+// AGENTS.md is a template the team fills in. agent-stack writes it once, byte
+// for byte, and from then on it is the project's: no checksum, no ownership in
+// the manifest, never replaced and never removed — not even by --overwrite,
+// which acts on the selection and never reaches this file.
+describe('seeding AGENTS.md', () => {
+  const TEMPLATE_MD = '# <Project>\n\n<!-- fill me in -->\n';
+
+  async function composeFrom(kbRoot: string, ...framework: string[]) {
+    const kb = await loadKnowledgeBase(kbRoot);
+    const stack = resolveStack(kb.catalog, techStackInputSchema.parse({ framework }));
+    const selection = selectArtifacts(kb, stack);
+    return { stack, selection, composed: compose(stack, selection, 'test', kb.imported) };
+  }
+
+  const KB = {
+    'rules/framework/rails/conventions.md': '# Conventions\n',
+    'agent-md/guidelines.md': TEMPLATE_MD,
+  };
+
+  it('writes the template byte for byte, and no CLAUDE.md that would hide it', async () => {
+    const kbRoot = await tempKnowledge(KB);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const { composed } = await composeFrom(kbRoot, 'rails');
+    const result = await emit(out, composed, { dryRun: false });
+
+    expect(await readFile(join(out, 'AGENTS.md'), 'utf8')).toBe(TEMPLATE_MD);
+    expect(result.write).toContain('AGENTS.md');
+    expect(result.leftAlone).toEqual([]);
+
+    await expect(readFile(join(out, 'CLAUDE.md'), 'utf8')).rejects.toThrow();
+    expect(result.shadowing).toEqual([]);
+
+    const manifest = JSON.parse(
+      await readFile(join(out, '.claude/agent-stack-manifest.json'), 'utf8'),
+    );
+    expect(JSON.stringify(manifest)).not.toContain('AGENTS.md');
+  });
+
+  it('never writes over an AGENTS.md the project has, and does not report it as behind', async () => {
+    const kbRoot = await tempKnowledge(KB);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await writeFile(join(out, 'AGENTS.md'), '# Ours\n', 'utf8');
+
+    const { composed } = await composeFrom(kbRoot, 'rails');
+    const result = await emit(out, composed, { dryRun: false });
+
+    expect(await readFile(join(out, 'AGENTS.md'), 'utf8')).toBe('# Ours\n');
+    expect(result.write).not.toContain('AGENTS.md');
+    expect(result.leftAlone).toEqual(['AGENTS.md']);
+    expect(await pendingChanges(out, composed)).toEqual([]);
+  });
+
+  it('keeps a filled-in AGENTS.md through later runs, a new template and a removed one', async () => {
+    const kbRoot = await tempKnowledge(KB);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await emit(out, (await composeFrom(kbRoot, 'rails')).composed, { dryRun: false });
+    await writeFile(join(out, 'AGENTS.md'), '# Filled in\n', 'utf8');
+
+    await writeFile(join(kbRoot, 'agent-md/guidelines.md'), '# Template v2\n', 'utf8');
+    const changed = (await composeFrom(kbRoot, 'rails')).composed;
+    expect(await pendingChanges(out, changed)).toEqual([]);
+    await emit(out, changed, { dryRun: false });
+    expect(await readFile(join(out, 'AGENTS.md'), 'utf8')).toBe('# Filled in\n');
+
+    await rm(join(kbRoot, 'agent-md'), { recursive: true });
+    const without = (await composeFrom(kbRoot, 'rails')).composed;
+    const result = await emit(out, without, { dryRun: false });
+    expect(result.remove).not.toContain('AGENTS.md');
+    expect(await readFile(join(out, 'AGENTS.md'), 'utf8')).toBe('# Filled in\n');
+  });
+
+  it('writes it again once the project has deleted it', async () => {
+    const kbRoot = await tempKnowledge(KB);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    const { composed } = await composeFrom(kbRoot, 'rails');
+    await emit(out, composed, { dryRun: false });
+    await rm(join(out, 'AGENTS.md'));
+
+    expect(await pendingChanges(out, composed)).toEqual([{ path: 'AGENTS.md', change: 'add' }]);
+  });
+
+  it('is never a collision for the checklist', async () => {
+    const kbRoot = await tempKnowledge(KB);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await writeFile(join(out, 'AGENTS.md'), '# Ours\n', 'utf8');
+    const { selection } = await composeFrom(kbRoot, 'rails');
+
+    const targets = await inspectTargets(out, artifactTargets(selection));
+    const template = targets.find((target) => target.type === 'agent-md');
+    expect(template?.path).toBeUndefined();
+    expect(template && belongsToProject(template.state)).toBe(false);
+  });
+
+  it('takes a framework template only for that framework', async () => {
+    const kbRoot = await tempKnowledge({
+      'rules/global/style.md': '# Style\n',
+      'agent-md/framework/laravel/guidelines.md': TEMPLATE_MD,
+    });
+    expect((await composeFrom(kbRoot, 'rails')).composed.agentsMd).toBeUndefined();
+    expect((await composeFrom(kbRoot, 'laravel')).composed.agentsMd?.path).toBe('AGENTS.md');
+  });
+
+  it('stops when two templates match, rather than picking one', async () => {
+    const kbRoot = await tempKnowledge({
+      'agent-md/guidelines.md': TEMPLATE_MD,
+      'agent-md/framework/rails/guidelines.md': TEMPLATE_MD,
+    });
+    const { stack, selection } = await composeFrom(kbRoot, 'rails');
+    const report = validate(stack, selection);
+
+    expect(report.ok).toBe(false);
+    const finding = report.findings.find((f) => f.code === 'ambiguous-agents-md');
+    expect(finding?.message).toContain('agent-md/guidelines.md');
+    expect(finding?.message).toContain(join('agent-md', 'framework', 'rails', 'guidelines.md'));
+  });
+});
+
+describe('selection across types', () => {
+  // Selection was once keyed by id alone, so the second of two same-named
+  // artifacts of different types silently replaced the first.
+  it('keeps a rule and a template that share a name', async () => {
+    const kbRoot = await tempKnowledge({
+      'rules/global/guidelines.md': '# Rule\n',
+      'agent-md/guidelines.md': '# Template\n',
+    });
+    const { selection } = await runOn(kbRoot, 'rails');
+    expect(selection.rules.map((entry) => entry.artifact.meta.id)).toEqual(['guidelines']);
+    expect(selection.agentMd.map((entry) => entry.artifact.meta.id)).toEqual(['guidelines']);
+  });
+});
+
+// An earlier version wrote its block into CLAUDE.md. A CLAUDE.md that exists at
+// all stops Claude Code reading AGENTS.md, so the block comes back out — and
+// only the block, and only in a project agent-stack has generated into.
+describe('a CLAUDE.md an earlier version wrote into', () => {
+  const KB = {
+    'rules/framework/rails/conventions.md': '# Conventions\n',
+    'agent-md/guidelines.md': '# Template\n',
+  };
+  const BLOCK = `${BEGIN_MARKER}\n\n## Project rules\n\n@.claude/rules/rails-conventions.md\n\n${END_MARKER}\n`;
+
+  async function composeFrom(kbRoot: string) {
+    const kb = await loadKnowledgeBase(kbRoot);
+    const stack = resolveStack(kb.catalog, techStackInputSchema.parse({ framework: ['rails'] }));
+    return compose(stack, selectArtifacts(kb, stack), 'test', kb.imported);
+  }
+
+  /** A project an earlier run generated into, with CLAUDE.md as given. */
+  async function earlierProject(claudeMd: string) {
+    const kbRoot = await tempKnowledge(KB);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await emit(out, await composeFrom(kbRoot), { dryRun: false });
+    await writeFile(join(out, 'CLAUDE.md'), claudeMd, 'utf8');
+    return { kbRoot, out };
+  }
+
+  it('deletes a CLAUDE.md that held nothing but the block', async () => {
+    const { kbRoot, out } = await earlierProject(BLOCK);
+    const result = await emit(out, await composeFrom(kbRoot), { dryRun: false });
+
+    expect(result.remove).toEqual(['CLAUDE.md']);
+    expect(result.shadowing).toEqual([]);
+    await expect(readFile(join(out, 'CLAUDE.md'), 'utf8')).rejects.toThrow();
+  });
+
+  it('keeps what the project wrote around the block, and says AGENTS.md goes unread', async () => {
+    const { kbRoot, out } = await earlierProject(`# Ours\n\nTeam notes.\n\n${BLOCK}`);
+    const result = await emit(out, await composeFrom(kbRoot), { dryRun: false });
+
+    expect(result.write).toContain('CLAUDE.md');
+    expect(result.remove).not.toContain('CLAUDE.md');
+    expect(await readFile(join(out, 'CLAUDE.md'), 'utf8')).toBe('# Ours\n\nTeam notes.\n');
+    expect(result.shadowing).toEqual(['CLAUDE.md']);
+
+    const kb = await loadKnowledgeBase(kbRoot);
+    const stack = resolveStack(kb.catalog, techStackInputSchema.parse({ framework: ['rails'] }));
+    const report = validate(stack, selectArtifacts(kb, stack), [], [], [], result.shadowing);
+    expect(report.ok).toBe(true);
+    expect(report.findings.map((f) => f.code)).toContain('agents-md-shadowed');
+  });
+
+  it('never touches a CLAUDE.md in a project it has not generated into', async () => {
+    const kbRoot = await tempKnowledge(KB);
+    const out = await mkdtemp(join(tmpdir(), 'agent-stack-'));
+    await writeFile(join(out, 'CLAUDE.md'), BLOCK, 'utf8');
+
+    const result = await emit(out, await composeFrom(kbRoot), { dryRun: false });
+    expect(await readFile(join(out, 'CLAUDE.md'), 'utf8')).toBe(BLOCK);
+    expect(result.shadowing).toEqual(['CLAUDE.md']);
+  });
+
+  it('never touches a CLAUDE.md without the markers, nor a CLAUDE.local.md', async () => {
+    const { kbRoot, out } = await earlierProject('# Ours\n');
+    await writeFile(join(out, 'CLAUDE.local.md'), '# Mine\n', 'utf8');
+
+    const result = await emit(out, await composeFrom(kbRoot), { dryRun: false });
+    expect(await readFile(join(out, 'CLAUDE.md'), 'utf8')).toBe('# Ours\n');
+    expect(await readFile(join(out, 'CLAUDE.local.md'), 'utf8')).toBe('# Mine\n');
+    expect(result.shadowing).toEqual(['CLAUDE.md', 'CLAUDE.local.md']);
+  });
+
+  it('writes nothing on a dry run', async () => {
+    const { kbRoot, out } = await earlierProject(BLOCK);
+    const result = await emit(out, await composeFrom(kbRoot), { dryRun: true });
+    expect(result.remove).toEqual(['CLAUDE.md']);
+    expect(await readFile(join(out, 'CLAUDE.md'), 'utf8')).toBe(BLOCK);
   });
 });

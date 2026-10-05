@@ -11,11 +11,11 @@ export const LAYERS = ['global', 'framework'] as const;
 export type Layer = (typeof LAYERS)[number];
 
 /**
- * `claude-md` is the one type that is not copied as a file: its content is
- * spliced into the project's own CLAUDE.md, which is agent-stack's document to
- * compose. Files are copied; that block is built.
+ * `agent-md` is copied like the rest, but only once: it seeds the project's
+ * AGENTS.md, a template the team fills in. From then on the file is the
+ * project's, so it is never replaced, never removed and carries no checksum.
  */
-export const ARTIFACT_TYPES = ['rule', 'skill', 'command', 'claude-md'] as const;
+export const ARTIFACT_TYPES = ['rule', 'skill', 'command', 'agent-md'] as const;
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
 

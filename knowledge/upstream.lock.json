@@ -44,12 +44,6 @@
         "skills/global/test-driven-development/SKILL.md",
         "skills/global/using-agent-skills/SKILL.md"
       ]
-    },
-    "karpathy-guidelines": {
-      "ref": "2c606141936f1eeef17fa3043a72095b4765b9c2",
-      "files": [
-        "claude-md/karpathy-guidelines.md"
-      ]
     }
   }
 }

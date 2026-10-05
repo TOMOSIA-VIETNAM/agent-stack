@@ -11,7 +11,7 @@
  * part of the generator: it only shells out to dist/agent-stack.mjs with --out set.
  */
 import { spawn } from 'node:child_process';
-import { readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { readdir, rm, stat } from 'node:fs/promises';
 import { mkdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,19 +35,6 @@ const stackArgs = argv.length > 0 ? argv : DEFAULT_STACK;
 
 await rm(TARGET, { recursive: true, force: true });
 await mkdir(TARGET, { recursive: true });
-
-// Hand-written text the generator must leave alone when it merges its block.
-await writeFile(
-  join(TARGET, 'CLAUDE.md'),
-  [
-    '# Scratch project',
-    '',
-    'This file is here so `npm run try` shows that hand-written text survives a',
-    'generate run. Everything below the agent-stack markers is generated.',
-    '',
-  ].join('\n'),
-  'utf8',
-);
 
 const cli = spawn('node', [CLI, 'generate', ...stackArgs, '--out', TARGET, '--write'], {
   stdio: 'inherit',
@@ -74,4 +61,6 @@ console.log(`\nScratch project at ${relative(process.cwd(), TARGET) || '.agent-s
 for (const dir of ['rules', 'skills', 'commands']) {
   console.log(`  .claude/${dir}: ${await count(join(TARGET, '.claude', dir))} file(s)`);
 }
+const agentsMd = await stat(join(TARGET, 'AGENTS.md')).then(() => true, () => false);
+console.log(`  AGENTS.md: ${agentsMd ? 'seeded from the template' : 'none'}`);
 console.log('\nOpen it with Claude Code, or `npm run try -- --clean` to remove it.');
