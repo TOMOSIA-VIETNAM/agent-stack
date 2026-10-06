@@ -18,7 +18,7 @@ effort: medium
 
 Review the knowledge contribution `$ARGUMENTS`. The standard is
 `.claude/rules/knowledge-content.md`; read it first, because every finding cites it or
-`CLAUDE.md`. Work through the steps in order, and do not start a step before the one
+`AGENTS.md`. Work through the steps in order, and do not start a step before the one
 above it is done. Change no file: this is a review.
 
 ## 1. Get the change
@@ -113,7 +113,7 @@ lost a point, a suggested description written out in full. Then every finding ra
 severe first, each as:
 
 ```
-<file>:<line> — <blocking|major|minor|nit> — <what is wrong>. <the fix>. (<rule or CLAUDE.md section>)
+<file>:<line> — <blocking|major|minor|nit> — <what is wrong>. <the fix>. (<rule or AGENTS.md section>)
 ```
 
 - **blocking**: breaks an invariant or cannot ship — imported path edited, unattributed

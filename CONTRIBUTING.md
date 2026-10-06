@@ -141,7 +141,7 @@ Layer global copy từ repo khác, ghim theo SHA 40 ký tự trong `knowledge/up
 ## Sửa pipeline
 
 Đặt logic vào module đang sở hữu mối quan tâm đó — bảng module ở
-[CLAUDE.md](CLAUDE.md#pipeline). **Chỉ `emit.ts` được ghi hoặc xoá**, và chỉ xoá được đường
+[AGENTS.md](AGENTS.md#pipeline). **Chỉ `emit.ts` được ghi hoặc xoá**, và chỉ xoá được đường
 dẫn có trong manifest lần chạy trước. Giữ nguyên hình dạng `--json` vì slash command parse
 nó. Hai invariant phải giữ: **việc chọn là tất định**, và **xung đột không bao giờ được hoà
 giải âm thầm** — làm yếu cái nào thì nói thẳng trong PR.
