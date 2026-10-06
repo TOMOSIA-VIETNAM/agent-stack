@@ -9,6 +9,6 @@ node_modules/
 .env
 .env.local
 
-# Skills the harness installs into this repo's own .claude/ — third-party content,
-# which agent-stack may only carry through upstream.yaml with a pinned commit.
-.claude/
+# This repo's own .claude/ is committed — the contributor review rule and skill live
+# there. Per-developer settings stay local.
+.claude/settings.local.json
