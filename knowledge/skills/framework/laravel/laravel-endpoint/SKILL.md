@@ -69,7 +69,7 @@ Write Feature tests per `laravel-testing.md`, at minimum:
 
 Add a case for each significant business branch and side effect (fake it and assert the negative case too).
 
-Run the new tests with `--filter`, then the tests in the same directory.
+Run the new tests with `--filter`, then the full suite (see `laravel-testing.md` › Running tests).
 
 ## Step 7: Wrap up
 

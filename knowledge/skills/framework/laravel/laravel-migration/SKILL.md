@@ -55,7 +55,7 @@ Go through the list, skipping what does not apply:
 1. Confirm the database is local/testing (`php artisan db:show`). If it is not, stop and ask.
 2. Run `php artisan migrate` → `php artisan migrate:rollback --step=1` → `php artisan migrate`. All three must succeed.
 3. Review the schema: `php artisan db:table <table>`.
-4. Run the tests related to the changed model/table (`--filter`), then the full suite if the table is widely used.
+4. Run the tests related to the changed model/table (`--filter`), then the full suite (see `laravel-testing.md` › Running tests).
 5. Add or update tests when behaviour changes (unique constraints, enum casts, a new column in the response).
 
 ## Step 5: Report

@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Record how the project **currently** does things, in the right place. Describe reality; do not improve it.
 
-Based on the `infer-conventions` skill from [laravel/boost](https://github.com/laravel/boost) (MIT).
+Inspired by the `infer-conventions` skill from [laravel/boost](https://github.com/laravel/boost).
 
 ## Where things go
 
@@ -38,7 +38,7 @@ Do not fill in the `AGENTS.md` sections that cannot be inferred from code: Workf
 
 ## Step 0: Orientation
 
-1. Read `AGENTS.md`, `CLAUDE.md` and the 6 `.claude/rules/laravel-*.md` files: the general rules (to know what is already the default) and whatever the project has already filled in (skip anything already recorded, unless asked to update it).
+1. Read `AGENTS.md`, `CLAUDE.md` and every `.claude/rules/laravel-*.md` file: the general rules (to know what is already the default) and whatever the project has already filled in (skip anything already recorded, unless asked to update it).
 2. Read `composer.json` (versions; packages such as Pest, Sanctum/Passport/JWT, Livewire/Inertia, Horizon, spatie/laravel-data…), `pint.json`, `phpstan.neon*`, `rector.php`, `phpunit.xml`, and the CI config.
 3. List every directory under `app/` (and `Modules/`, `src/`, `Domain/` if present). Directories outside the default skeleton (`Http`, `Models`, `Providers`, `Console`, `Exceptions`) are architectural signals to confirm in Step 2.
 4. Determine how commands are run: natively, through Sail, or Docker (`docker-compose.yml`, `Makefile`, scripts in `composer.json`, CI).
@@ -99,6 +99,7 @@ Record only the items the user approves. If the user explicitly says "record eve
 **Rules** (`.claude/rules/laravel-*.md`):
 - Write into the `## Project-specific` section of the destination file, below the section's opening sentence. Do not edit the general rules.
 - One bullet per convention, in the imperative, with all evidence removed.
+- A rule file with this section filled in no longer matches what agent-stack wrote. Later runs leave it alone, so it stops receiving knowledge-base updates, and taking it back with `--overwrite` or a tick in the approval checklist replaces the whole file, this section included. Say so in Step 5.
 
 Write it like this:
 > - Business logic lives in Actions (`app/Actions`, method `handle()`), injected into controllers. Do not create Services.
@@ -114,4 +115,5 @@ Not like this:
 - Conflicts the user has not decided yet
 - `AGENTS.md` sections still empty, for the user to fill in
 - Notable items with insufficient signal (1 line)
+- The rule files written to: before taking one back with `--overwrite` or the approval checklist, review the diff and copy its **Project-specific** section back in
 - A reminder to commit `AGENTS.md`, `.claude/rules/laravel-*.md` and `.claude/settings.json` so the whole team shares them
