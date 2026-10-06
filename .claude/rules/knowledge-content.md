@@ -40,6 +40,13 @@ What follows is the half no test can judge.
 - Command: `description`. Rule: nothing, or only `paths:`.
 - No agent-stack metadata (`id`, `priority`, `layer`, `applies_to`, `type`, `version`, an
   author) — it is read by nobody and lands in every generated project.
+- Only fields Claude Code reads. It ignores an unknown one (`tags`, `category`,
+  `keywords`) without a word, and a skill whose YAML does not parse loads with no fields
+  at all — still typeable, never matched to a task.
+- `allowed-tools` pre-approves; it does not restrict. It ships into every selecting
+  project, so grant the exact commands the steps run (`Bash(git diff *)`), never `Bash`.
+- A skill that deploys, publishes, sends, pushes or deletes sets
+  `disable-model-invocation: true`, so only a person can start it.
 
 ## Context cost
 
@@ -49,6 +56,9 @@ What follows is the half no test can judge.
   a leftover placeholder like `<ext>`.
 - Keep `SKILL.md` under ~500 lines. Move long reference material into a sibling file and
   name that file from `SKILL.md` — a sibling nothing points to is never read.
+- A skill directory holds what the skill uses at run time and nothing else. Every file
+  beside `SKILL.md` is copied into every project: test prompts, `evals/` and authoring
+  notes belong in the PR, not in `knowledge/`.
 
 ## Substance
 
@@ -71,4 +81,12 @@ What follows is the half no test can judge.
   numbers, credentials, or paths from one codebase — the file goes to every project.
 - **No leftover placeholders** — `<Framework>`, `<…>`, `…` bullets. A file that is half
   template is worse than no file.
-- Content is written in English, imperative bullets for rules, ordered steps for skills.
+- **Each skill step ends on something observable** — a command run, a file written, a
+  check passed. "Understand the code" cannot tell Claude when to move on.
+- **A skill's description is its trigger.** It names what the skill does and the kinds of
+  request it handles, in the third person and in words a developer would type, leads with
+  what sets it apart, and claims no prompt another skill in the same stack already claims.
+- **Code examples run.** Claude copies them into real code, so an example with an
+  undefined name or a removed API is wrong advice, however clear the prose around it.
+- Content is written in English: imperative bullets for rules, ordered imperative steps
+  for skills — "Add the index", not "You should add the index".
