@@ -12411,7 +12411,7 @@ function conflictFinding(conflict, isAccepted) {
 }
 
 // src/cli.ts
-var VERSION = "1.1.1";
+var VERSION = "1.2.0";
 var HERE = dirname3(fileURLToPath(import.meta.url));
 var DEFAULT_KNOWLEDGE = resolve(HERE, "..", "knowledge");
 var USAGE = `agent-stack ${VERSION} - generate .claude rules and skills from a curated knowledge base
