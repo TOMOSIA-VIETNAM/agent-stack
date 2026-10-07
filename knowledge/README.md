@@ -142,13 +142,13 @@ fail. `agent-stack catalog` in ra mỗi framework có gì, để thấy ngay ch�
   │ id      │ name          │ rules │ skills │ commands │
   ├─────────┼───────────────┼───────┼────────┼──────────┤
   │ rails   │ Ruby on Rails │     3 │     29 │        9 │
-  │ laravel │ Laravel       │     — │     26 │        9 │
+  │ laravel │ Laravel       │     6 │     30 │        9 │
   └─────────┴───────────────┴───────┴────────┴──────────┘
 ```
 
 Mỗi dòng là đúng những gì `--framework <id>` sinh ra, tính cả global layer, vì layer đó
-luôn được chọn bất kể framework nào. Cột rules trống của Laravel là chỗ thiếu; 26 skill và
-9 command là global layer nó có sẵn. Output `--json` tách hai phần đó ra thành `counts` và
+luôn được chọn bất kể framework nào. Global layer góp 0 rule, 26 skill và 9 command vào mỗi
+dòng; phần còn lại là của riêng framework đó. Output `--json` tách hai phần đó ra thành `counts` và
 `own`.
 
 ## Thêm nội dung
