@@ -70,8 +70,8 @@ If two designs are reasonable, say which you picked and why.
 
 ## 8. Errors
 
-- A new failure is a new file in `app/errors/` declaring its status and code. Raise it
-  without a message string.
+- Raise each new failure the way the project's existing actions do (often a new class
+  in `app/errors/` with its status and code), without a message string.
 - Add the i18n keys the form and errors use to `config/locales/`, in every locale.
 
 ## 9. Specs

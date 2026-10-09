@@ -54,6 +54,7 @@ are the project's, the rules are the same. Copy the naming of the existing ones.
 
 ## Failure
 
-- A business failure raises an error class from `app/errors/`. Never return `false` or
-  an error string for the controller to inspect.
-- Permission checks happen here, through the policy, as the first step.
+- A business failure raises the project's error class. Never return `false` or an
+  error string for the controller to inspect.
+- When the project authorizes in the service layer, the permission check is the first
+  step.

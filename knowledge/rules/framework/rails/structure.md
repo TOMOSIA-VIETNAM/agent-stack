@@ -16,18 +16,18 @@ once you read or edit a file of that layer, so:
 | Business logic of one use case | service object (`app/services`, `app/operations`, `app/interactors`) |
 | Input validation for one use case | form object (`app/forms`) |
 | Associations, scopes, callbacks, persistence | model |
-| Who may do what | policy (`app/policies`) |
+| Who may do what | authorization (`app/policies`, or `app/models/ability.rb`) |
 | JSON shape | serializer (`app/blueprints`) |
 | Display logic for one record | decorator (`app/decorators`) |
 | Reusable UI | component (`app/components`) |
 | Async work | job (`app/jobs`) |
-| An error the app returns | error class (`app/errors`) |
+| An error the app returns | the project's error classes (often `app/errors`) |
 | Code with no Rails dependency | `lib/` |
 
 ## Call flow
 
 - Request → route → controller → one service object → controller renders.
-- A service object calls forms, policies, models, `lib/`, and enqueues jobs. It never
+- A service object calls forms, authorization, models, `lib/`, and enqueues jobs. It never
   calls another service object; share code by inheritance or a mixin.
 - A model calls `lib/` and enqueues jobs; never a service, form, serializer or decorator.
 - A job calls models and `lib/`.

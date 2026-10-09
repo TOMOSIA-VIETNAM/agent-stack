@@ -5,6 +5,8 @@ paths:
 
 # Blueprinter
 
+Applies only when the `Gemfile` includes `blueprinter`; otherwise ignore this file.
+
 JSON responses are built with the `blueprinter` gem. A blueprint only maps loaded data to
 keys.
 

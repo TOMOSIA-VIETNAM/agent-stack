@@ -5,6 +5,8 @@ paths:
 
 # Draper Decorators
 
+Applies only when the `Gemfile` includes `draper`; otherwise ignore this file.
+
 Display logic for one record lives in a decorator (the `draper` gem).
 
 - `app/decorators/<model>_decorator.rb` → `<Model>Decorator < ApplicationDecorator`;

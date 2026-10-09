@@ -6,6 +6,8 @@ paths:
 
 # Soft Delete
 
+Applies only when the `Gemfile` includes `paranoia`; otherwise ignore this file.
+
 Records that must stay recoverable are soft-deleted with `acts_as_paranoid` (the
 `paranoia` gem).
 

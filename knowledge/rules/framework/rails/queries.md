@@ -6,6 +6,7 @@ paths:
   - "app/interactors/**/*.rb"
   - "app/jobs/**/*.rb"
   - "lib/**/*.rb"
+  - "app/controllers/**/*.rb"
 ---
 
 # Rails Queries
@@ -21,5 +22,8 @@ paths:
   `present?` to test for a row.
 - Count, sum and group in SQL, in the service object or a model reader, never in a
   serializer, decorator or component; pass the result in.
+- Paginate every list that can grow, after filtering and ordering. Cap the page size with
+  a configured maximum so a client cannot ask for every row, and end the order on a
+  unique column (`order(created_at: :desc, id: :desc)`) or rows repeat across pages.
 - Read-modify-write on a row concurrent requests can touch: `with_lock`/`lock!`.
   Counters: `update_counters` or a DB-side increment, not `count += 1; save`.

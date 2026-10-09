@@ -6,6 +6,8 @@ paths:
 
 # Enumerize
 
+Applies only when the `Gemfile` includes `enumerize`; otherwise ignore this file.
+
 Enumerated attributes use the `enumerize` gem, not Rails `enum`.
 
 - Declare with `extend Enumerize` and

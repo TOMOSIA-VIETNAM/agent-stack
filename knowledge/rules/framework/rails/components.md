@@ -6,6 +6,8 @@ paths:
 
 # ViewComponent
 
+Applies only when the `Gemfile` includes `view_component`; otherwise ignore this file.
+
 Reusable UI is a component (the `view_component` gem).
 
 - `app/components/<namespace>/<name>_component.rb` with `<name>_component.html.erb`
