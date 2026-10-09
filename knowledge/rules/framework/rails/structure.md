@@ -5,8 +5,11 @@ once you read or edit a file of that layer, so:
 
 - **Before creating a file in a layer, Read one existing file of that layer, or its base
   class.** That loads the layer's rule and shows the project's own shape. Copy it.
-- Where the project already does something one way, follow the project, not these rules.
-  Do not add a layer or directory the project does not have unless asked.
+- Do not add a layer or directory the project does not have unless asked.
+- When a rule contradicts `AGENTS.md` or what the existing code consistently does, do
+  not pick a side. Name the rule, the line, and two or three files that disagree, and ask
+  the user. They settle it by editing `AGENTS.md`, the rule, or the code; until then a
+  guess in either direction spreads the inconsistency.
 
 ## What goes where
 
