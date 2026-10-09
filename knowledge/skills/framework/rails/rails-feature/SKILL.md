@@ -1,62 +1,105 @@
 ---
 name: rails-feature
-description: Implement a new user-facing feature in a Rails application — route, controller, model, service, view, and specs — in the order that keeps the app deployable at every step. Use when adding or changing a screen, endpoint, or user-visible behaviour in a Rails codebase.
+description: Implement a Rails endpoint or screen layer by layer — route, thin controller, service object, form, serializer or decorator/component, errors and specs — copying the project's existing shape, then prove it with RuboCop and RSpec. Use when adding or changing an API endpoint, an HTML page, or any user-visible behaviour in a Rails codebase.
 ---
 
-Work through the steps in order. Do not skip ahead to code.
+A request flows route → controller → one service object → controller renders. Each
+layer has its rule in `.claude/rules/rails-*.md`, loaded when you read a file of that
+layer. Read before you write, layer by layer.
 
 ## 1. Locate before you build
 
 - Read `config/routes.rb` and find the closest existing resource.
-- Read one controller and one service that already do something similar; the new code
-  copies their shape.
-- Search for the domain nouns in `app/models` — the concept often already exists
-  under another name.
+- Read one controller, its service object, form and serializer (or decorator and
+  component) that already do something similar. The new code copies their shape:
+  directory, naming, base class.
+- Search `app/models` for the domain nouns, and the service directory for a mixin that
+  already does part of the work.
 
-State what you found before writing anything. If the behaviour already exists,
-extend it instead of adding a parallel path.
+State what you found. If the behaviour exists, extend it instead of adding a parallel
+path.
 
 ## 2. Design the change
 
-Name, in one sentence each:
+Name, in one line each:
 
-- the route and HTTP verb,
-- the object that owns the new behaviour (model, service, or job),
-- what persists, and which migration it needs,
-- what the user sees on success and on each failure.
+- the route: resource, action, and URL. An action outside the seven REST actions is a
+  new resource, not a `member`/`collection` route;
+- the namespace shared by controller, service object, form and serializer;
+- the steps the service object's `call` lists;
+- whether the use case needs a form (it takes input to validate) or not;
+- the response: a serializer for JSON, or a decorator and component for HTML;
+- each failure, and the error class it raises;
+- what persists, and whether it needs a migration (use the `rails-migration` skill).
 
 If two designs are reasonable, say which you picked and why.
 
-## 3. Data layer first
+## 3. Route
 
-- Write the migration: columns, `null: false` where the value is required, indexes
-  for every lookup column, foreign keys for every association.
-- Add validations and associations to the model.
-- Run the migration and confirm `db/schema.rb` changed as expected.
+- Add `resources`/`resource` with `only: %i[...]` inside the right namespace.
+- Run `bin/rails routes -g <resource>` and confirm the controller#action you expect.
 
-## 4. Behaviour
+## 4. Controller
 
-- Put the operation in the model when it concerns one record, in `app/services` when
-  it spans several or calls outside the app.
-- Return a result object or raise a domain error; do not return `true`/`false` for an
-  operation that can fail in more than one way.
-- Keep external calls (HTTP, mail, queue) outside the database transaction.
+- Inherit the actor's base controller.
+- The action builds the service object with `params` and the current actor, calls it,
+  and renders or redirects. No conditionals, queries or `params.permit`.
 
-## 5. Controller and view
+## 5. Service object
 
-- Add the route as a RESTful action on a resource.
-- Controller: strong parameters, an authorized and owner-scoped lookup, one call into
-  the behaviour object, then render.
-- Handle the failure path explicitly: `422` with the errors, not a redirect that
-  loses them.
+- Same directory, base class and naming as the existing ones.
+- `call` lists private steps: permission, validation, writes, then side effects.
+- Load records through the actor's associations, preloading what the response reads.
+- Wrap multi-table writes in one transaction; enqueue jobs after it.
+- Logic two service objects share goes in a mixin, never in a call from one to another.
 
-## 6. Specs
+## 6. Form — only if the use case validates input
 
-- Model or service spec for the behaviour, including each failure path.
-- Request spec for the endpoint: success, validation failure, and unauthorized.
-- Run the full spec file, then the suite for the touched directories.
+- `app/forms/<namespace>/<action>_form.rb`, inheriting `ApplicationForm`.
+- Every input is `attribute :name, :type`. Custom checks are `validate :must_<x>` with
+  `errors.add(:attr, :symbol_key)`.
+- Build it only in the service object's validation step, from the permitted params.
 
-## 7. Report
+## 7. Response
 
-State what changed, the command you ran to verify it, and anything you deliberately
-left out.
+- JSON: a blueprint in `app/blueprints/`. Add a view only when the key set differs; pass
+  aggregates from the service object through options.
+- HTML: the controller assigns decorated records. Display formatting goes in a
+  decorator; reusable markup in a component. Strings go through i18n.
+- Neither layer queries the DB.
+
+## 8. Errors
+
+- A new failure is a new file in `app/errors/` declaring its status and code. Raise it
+  without a message string.
+- Add the i18n keys the form and errors use to `config/locales/`, in every locale.
+
+## 9. Specs
+
+Write them beside the code, mirroring its path:
+
+- service object: one example per step outcome and per raised error;
+- form: one example per validation;
+- blueprint: whole-Hash `eq` per view; or decorator and component specs for HTML;
+- endpoint: a request spec (or rswag spec) checking status and envelope.
+
+## 10. Verify
+
+```bash
+bundle exec rubocop <changed paths>
+bundle exec rspec <new and changed spec files>
+```
+
+Fix every offence in the code; do not disable a cop to get green. Then run the specs
+of the touched directories.
+
+## 11. Check the diff against the rules
+
+Run `git diff` and, for each layer you touched, re-read its rule in
+`.claude/rules/rails-*.md` and `rails-structure.md`. Fix each line that breaks one, or
+say why it has to.
+
+## 12. Report
+
+State the route, the files added or changed per layer, the commands you ran with their
+result, and anything you deliberately left out.
