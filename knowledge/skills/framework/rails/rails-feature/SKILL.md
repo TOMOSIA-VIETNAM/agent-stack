@@ -1,6 +1,6 @@
 ---
 name: rails-feature
-description: Implement a Rails endpoint or screen layer by layer — route, thin controller, service object, form, serializer or decorator/component, errors and specs — copying the project's existing shape, then prove it with RuboCop and RSpec. Use when adding or changing an API endpoint, an HTML page, or any user-visible behaviour in a Rails codebase.
+description: Implement a Rails endpoint or screen layer by layer — route, thin controller, service object, form, serializer or decorator/component, errors and specs — copying the project's existing shape, then prove it with RuboCop and RSpec. Use when adding a new endpoint or screen to a Rails codebase, or extending one with new behaviour. Not for fixing a bug in existing behaviour.
 ---
 
 A request flows route → controller → one service object → controller renders. Each
