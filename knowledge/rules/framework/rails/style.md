@@ -6,9 +6,8 @@ paths:
 
 # Ruby Style
 
-Run `bundle exec rubocop` on the files you changed before reporting done, and fix the
-offences in the code. A metric that must be exceeded is disabled inline on that method
-with the reason on the same line, never for a whole file or in `.rubocop.yml`:
+Fix lint offences in the code. A metric that must be exceeded is disabled inline on that
+method with the reason on the same line, never for a whole file or in `.rubocop.yml`:
 `# rubocop:disable Metrics/MethodLength -- builds the full export row`.
 
 ## Formatting

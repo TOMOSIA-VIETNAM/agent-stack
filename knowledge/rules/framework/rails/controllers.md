@@ -41,9 +41,9 @@ paths:
 - Errors are raised, never rendered by hand: no `rescue` in an action. One concern in
   the base controller maps them with `rescue_from`.
 - Pass context with keyword shorthand: `current_user:`.
-- HTML: assign decorated records (`@article = result.article.decorate`); views never
-  call `.decorate`. Pick another format by template (`create.turbo_stream.erb`), not by
-  a `respond_to` block.
+- HTML: assign records ready to display; with Draper, decorate here
+  (`@article = service.article.decorate`) so views never call `.decorate`. Pick another
+  format by template (`create.turbo_stream.erb`), not by a `respond_to` block.
 
 ```ruby
 # POST /v1/articles

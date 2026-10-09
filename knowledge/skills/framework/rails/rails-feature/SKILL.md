@@ -47,25 +47,29 @@ If two designs are reasonable, say which you picked and why.
 
 ## 5. Service object
 
-- Same directory, base class and naming as the existing ones.
-- `call` lists private steps: permission, validation, writes, then side effects.
+- Put the logic where the project's existing use cases put it. Same directory, base
+  class and naming as the existing service objects; if the project has none, follow
+  `AGENTS.md` or ask rather than adding the layer.
+- `call` lists private steps: permission (when the project authorizes here), validation,
+  writes, then side effects.
 - Load records through the actor's associations, preloading what the response reads.
 - Wrap multi-table writes in one transaction; enqueue jobs after it.
 - Logic two service objects share goes in a mixin, never in a call from one to another.
 
-## 6. Form — only if the use case validates input
+## 6. Validation — only if the use case validates input
 
-- `app/forms/<namespace>/<action>_form.rb`, inheriting `ApplicationForm`.
+- Validate where the project does. With form objects:
+  `app/forms/<namespace>/<action>_form.rb`, inheriting `ApplicationForm`.
 - Every input is `attribute :name, :type`. Custom checks are `validate :must_<x>` with
   `errors.add(:attr, :symbol_key)`.
 - Build it only in the service object's validation step, from the permitted params.
 
 ## 7. Response
 
-- JSON: a blueprint in `app/blueprints/`. Add a view only when the key set differs; pass
-  aggregates from the service object through options.
-- HTML: the controller assigns decorated records. Display formatting goes in a
-  decorator; reusable markup in a component. Strings go through i18n.
+- JSON: the project's serializer (with Blueprinter, a blueprint in `app/blueprints/`;
+  add a view only when the key set differs). Pass aggregates in from the service object.
+- HTML: display formatting goes in a decorator or helper, reusable markup in a
+  component or partial, whichever the project uses. Strings go through i18n.
 - Neither layer queries the DB.
 
 ## 8. Errors
@@ -80,18 +84,15 @@ Write them beside the code, mirroring its path:
 
 - service object: one example per step outcome and per raised error;
 - form: one example per validation;
-- blueprint: whole-Hash `eq` per view; or decorator and component specs for HTML;
+- serializer: whole-Hash `eq` per view or shape; for HTML, decorator, helper or component
+  specs;
 - endpoint: a request spec (or rswag spec) checking status and envelope.
 
 ## 10. Verify
 
-```bash
-bundle exec rubocop <changed paths>
-bundle exec rspec <new and changed spec files>
-```
-
-Fix every offence in the code; do not disable a cop to get green. Then run the specs
-of the touched directories.
+Run the project's lint and test commands (from `AGENTS.md`, else `bundle exec rubocop`
+and `bundle exec rspec`) on the changed paths, then on the touched directories. Fix every
+offence in the code; do not disable a cop to get green.
 
 ## 11. Check the diff against the rules
 

@@ -16,8 +16,8 @@ paths:
 - A serializer maps loaded data to keys. No query, `count`, `where` or `order`: load and
   aggregate in the service object; an association read here that was not preloaded is
   an N+1.
-- Every response has the same envelope (data, pagination meta, errors), built in one
-  place.
+- Responses share one shape. When the API wraps them (data, pagination meta, errors),
+  one helper builds the wrapper; no action assembles it.
 - Datetimes are ISO 8601. Keys follow one case convention across the API.
 - Never expose a password digest, token or internal flag; list fields explicitly.
 

@@ -10,9 +10,11 @@ Views and helpers read loaded data only: no query, no write, no side effect.
 
 ## Views
 
-- A view receives decorated records from the controller and never calls `.decorate`.
+- A view receives records ready to display from the controller; with Draper it never
+  calls `.decorate` itself.
 - Display strings go through `t`, never hardcoded.
-- A reusable piece of UI with its own logic is a component, not a partial with logic.
+- A reusable piece of UI with its own logic is a component where the project uses
+  ViewComponent; otherwise a partial whose logic lives in a helper or decorator.
 - No association read that the service object did not preload.
 
 ## Helpers
