@@ -47,19 +47,21 @@ If two designs are reasonable, say which you picked and why.
 
 ## 5. Service object
 
-- Put the logic where the project's existing use cases put it. Same directory, base
-  class and naming as the existing service objects; if the project has none, follow
-  `AGENTS.md` or ask rather than adding the layer.
+- Put the logic where the project's existing use cases put it: same directory, base
+  class and naming. When the project has no business layer yet, create the first
+  service object as `rails-services.md` describes, unless `AGENTS.md` says otherwise.
 - `call` lists private steps: permission (when the project authorizes here), validation,
   writes, then side effects.
-- Load records through the actor's associations, preloading what the response reads.
+- Load records through the actor's associations, or the authorization scope for records
+  it does not own, preloading what the response reads.
 - Wrap multi-table writes in one transaction; enqueue jobs after it.
 - Logic two service objects share goes in a mixin, never in a call from one to another.
 
 ## 6. Validation — only if the use case validates input
 
-- Validate where the project does. With form objects:
-  `app/forms/<namespace>/<action>_form.rb`, inheriting `ApplicationForm`.
+- Validate where the project does: a form object
+  (`app/forms/<namespace>/<action>_form.rb`, inheriting `ApplicationForm`; the first one
+  creates the base class), or the model when `AGENTS.md` says so.
 - Every input is `attribute :name, :type`. Custom checks are `validate :must_<x>` with
   `errors.add(:attr, :symbol_key)`.
 - Build it only in the service object's validation step, from the permitted params.

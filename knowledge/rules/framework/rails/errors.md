@@ -13,13 +13,17 @@ below hold whatever the mechanism is.
 - One place turns errors into responses: a `rescue_from` handler in the base
   controller or a concern. An action never rescues to render an error by hand.
 - Every error response has the same body shape and a fixed code the client can match.
-  Never put SQL, file paths, stack traces or exception class names in it.
+  A validation error adds per-field error keys under one fixed key
+  (`details: { body: [:too_long] }`); other errors leave it out. Never put SQL, file
+  paths, stack traces or exception class names in it.
 - A business failure raises; it never returns `false` or an error string for the
   caller to inspect.
 - Exceptions from gems (`ActiveRecord::RecordNotFound`, `Pundit::NotAuthorizedError`,
   `CanCan::AccessDenied`) are mapped to the app's errors in that one place.
-- Rescue the narrowest class that can be raised, never `Exception`. Never swallow an
-  exception: re-raise it or report it.
+- The central handler alone catches `StandardError`, to render the standard 500 body and
+  report it. Register that `rescue_from` first: later ones take precedence, so the
+  specific mappings still win. Anywhere else, rescue the narrowest class that can be
+  raised, never `Exception`. Never swallow an exception: re-raise it or report it.
 - Report every 500 to the error tracker, with filtered params and the user's id and
   role only. Do not report 4xx: they are the client's mistakes, not defects.
 - Raise without a message string; a message, when needed, is an i18n key.

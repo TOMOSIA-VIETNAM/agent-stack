@@ -11,6 +11,8 @@ paths:
 - Reversible: `change` only when Rails can invert every statement, otherwise explicit
   `up` and `down`.
 - Name every index explicitly with `name:`.
+- An index whose columns are a leading prefix of another index is redundant: drop it in
+  the migration that adds the wider one.
 - Index on a large PostgreSQL table: `disable_ddl_transaction!`,
   `algorithm: :concurrently`, `if_not_exists:`/`if_exists:`, and explicit `up`/`down`:
   ```ruby

@@ -14,6 +14,9 @@ paths:
   into `where`, `order` or a column name: arbitrary predicates leak hidden columns and
   open SQL injection.
 - Search on a relation already scoped to the actor and tenant, never on `Model.all`.
+- Filter, sort and page params are input: permit them with their shape
+  (`params.permit(q: %i[title_cont])`), so a string where a hash belongs is dropped
+  instead of raising, and coerce `page`/`per_page` to integers before capping them.
 - Paginate the result (see `rails-queries.md`).
 - Use the project's search mechanism (a gem, or query objects); do not add a second one.
 
@@ -21,7 +24,8 @@ paths:
 
 Applies only when the `Gemfile` includes `ransack`.
 
-- Search with `scope.ransack(params[:q]).result(distinct: true)`.
+- Search with `scope.ransack(q).result`; add `distinct: true` only when the search can
+  join a `has_many` association and repeat rows.
 - `ApplicationRecord` returns nothing from `ransackable_attributes` and
   `ransackable_associations`; each searchable model overrides them with the exact
   columns and associations. Ransack 4+ raises when a searched model does not define them.

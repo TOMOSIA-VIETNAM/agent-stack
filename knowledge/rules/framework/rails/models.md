@@ -10,7 +10,9 @@ paths:
 - `app/models/<model>.rb` holds declarations only: `include`s, constants,
   `class_attribute`, associations, validations, scopes, callbacks, `delegate`, and the
   macros of the gems the project uses. Methods live in concerns, so the model file
-  stays a readable table of what the model is.
+  stays a readable table of what the model is. The exceptions are class methods a gem
+  requires on the class itself, such as Ransack's `ransackable_attributes`, and the
+  defaults other rules place in the abstract `ApplicationRecord`.
 - Declare each association, scope and `delegate` once.
 - Align the arguments of consecutive one-line declarations into columns. A blank line
   starts a new group.
@@ -39,6 +41,8 @@ end
   - more (`repository.rb` for complex SQL, `counter.rb`, `cache.rb`) when the model needs
     them.
 - A method that writes ends in `!`; a predicate ends in `?`.
+- A writer that changes state checks its own precondition (`publish!` raises unless the
+  record is a draft), so every caller gets the guard, not only the one service.
 
 ## Declarations
 
@@ -59,4 +63,6 @@ end
 - A validation is not a constraint: two requests can both pass it. Back uniqueness with
   a unique index, required columns with `null: false`, and every `belongs_to` with a
   foreign key.
+- The reverse holds too: a `null: false` column a caller can leave blank has a presence
+  validation, so a blank value is a validation error, not a database exception.
 - Index every column used in a `where`, a join or an `order` on a growing table.

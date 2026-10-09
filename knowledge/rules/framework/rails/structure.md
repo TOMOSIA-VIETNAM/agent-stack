@@ -4,8 +4,11 @@ Every layer below has its own rule in `.claude/rules/rails-*.md`. A layer rule l
 once you read or edit a file of that layer, so:
 
 - **Before creating a file in a layer, Read one existing file of that layer, or its base
-  class.** That loads the layer's rule and shows the project's own shape. Copy it.
-- Do not add a layer or directory the project does not have unless asked.
+  class.** That loads the layer's rule and shows the project's own shape. Copy it. When
+  the layer has no file yet, Read its rule in `.claude/rules/` instead.
+- A concern the project does not handle yet goes in the layer the table below names.
+  Do not add a second layer for a job the project already does elsewhere (interactors
+  beside services, form objects where `AGENTS.md` says models validate) unless asked.
 - When a rule contradicts `AGENTS.md` or what the existing code consistently does, do
   not pick a side. Name the rule, the line, and two or three files that disagree, and ask
   the user. They settle it by editing `AGENTS.md`, the rule, or the code; until then a

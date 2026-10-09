@@ -16,7 +16,9 @@ paths:
   `resources :publications, only: %i[create]`, not `post :publish, on: :member`. Seven
   actions on more controllers stay predictable; custom verbs on one controller do not.
 - Version an API with `namespace :v1`. Change the URL key with `param:`. A URL that
-  differs from the controller namespace uses `scope module:, path:`.
+  differs from the controller namespace uses `scope module:, path:`. A nested resource
+  whose controller sits in the parent's namespace uses `module:` on the resource:
+  `resources :articles { resource :publication, only: %i[create], module: :articles }`.
 - Declare each resource once per block; widen its `only:` instead of repeating it.
 
 ## Base controllers
@@ -26,6 +28,8 @@ paths:
 - An endpoint behind authentication inherits its actor's base controller, never
   `ApplicationController` directly, so authentication cannot be forgotten.
 - Authentication and audit metadata go in `before_action` of the base controller.
+- Public endpoints inherit a public base controller with no authentication; their
+  service objects take no actor rather than `current_user: nil`.
 - Shared controller code goes in `app/controllers/concerns/`.
 
 ## Actions

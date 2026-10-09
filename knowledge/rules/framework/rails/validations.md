@@ -37,7 +37,9 @@ case builds it, in its validation step.
 - `errors.add(:attr, :symbol_key)`, never a message string; the message comes from i18n.
 - `inclusion:` reads its list from the source (`Article.status.values`, config), never a
   literal list, except `[true, false]`.
-- Numeric limits come from config.
+- Numeric limits come from config. A limit that protects stored data (length, range)
+  also lives in the model or the column, so every write path keeps it; the form adds
+  the checks of its own use case.
 - No DB access in a form other than an `existence:` or `uniqueness:` validator.
 - Nested hash input → validate it with its own form and copy its errors onto the parent
   key.

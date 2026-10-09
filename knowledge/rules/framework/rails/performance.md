@@ -16,8 +16,9 @@ covers the rest.
   join multiplies rows.
 - List endpoints select only the columns they render (`select(...)`, or a named scope).
 - After `includes`, count with `size`, not `count`, which runs a new query.
-- A count read on a hot path is a `counter_cache` (or a counter table), not
-  `association.count`.
+- Never `association.count` per record in a list. One grouped count per page
+  (`where(id: ids).group(...).count`) is fine; move to a `counter_cache` (or a counter
+  table) when that grouped count is measured slow.
 
 ## Work out of the request
 

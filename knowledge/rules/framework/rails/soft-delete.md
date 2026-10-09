@@ -20,3 +20,7 @@ Records that must stay recoverable are soft-deleted with `acts_as_paranoid` (the
 - `really_destroy!` deletes for good. Use it only where data must be erased.
 - Dependent records of a soft-deleted parent are soft-deleted too
   (`dependent: :destroy` on paranoid children), or the children outlive their parent.
+- A parent that is not paranoid cannot rely on `dependent: :restrict_with_error` over
+  paranoid children: the check runs through the default scope, misses soft-deleted rows,
+  and the delete then fails on the foreign key. Make the parent paranoid too, or check
+  `children.with_deleted.exists?` before destroying it.

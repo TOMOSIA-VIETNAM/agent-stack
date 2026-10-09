@@ -18,6 +18,8 @@ paths:
   an N+1.
 - Responses share one shape. When the API wraps them (data, pagination meta, errors),
   one helper builds the wrapper; no action assembles it.
+- Pagination meta (`total_count`, `total_pages`) is computed in the service object and
+  passed in like any other aggregate, so the serializer never triggers a count query.
 - Datetimes are ISO 8601. Keys follow one case convention across the API.
 - Never expose a password digest, token or internal flag; list fields explicitly.
 
@@ -26,7 +28,8 @@ paths:
 Applies only when the `Gemfile` includes `blueprinter`.
 
 - `app/blueprints/<namespace>/<model>_blueprint.rb` → `<Model>Blueprint < ApplicationBlueprint`;
-  `ApplicationBlueprint < Blueprinter::Base`. One blueprint per model per namespace.
+  `ApplicationBlueprint < Blueprinter::Base`. One blueprint per model; namespace it by API version only when versions render the
+  model differently.
 - Shared logic goes in `ApplicationBlueprint` or an extractor
   (`app/blueprints/extractors/<name>_extractor.rb`, `< Blueprinter::Extractor`, one type
   conversion each).
@@ -34,7 +37,8 @@ Applies only when the `Gemfile` includes `blueprinter`.
   with `extractor:`.
 - `association :comments, blueprint: CommentBlueprint`. Always name the blueprint.
 - A value computed by the service object comes in through options:
-  `field(:comment_count) { |article, options| options.fetch(:comment_counts).fetch(article.id) }`.
+  `field(:comment_count) { |article, options| options.fetch(:comment_counts).fetch(article.id, 0) }`.
+  `group(...).count` leaves out records with no rows, hence the default.
 - Views only when the key set differs (`view :basic`, `view :detail`). A view differing
   by a key or two uses `include_view`, in one direction only. No empty view. More than
   four views → split the blueprint.

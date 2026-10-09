@@ -16,6 +16,8 @@ paths:
   end
   ```
 - `context 'when ...'`, `it 'returns ...'`.
+- A spec calls the code it guards. Never re-create its query by hand to test a plan or a
+  count: the copy stays green when the real method changes.
 - Assert errors by class (`raise_error(ForbiddenError)`), never by message.
 
 ## By layer
@@ -29,5 +31,5 @@ paths:
 - Component: `render_inline`, then `have_css`/`have_text`; one example per variant, per
   slot, and for `render?` returning false.
 - Request spec: status and response envelope only; the logic is covered by the service
-  object's spec. An API documented with rswag keeps its spec in `spec/integration/` and
-  ends with `run_test!`.
+  object's spec. For an HTML page: status, and that the main element renders. An API
+  documented with rswag keeps its spec in `spec/integration/` and ends with `run_test!`.

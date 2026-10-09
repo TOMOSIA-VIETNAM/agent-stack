@@ -34,15 +34,19 @@ are the project's, the rules are the same. Copy the naming of the existing ones.
 ## Input and validation
 
 - Permit params in a private method of the service, not in the controller.
-- Validation is its own step and its own object: build the form object for this use
-  case and raise when it is invalid. Do not interleave checks with writes.
+- Validation is its own step, before any write: build the form object for this use case
+  (the first one also creates `ApplicationForm`) and raise when it is invalid. Where
+  `AGENTS.md` says the project validates in models, validate there instead. Do not
+  interleave checks with writes.
 - A use case with nothing to validate has no form and no validation step.
 
 ## Loading and writing
 
-- Load records through the actor's associations: `current_user.articles.find(id)`, not
-  `Article.find(id)`. The association is the authorization boundary; a bare `find`
-  lets any id through.
+- Load a record the actor owns through its associations: `current_user.articles.find(id)`,
+  not `Article.find(id)`. Load one it may act on but does not own (another user's
+  article to comment on) through the authorization scope (`policy_scope`,
+  `accessible_by`). Either way the lookup is the boundary; a bare `find` lets any id
+  through.
 - Preload every association the serializer, decorator or view reads, and compute
   aggregates here; pass them to the presentation layer.
 - Writes to more than one row or table go in one `ActiveRecord::Base.transaction`.
@@ -56,5 +60,5 @@ are the project's, the rules are the same. Copy the naming of the existing ones.
 
 - A business failure raises the project's error class. Never return `false` or an
   error string for the controller to inspect.
-- When the project authorizes in the service layer, the permission check is the first
-  step.
+- When the project authorizes in the service layer, a class-level check is the first
+  step; a record-level check runs right after the step that loads the record.

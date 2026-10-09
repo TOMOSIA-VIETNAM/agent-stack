@@ -24,14 +24,18 @@ one the project has.
   minimum: a changed id must never return another user's or tenant's record.
 - Map the gem's denial (`Pundit::NotAuthorizedError`, `CanCan::AccessDenied`) to a 403
   in the central error handler.
-- Test both sides of every rule: one example allowed, one denied.
+- Test both sides of every rule: one example allowed, one denied. A rule that always
+  allows has one example; what it hides is tested on its scope (`Scope#resolve`).
 
 ## Pundit
 
 - Inherit `ApplicationPolicy`, which takes `(user, record)` and returns `false` from
   every `?` method.
 - One policy per record type; a variant with no differences is an empty subclass.
-- `Scope#resolve` returns what the user may list; use it through `policy_scope`.
+- `Scope#resolve` returns what the user may list or read; use it through `policy_scope`.
+  A write on a record found through it still gets its own record-level check
+  (`authorize article, :comment?`): being able to read a record is not permission to
+  change it.
 - A policy reads the user and the record. It queries nothing beyond their loaded
   associations and writes nothing.
 - Add `after_action :verify_authorized` (and `verify_policy_scoped` on `index`) in the
