@@ -24,13 +24,18 @@ the real cost.
 - **Over-fetching** — loading full records to read one column. Use `pluck` or
   `select`.
 - **View cost** — the queries are fine and rendering is slow. Cache the fragment, or
-  move the computation out of the template.
+  move the computation into the service object and pass the result to the serializer,
+  decorator or component.
 
 ## 3. Fix the narrowest thing
 
-- Add the association load where the view actually uses it, not everywhere.
-- Add the index in a migration with `algorithm: :concurrently`.
-- Prefer a scope on the model over repeating the fix at each call site.
+- Preload in the service object that loads the records, and only the associations the
+  serializer, decorator or component actually reads. Never query from those layers.
+- A count or sum per record is computed once in the service object
+  (`group(...).count`) and passed to the serializer.
+- Add the index in a migration following the `rails-migration` skill (on a large table:
+  `disable_ddl_transaction!`, `algorithm: :concurrently`, explicit `name:`).
+- Prefer a scope or a model reader over repeating the fix at each call site.
 
 ## 4. Prove it
 
@@ -40,6 +45,11 @@ the real cost.
   or assert the endpoint's behaviour with a record count that would have triggered
   the old path.
 
-## 5. Report
+## 5. Check the diff against the rules
+
+Run `git diff` and re-read `.claude/rules/rails-queries.md` and the rule of each layer
+you touched. Fix each line that breaks one, or say why it has to.
+
+## 6. Report
 
 State the measured before and after, what caused the cost, and what you changed.
