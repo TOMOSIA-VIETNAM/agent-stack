@@ -10,6 +10,7 @@ coverage/
 .env
 .env.local
 
-# This repo's own .claude/ is committed — the contributor review rule and skill live
-# there. Per-developer settings stay local.
+# This repo's own .claude/ is committed — the contributor review rule and skills live
+# there, including skill-creator copied unmodified from anthropics/skills (see NOTICE).
+# Per-developer settings stay local.
 .claude/settings.local.json
