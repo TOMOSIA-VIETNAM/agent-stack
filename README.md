@@ -78,7 +78,7 @@ agent-stack generate --framework fastapi --framework react --write  # backend + 
 agent-stack --help
 ```
 
-Framework đang có: `rails`, `laravel`, `fastapi`, `react`, `vue`.
+Framework đang có: `rails`, `laravel`, `fastapi`, `react`, `vue`, `nestjs`.
 
 Không có `--write` thì không file nào bị ghi. Ở terminal tương tác, lần ghi nào cũng qua checklist duyệt trước — `--yes` bỏ qua checklist, `--json` cho máy đọc.
 
@@ -211,7 +211,7 @@ Không có terminal — `--json`, CI, hay gọi qua slash command — thì check
 | `/agent-stack:catalog` | Liệt kê technology, rule, skill và command knowledge base đang phủ — và cả chỗ còn trống | — |
 | agent `detect` | Đọc repo để tự suy ra stack, đưa bảng cho bạn duyệt, rồi chạy tiếp đúng luồng `/agent-stack:generate` | Agent suy ra, bạn duyệt |
 
-`detect` đọc manifest và lockfile — `Gemfile.lock`, `composer.json`, `pyproject.toml` hay `requirements.txt`, `package.json` — và chỉ xét cấu trúc thư mục khi không có manifest nào được commit. Với JavaScript nó đọc `package.json` chứ không đọc lockfile, vì lockfile liệt kê cả dependency gián tiếp; Next.js tính là `react`, Nuxt tính là `vue`. Nó chỉ đi tìm **một thứ**: framework — ngôn ngữ, database, cache và hạ tầng không phải đầu vào, đọc thêm về chúng chỉ là nhiễu. Kết quả gắn nhãn `found` (có tên trong manifest hoặc lockfile), `uncertain` (chỉ suy từ cấu trúc thư mục) hay `missing`; không phải `found` thì phải hỏi lại bạn trước khi generate. Nó chạy trong subagent để việc đọc cả chục file manifest không đổ vào context chính.
+`detect` đọc manifest và lockfile — `Gemfile.lock`, `composer.json`, `pyproject.toml` hay `requirements.txt`, `package.json` — và chỉ xét cấu trúc thư mục khi không có manifest nào được commit. Với JavaScript nó đọc `package.json` chứ không đọc lockfile, vì lockfile liệt kê cả dependency gián tiếp; Next.js tính là `react`, Nuxt tính là `vue`; có `@nestjs/core` thì là `nestjs`, còn Express hay Fastify đơn thuần thì không. Nó chỉ đi tìm **một thứ**: framework — ngôn ngữ, database, cache và hạ tầng không phải đầu vào, đọc thêm về chúng chỉ là nhiễu. Kết quả gắn nhãn `found` (có tên trong manifest hoặc lockfile), `uncertain` (chỉ suy từ cấu trúc thư mục) hay `missing`; không phải `found` thì phải hỏi lại bạn trước khi generate. Nó chạy trong subagent để việc đọc cả chục file manifest không đổ vào context chính.
 
 ## Tham chiếu CLI
 
@@ -277,9 +277,9 @@ Nếu bạn đang viết các bước được đánh số thì đó là **skill
 
 **Layer 1 — global.** Copy từ một dự án MIT tại commit được ghim trong `upstream.yaml`: 26 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills).
 
-**Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record gate bằng `rails`; PHP, Eloquent, Pest gate bằng `laravel`; API, async DB, security và test của FastAPI gate bằng `fastapi`; component, hook, state, test và accessibility của React gate bằng `react`; component, state, test và accessibility của Vue gate bằng `vue`.
+**Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record gate bằng `rails`; PHP, Eloquent, Pest gate bằng `laravel`; API, async DB, security và test của FastAPI gate bằng `fastapi`; component, hook, state, test và accessibility của React gate bằng `react`; component, state, test và accessibility của Vue gate bằng `vue`; module, HTTP, persistence, security và test của NestJS gate bằng `nestjs`.
 
-**Catalog có năm entry: Rails, Laravel, FastAPI, React và Vue**, và cả năm đều đã có rule và skill riêng. Framework nào có trong catalog mà chưa có nội dung thì validator báo là `uncovered-technology` chứ không làm hỏng lần chạy.
+**Catalog có sáu entry: Rails, Laravel, FastAPI, React, Vue và NestJS**, và cả sáu đều đã có rule và skill riêng. Framework nào có trong catalog mà chưa có nội dung thì validator báo là `uncovered-technology` chứ không làm hỏng lần chạy.
 
 > [!NOTE]
 > Một framework có trong catalog mà chưa có rule nào là **khoảng trống đã được ghi nhận, không phải bug**. Bổ sung nội dung cho nó là đóng góp có giá trị nhất.

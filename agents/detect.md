@@ -23,7 +23,7 @@ flag and no catalog entry for any of them. Versions are not part of the input ei
   nothing about content.
 - **Never guess the framework.** A repository built on none of the catalog's
   frameworks has no framework to select: say so rather than picking the nearest id.
-  Django is not `fastapi`, and Svelte is neither `react` nor `vue`.
+  Django is not `fastapi`, Svelte is neither `react` nor `vue`, and Express or Fastify alone is not `nestjs`.
 - **Never resolve a conflict on your own.** That is the operator's call, always.
 - Never clone or download anything. The knowledge base ships with the plugin.
 
@@ -50,6 +50,7 @@ repository.
 | `pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`, `Pipfile` | `fastapi` | `fastapi` |
 | `package.json` — `dependencies` or `devDependencies` | `react` | `react` |
 | `package.json` — `dependencies` or `devDependencies` | `vue` | `vue` |
+| `package.json` — `dependencies` or `devDependencies` | `@nestjs/core` | `nestjs` |
 
 When no manifest is committed, layout is weaker evidence:
 
@@ -60,6 +61,7 @@ When no manifest is committed, layout is weaker evidence:
 | `from fastapi import` in a `.py` file, e.g. `main.py` or `app/main.py` | `fastapi` |
 | `.jsx` / `.tsx` components, `src/App.jsx` / `src/App.tsx` | `react` |
 | `.vue` single-file components | `vue` |
+| `nest-cli.json`, or `NestFactory` in `main.ts` | `nestjs` |
 
 **A dependency entry beats a directory layout.** A `laravel/framework` line in
 `composer.json` is evidence; a directory that merely looks Laravel-shaped is weaker.

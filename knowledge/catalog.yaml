@@ -30,3 +30,6 @@ technologies:
 
   vue:
     name: Vue
+
+  nestjs:
+    name: NestJS

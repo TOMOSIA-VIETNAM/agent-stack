@@ -135,6 +135,9 @@ technologies:
 
   vue:
     name: Vue
+
+  nestjs:
+    name: NestJS
 ```
 
 | Trường | Ý nghĩa |
@@ -156,6 +159,7 @@ fail. `agent-stack catalog` in ra mỗi framework có gì, để thấy ngay ch�
   │ fastapi │ FastAPI       │     9 │     36 │        9 │
   │ react   │ React         │     7 │     30 │        9 │
   │ vue     │ Vue           │     6 │     30 │        9 │
+  │ nestjs  │ NestJS        │     7 │     31 │        9 │
   └─────────┴───────────────┴───────┴────────┴──────────┘
 ```
 

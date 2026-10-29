@@ -42,7 +42,7 @@ template không tới được dự án đã có. Hai template cùng khớp mộ
 
 Sáu điều dễ sai:
 
-- `<fw>` phải là id trong `catalog.yaml` — hiện có `rails`, `laravel`, `fastapi`, `react` và `vue`. Mọi segment phải
+- `<fw>` phải là id trong `catalog.yaml` — hiện có `rails`, `laravel`, `fastapi`, `react`, `vue` và `nestjs`. Mọi segment phải
   là kebab-case thường, nếu không loader từ chối và nêu tên file.
 - **Mọi thứ gate bằng framework.** Catalog không có `ruby`, `php`, `eloquent`, nên rule
   style Ruby nằm dưới `framework/rails/`. Gate bằng thứ ngoài catalog thì rule không bao

@@ -280,6 +280,38 @@ describe('selection', () => {
     expect(report.ok).toBe(true);
   });
 
+  it('selects the NestJS layer from the framework alone', async () => {
+    const { stack, selection, report } = await run('nestjs');
+    expect(stack.technologies.map((tech) => tech.id)).toEqual(['nestjs']);
+
+    const rules = selection.rules
+      .filter((entry) => entry.artifact.meta.applies_to.includes('nestjs'))
+      .map((entry) => entry.artifact.meta.id);
+    const skills = selection.skills
+      .filter((entry) => entry.artifact.meta.applies_to.includes('nestjs'))
+      .map((entry) => entry.artifact.meta.id);
+
+    expect(rules).toHaveLength(7);
+    expect(rules).toEqual([
+      'nestjs-architecture',
+      'nestjs-config',
+      'nestjs-conventions',
+      'nestjs-http',
+      'nestjs-persistence',
+      'nestjs-security',
+      'nestjs-testing',
+    ]);
+    expect(skills).toHaveLength(5);
+    expect(skills).toEqual([
+      'nestjs-endpoint',
+      'nestjs-infer-conventions',
+      'nestjs-migration',
+      'nestjs-unit-test',
+      'nestjs-verify',
+    ]);
+    expect(report.ok).toBe(true);
+  });
+
   it("leaves another framework's content out", async () => {
     const { selection } = await run('laravel');
     const ids = selection.rules.map((entry) => entry.artifact.meta.id);

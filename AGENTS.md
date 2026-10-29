@@ -95,7 +95,7 @@ and an import would load a path-scoped rule at launch, undoing its scope.
 ## Input
 
 **The only input is `--framework`** (repeatable), and the catalog holds nothing but
-frameworks — Rails, Laravel, FastAPI, React and Vue. A framework is the one thing an operator always knows;
+frameworks — Rails, Laravel, FastAPI, React, Vue and NestJS. A framework is the one thing an operator always knows;
 every extra input is another chance to omit something and have rules vanish without a
 word.
 
