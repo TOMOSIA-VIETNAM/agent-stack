@@ -2,35 +2,31 @@
 paths:
   - "app/**/*.php"
   - "routes/**/*.php"
-  - "config/**/*.php"
-  - "bootstrap/app.php"
-  - "resources/views/**/*.blade.php"
 ---
 
 # Laravel Security
 
-## Config & secrets
-
-- Call `env()` only inside `config/`; everywhere else use `config()`. After `config:cache`, `.env` is not loaded, so `env()` outside config sees only system environment variables (usually `null`; inside Docker it may still work and hide the bug).
-- Environment-dependent behaviour belongs in `config/`; do not scatter `app()->isProduction()`/`App::environment()` through business code (hard to test, easy to miss an environment).
-- A new `config/` key read from `env()` gets a matching variable (with a dummy value) in `.env.example`.
-- Never hard-code secrets or environment URLs. Never log passwords, tokens or personal data.
+Authorization lives in `laravel-authorization.md`, secrets in `laravel-config.md`, Blade output in `laravel-blade.md`.
 
 ## Input & queries
 
-- Raw SQL: use `selectRaw`/`whereRaw`/`havingRaw`/`orderByRaw` with a bindings array (`?`); never concatenate input into SQL. `DB::raw()` takes no bindings; use it only for fixed expressions. Column names and sort directions taken from input must be whitelisted.
-- File uploads: validate `mimes`/`max`, store through `Storage`, and never use the original filename as the path. Private files live on a non-public disk and are served through a route that checks authorization, or through `temporaryUrl()`.
-- Do not trust external data (API responses, webhooks, imported files): validate the fields you use before processing. Webhooks must verify their signature.
+- Raw SQL: `selectRaw`/`whereRaw`/`havingRaw`/`orderByRaw` with a bindings array (`?`); never concatenate input into SQL. `DB::raw()` takes no bindings: use it only for fixed expressions. Column names and sort directions taken from input are whitelisted.
+- Do not trust external data (API responses, webhooks, imported files): validate the fields you use before processing.
+- Outbound requests to a URL the user supplies (webhook target, avatar or import URL) allow only `https` and expected hosts, and reject private, loopback and link-local addresses (`127.0.0.0/8`, `10.0.0.0/8`, `169.254.169.254`…) after resolving DNS; otherwise the server can be used to reach internal services (SSRF).
+- Never redirect to a URL taken from input (`redirect($request->input('next'))`): use `redirect()->intended()`, or accept only a relative path or an allow-listed host (open redirect).
+- Webhooks verify their signature (HMAC over the raw body, compared with `hash_equals()`) before reading the payload, and reject old timestamps to block replays.
 
-## Authentication & rate limiting
+## Files
 
-- Login, password reset, OTP send/verify, and mail/SMS-sending endpoints must be throttled (RateLimiter), keyed on both the account identifier and the IP.
-- Do not reimplement hashing, tokens or sessions that the framework or the project's auth package already provides.
+- Uploads validate `mimes`/`max` (and `dimensions` for images), are stored through `Storage`, and never use the client's filename as the path (`store()`/`storeAs()` with a generated name).
+- Private files live on a non-public disk and are served through a route that authorizes, or through `temporaryUrl()`.
+- Never pass user input to a filesystem path, `include`, or a shell command; if unavoidable, whitelist it.
 
-## Blade
+## Authentication & abuse
 
-- Output data with `{{ }}`; `{!! !!}` only for sanitized HTML. Pass data into `<script>` with `Js::from()`.
-- Forms that write data include `@csrf`. Do not add a route to the CSRF exceptions to fix a 419; only signature-verified webhooks may be excluded.
+- Login, password reset, OTP send/verify, and endpoints that send mail/SMS are throttled with a named `RateLimiter`, keyed on both the account identifier and the IP.
+- Do not reimplement hashing, tokens, sessions or signed URLs the framework or the project's auth package provides. Compare secrets with `hash_equals()`.
+- Generate tokens with `Str::random()`/`random_bytes()`, never `rand()`/`uniqid()`.
 
 ## Project-specific
 

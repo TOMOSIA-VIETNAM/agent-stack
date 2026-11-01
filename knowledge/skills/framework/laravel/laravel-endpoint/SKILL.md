@@ -1,6 +1,6 @@
 ---
 name: laravel-endpoint
-description: Add or change a Laravel endpoint (API or web form) end to end - route, FormRequest, authorization, controller, Resource, tests. Use when asked to add/change an endpoint, route, API, or CRUD action.
+description: Add or change a Laravel endpoint (API or web form) end to end - route, form request, authorization, controller, API resource, tests. Use when asked to add/change an endpoint, route, API, or CRUD action.
 ---
 
 # Laravel Endpoint
@@ -9,15 +9,15 @@ The procedure for adding or changing one endpoint. Each step points to a rule in
 
 ## Step 0: Read the context (mandatory, before writing code)
 
-1. Read `.claude/rules/laravel-pattern.md`, `laravel-security.md`, `laravel-conventions.md` and `laravel-testing.md`, especially each file's **Project-specific** section. If the endpoint dispatches jobs or calls external services, also read `laravel-queue.md`.
+1. Read `.claude/rules/laravel-http.md`, `laravel-authorization.md`, `laravel-queries.md`, `laravel-security.md` and `laravel-testing.md` (plus `laravel-resources.md` for JSON, `laravel-blade.md` or `laravel-inertia.md` for web), especially each file's **Project-specific** section. If the endpoint dispatches jobs or calls external services, also read `laravel-queues.md` and `laravel-http-client.md`.
 2. Establish:
    - The **actor** calling the endpoint (guest, user, admin…) and its **guard**.
    - The **kind**: API (JSON) or web (redirect/view/Inertia).
    - Whether the endpoint is **new** or an **existing** one being changed. If existing, read its current tests first.
 3. Find the 1–2 nearest endpoints of the same kind and actor. Note how they do it and follow suit:
    - route file and group, middleware, route naming
-   - location and name of the FormRequest, Policy, controller, and the class holding the business logic (Service/Action/model…)
-   - response format (Resource, wrapper), how errors are returned
+   - location and name of the form request, Policy, controller, and the class holding the business logic (Service/Action/model…)
+   - response format (API resource, wrapper), how errors are returned
 4. If the request lacks information that decides behaviour (who may call it, which fields are required, which status to return), ask; do not guess.
 
 ## Step 1: Route
@@ -30,26 +30,26 @@ The procedure for adding or changing one endpoint. Each step points to a rule in
 
 ## Step 2: Validation
 
-- A new FormRequest follows the naming convention (`Store{Model}Request`/`Update{Model}Request`, or named after the use case). Create it with `php artisan make:request`.
+- A new form request follows the naming convention (`Store{Model}Request`/`Update{Model}Request`, or named after the use case). Create it with `php artisan make:request`.
 - A rule for every field written to the database; updates use `sometimes` for optional fields; a `unique` rule on update must ignore the current record.
 - Uploads, and login/OTP/mail-sending endpoints: follow `laravel-security.md`.
 
 ## Step 3: Authorization
 
-- A new endpoint **always** checks authorization: a Policy/Gate, `authorize()` in the FormRequest, or middleware, the way the project already does it.
+- A new endpoint **always** checks authorization: a Policy/Gate, `authorize()` in the form request, or middleware, the way the project already does it.
 - Records fetched by ID must be scoped to the actor (the user's relationship, a Policy after route model binding, or `scopeBindings()`). User A must not be able to read or change user B's records (IDOR). For a new multi-tenant design, query through the actor's relationship so out-of-scope records return 404 and do not reveal that they exist.
 - If the model has no Policy yet, create one with `php artisan make:policy {Model}Policy --model={Model}`.
 
 ## Step 4: Controller & business logic
 
-- The controller takes the FormRequest → calls the business layer the project uses → returns the response. If the project separates layers, do not query Eloquent or write business logic in the controller.
+- The controller takes the form request → calls the business layer the project uses → returns the response. If the project separates layers, do not query Eloquent or write business logic in the controller.
 - Use only `$request->validated()` (or a DTO, if the project has them).
-- Writes to ≥2 tables: a transaction; any job/mail/event dispatched inside it must run after commit (see `laravel-pattern.md` › Transactions & concurrency).
-- Returning a list: paginate, and eager load the relationships the Resource uses.
+- Writes to ≥2 tables: a transaction; any job/mail/event dispatched inside it must run after commit (see `laravel-queries.md` › Transactions & concurrency).
+- Returning a list: paginate, and eager load the relationships the API resource uses.
 
 ## Step 5: Response
 
-- API: return through a Resource (or the project's format), never a Model directly. Expose only the fields the client needs; no internal or sensitive fields.
+- API: return through an API resource (or the project's format), never a Model directly. Expose only the fields the client needs; no internal or sensitive fields.
 - Status: 201 for creation, 204 for deletion (or the project's choice); business errors through the project's exceptions.
 - Web: redirect with a flash message, or render a view/Inertia page like similar pages do.
 
@@ -73,7 +73,7 @@ Run the new tests with `--filter`, then the full suite (see `laravel-testing.md`
 
 ## Step 7: Wrap up
 
-1. Run formatting/static analysis per `laravel-conventions.md` › Tooling & style on the changed files.
+1. Run formatting/static analysis per `laravel-conventions.md` › Tooling on the changed files.
 2. Report:
    - Files created/changed
    - Route (method, URI, name, middleware)

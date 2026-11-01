@@ -52,13 +52,14 @@ paths:
   - Unauthorized: 403 (`assertForbidden()`); 404 only when the code uses `denyAsNotFound()` or queries through the user's scope.
 - Branching logic (conditions, pricing, state transitions): one test per significant branch, including boundary values.
 - Fixing a bug: first write a test that reproduces it (and fails), then fix.
+- Fixing an N+1 or a list endpoint that must stay cheap: pin it with `$this->expectsDatabaseQueryCount(n)` using data with several rows, so a regression fails the test.
 - Changes to wording, style or layout alone need no new test.
 - Expected values are hard-coded in the test (with fixed input/time), not recomputed with the same formula as the code. Compare strictly: `assertSame()` (PHPUnit), `toBe()` (Pest), not `assertEquals()`/`toEqual()` unless loose comparison is intended.
 
 ## Side effects & external dependencies
 
 - Outbound HTTP through `Http`: `Http::fake([...pattern => response])` together with `Http::preventStrayRequests()` (`Http::fake()` with no arguments fakes every request, so `preventStrayRequests` does nothing). SDKs with their own Guzzle client (AWS, Stripe…) are not intercepted by `Http::fake`: mock them through an interface/the container. Never call the real service.
-- Code calling `Http` with an error-handling branch: test both an error response (`Http::response([], 500)`) and a connection failure (`Http::failedConnection()` from L11, or a callback that throws `ConnectionException`).
+- Code calling `Http` with an error-handling branch: test both an error response (`Http::response([], 500)`) and a connection failure (`Http::failedConnection()`).
 - Prefer Laravel's fakes over mocks, use each fake's own assertions, and assert the negative case too:
   - `Queue::fake()`: `assertPushed`/`assertNotPushed`/`assertNothingPushed`
   - `Bus::fake()`: `assertDispatched`/`assertNotDispatched`/`assertChained`/`assertBatched`
@@ -69,7 +70,7 @@ paths:
 - Use `Event::fake()`/`Queue::fake()` with no arguments only when the test asserts the complete outcome (`assertNothingPushed`…); otherwise pass the classes to fake. Assert the payload too when the data is part of the behaviour (`assertPushed(X::class, fn ($job) => $job->orderId === $order->id)`).
 - Mocks (Mockery, `$this->mock()`) only for dependencies behind an interface, or external services with no fake. Never mock Eloquent models, the class under test, or the `Request`/`Config` facades (use the test request's input and `Config::set()`).
 - Time: `$this->freezeTime()`/`$this->travelTo()`; no `sleep()`, no assertions against the real clock. Code using `Sleep` gets `Sleep::fake()` + `Sleep::assertSlept(...)`.
-- Do not leave `withoutExceptionHandling()` in a test (it changes the response under test). To check that an exception is reported, use `Exceptions::fake()` + `Exceptions::assertReported(X::class)` (L11+).
+- Do not leave `withoutExceptionHandling()` in a test (it changes the response under test). To check that an exception is reported, use `Exceptions::fake()` + `Exceptions::assertReported(X::class)`.
 
 ## Project-specific
 

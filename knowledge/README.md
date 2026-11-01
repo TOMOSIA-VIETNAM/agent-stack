@@ -155,7 +155,7 @@ fail. `agent-stack catalog` in ra mỗi framework có gì, để thấy ngay ch�
   │ id      │ name          │ rules │ skills │ commands │
   ├─────────┼───────────────┼───────┼────────┼──────────┤
   │ rails   │ Ruby on Rails │    29 │     30 │        9 │
-  │ laravel │ Laravel       │     6 │     30 │        9 │
+  │ laravel │ Laravel       │    20 │     31 │        9 │
   │ fastapi │ FastAPI       │     9 │     36 │        9 │
   │ react   │ React         │     7 │     30 │        9 │
   │ vue     │ Vue           │     6 │     30 │        9 │
