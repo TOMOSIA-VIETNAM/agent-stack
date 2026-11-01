@@ -79,8 +79,8 @@ Present all candidates **at once**, grouped by destination file:
 2. [Pattern] Business logic in Actions (app/Actions, handle()). 14 Actions, 0 Services.
    Proposed: "Business logic lives in Actions (`app/Actions`, method `handle()`), injected into controllers. Do not create Services or Repositories."
 
-### laravel-pattern.md
-3. [Conflict] Validation: 22 FormRequests, 9 controllers use $request->validate(). Is there a boundary?
+### laravel-http.md
+3. [Conflict] Validation: 22 form requests, 9 controllers use $request->validate(). Is there a boundary?
 
 ### Needs the user (cannot be inferred from code)
 - AGENTS.md › Workflow: branch, commit and PR format?

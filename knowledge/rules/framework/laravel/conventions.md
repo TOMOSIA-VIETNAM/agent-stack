@@ -1,80 +1,60 @@
 # Laravel Conventions
 
-## Tooling & style
+Written for Laravel 12–13 (PHP 8.2+); APIs added in 13 are marked (L13+). On an older project, check `composer show laravel/framework` before using an API; if it does not exist there, follow the existing code. Every layer has its own `.claude/rules/laravel-*.md`, loaded when you touch its files.
 
-- Check `composer.json` (`require-dev`, `scripts`) for Pint/PHP-CS-Fixer, PHPStan/Larastan/Psalm and Rector. If present, run them on the changed files before reporting done; on a violation, fix the code — do not loosen the config or add an ignore/baseline entry.
-- If there is a `composer` script (`composer lint`, `composer test`…), run through it so the result matches CI; do not assemble your own command.
-- Format with the project's config (`pint.json`, `.php-cs-fixer.php`…). With Pint but no config, run Pint's default (the `laravel` preset, not `psr12`); with no tool at all, follow PSR-12.
-- Format only the files you changed; do not mass-reformat unrelated files.
-- Generate files with `php artisan make:*` when a matching command exists (`make:enum`, `make:class`, `make:interface`, `make:trait` exist only from L11). Never hand-write a migration's name or timestamp.
-- Leave no `dd()`, `dump()`, `ray()`, `var_dump()` or commented-out code behind.
-- Run artisan commands with `--no-interaction` and every argument/option supplied (anything missing triggers a Laravel Prompts question and the command hangs).
+## Order of precedence
+
+1. `AGENTS.md`, then the **Project-specific** section at the end of each `.claude/rules/laravel-*.md`.
+2. Patterns already in the code: before creating a class, read the 2–3 nearest files of the same kind and follow them (directory, naming, which layer holds the logic, response format).
+3. The general rules in `.claude/rules/laravel-*.md`.
+
+Do not introduce a layer or directory (Service, Action, Repository, DTO, Module…) the project does not already have, unless asked. Do not mix two styles for the same job. Follow the structure that exists, not the version number: an upgraded app may still have `app/Http/Kernel.php`/`app/Exceptions/Handler.php`; configure there if so, otherwise in `bootstrap/app.php`.
+
+## Tooling
+
+- Run the project's `composer` scripts (`composer lint`, `composer test`…) so the result matches CI. Run Pint/PHPStan/Rector on changed files before reporting done; fix the code, never loosen config or add a baseline/ignore entry.
+- Format with the project's config (`pint.json`, `.php-cs-fixer.php`…). Pint with no config uses the `laravel` preset; with no formatter at all, follow PSR-12. Format only the files you changed.
+- Generate files with `php artisan make:*` when a matching command exists. Never hand-write a migration's name or timestamp.
+- Run Artisan with `--no-interaction` and every argument supplied; a missing one opens a prompt and the command hangs.
+- Inspect config with `php artisan config:show <file>`; do not read `.env`. `php artisan tinker --execute '…'` for reads only. Verify behaviour with a test, not a throwaway script.
 - Do not change dependencies (`composer require`/`remove`, version bumps) without approval.
-- Inspect resolved config with `php artisan config:show <file>`; do not read `.env`. Use `php artisan tinker --execute '…'` for reads only; do not create or modify data without approval. If something can be verified with a test, write a test, not a throwaway script.
+- Leave no `dd()`, `dump()`, `ray()`, `var_dump()` or commented-out code behind.
 
 ## PHP
 
-- Declare types for parameters, return values and properties. Use the syntax the PHP version in `composer.json` supports (constructor promotion, `readonly`, enums…).
-- `declare(strict_types=1)`: add it only when files of the same kind in the project already use it. Enabling it piecemeal can break code that relies on type coercion.
-- Variables and methods: camelCase. Classes: PascalCase. Constants: UPPER_SNAKE.
-- Compare with `===`. Never use `@` to suppress errors.
-- Strings that may contain multibyte characters (Vietnamese, Japanese…) go through `Str::` (`Str::length`, `Str::limit`, `Str::lower`) or `mb_*`, not `strlen`/`substr`/`strtolower`.
-- Import every class/interface/trait with `use`; do not write an inline FQCN (`\App\Models\User::`). Remove unused `use` statements.
-- In new code, do not return `false`/`null` to signal failure; throw an exception. Use `null` only when "nothing" is a valid result (e.g. `find()`).
+- Variables and methods camelCase, classes PascalCase, constants UPPER_SNAKE.
+- Type parameters, returns and properties. `declare(strict_types=1)` only when files of the same kind already have it: enabling it piecemeal breaks code that relies on coercion.
+- Multibyte strings (Vietnamese, Japanese…) go through `Str::` or `mb_*`, not `strlen`/`substr`/`strtolower`.
+- Import classes with `use`; no inline FQCN; remove unused imports.
+- Compare with `===`; never silence errors with `@`.
+- New code throws on failure instead of returning `false`/`null`; `null` only when "nothing" is a valid result.
+- Use `now()`/`CarbonImmutable`, not `date()`/`time()`. With mutable Carbon, `->copy()` before `add*`/`sub*`.
+- Wait with `Sleep::for(…)`, not `sleep()`, so tests can fake it.
 
 ## Code structure
 
-- Prefer early returns/guard clauses; do not nest `if`/`foreach` more than 3 levels deep.
+- Return early with guard clauses; do not nest `if`/`foreach` more than 3 levels deep.
 - A method longer than ~40 lines, or doing several things, is split into well-named private methods.
-- No magic numbers/strings: thresholds, limits and durations go in a constant, an enum or `config()`.
 - Boolean names read as predicates: `isActive`, `hasPaid`, `canCancel()`.
-- Extract shared code only once the logic is actually duplicated (≥2 places); do not add abstractions, parameters or options for needs that do not exist yet.
-- To wait in code (retries, polling), use `Sleep::for(…)->seconds()` (`Illuminate\Support\Sleep`, L10+), not `sleep()`/`usleep()`, so tests can fake it.
-- Do not mutate input arguments (arrays, objects, Carbon) unintentionally: return a new value. With mutable Carbon, `->copy()` before `add*`/`sub*`, or use `CarbonImmutable`.
+- No magic numbers/strings: thresholds and durations go in a constant, an enum or `config()`.
+- Extract shared code only once it is duplicated in ≥2 places; add no option for a need that does not exist yet.
 
-## Laravel naming
+## Naming
 
 | Kind | Convention | Example |
 |---|---|---|
-| Model | Singular, PascalCase | `OrderItem` |
-| Table | Plural, snake_case | `order_items` |
-| Pivot table | Both models singular, alphabetical order | `product_tag` |
-| Column, foreign key | snake_case; a `belongsTo` FK = `{relationship name}_id` | `order_id`, `customer_id` |
-| Relationship | `belongsTo`/`hasOne` singular, `hasMany`/`belongsToMany` plural, camelCase | `customer()`, `orderItems()` |
-| Controller | Singular + `Controller` | `OrderController` |
-| FormRequest | `Store{Model}Request`/`Update{Model}Request`; outside CRUD, name it after the use case | `CancelOrderRequest` |
-| Resource | `{Model}Resource`, with `::collection()` for lists; create a `{Model}Collection` only when it needs its own meta | `OrderResource` |
-| Policy, Factory, Seeder | `{Model}Policy`, `{Model}Factory`, `{Model}Seeder` | `OrderPolicy` |
-| Job | Verb + object | `SyncOrderToErp` |
-| Event | Something that happened, past tense | `OrderShipped` |
-| Listener | The action taken in response | `SendShipmentNotification` |
-| Route URI | Plural, kebab-case | `/order-items/{order_item}` (parameter generated by `Route::resource`) |
-| Route name | Dot-separated, by resource | `order-items.show` |
-| Config, lang key (PHP files) | snake_case; JSON lang files use the source sentence as the key | `services.payment.api_key` |
-| Migration | Describes the action, snake_case | `add_status_to_orders_table` |
-
-A foreign key that breaks the convention (e.g. `created_by`) must be passed explicitly: `belongsTo(User::class, 'created_by')`.
-
-Resource controllers use the standard action names: `index`, `show`, `store`, `update`, `destroy` (plus `create`, `edit` for web).
-
-## Models
-
-- Declare `$fillable` explicitly; never use `$guarded = []`.
-- Cast dates, booleans, JSON and enums completely, the way existing models do: the `casts()` method (from L11) or the `$casts` property (still works on L11+). Do not convert existing models.
-- Cast status/type columns to a backed enum if the project has enums; do not compare against magic strings.
-- Declare relationship return types (`BelongsTo`, `HasMany`…).
-- A column with a database default only gets that value after insert; a model fresh from `create()`/`new` still holds `null`. If code reads the value right away (a Resource, an enum cast), declare the same value in the model's `$attributes`, or call `->refresh()`.
-- Secrets that must be read back (tokens, third-party API keys) use the `encrypted` cast and go in `$hidden`; the column is `text` and cannot be queried with `where`. Passwords use the `hashed` cast (L10+), not `encrypted`.
-
-## Time & strings
-
-- Use `now()` and `Carbon`/`CarbonImmutable`, not `date()`/`time()`.
-- User-facing messages go through `__()` when the project has a `lang/` directory (L11+ ships without one).
+| Model / table / pivot | Singular / plural snake / both singular, alphabetical | `OrderItem` / `order_items` / `product_tag` |
+| Foreign key | `{relationship}_id`; anything else is passed explicitly | `belongsTo(User::class, 'created_by')` |
+| Relationship | `belongsTo`/`hasOne` singular, `hasMany`/`belongsToMany` plural | `customer()`, `orderItems()` |
+| Form request | `Store{Model}Request`/`Update{Model}Request`, else the use case | `CancelOrderRequest` |
+| Job / Event / Listener | Verb + object / past tense / the reaction | `SyncOrderToErp` / `OrderShipped` / `SendShipmentNotification` |
+| Route URI / name | Plural kebab-case / dot-separated | `/order-items` / `order-items.show` |
+| Config key / short translation key | snake_case | `services.payment.api_key` |
+| Migration | The action, snake_case | `add_status_to_orders_table` |
 
 ## Comments
 
-- Comments and docblocks explain WHY (business reasons, edge cases), not WHAT the code already says.
-- Add a docblock only when PHP types cannot express enough (generic collections, array shapes) or the project's tooling requires one.
+Comments explain WHY (business reason, edge case), not WHAT. Add a docblock only when types cannot say it (generic collections, array shapes) or tooling requires it.
 
 ## Project-specific
 

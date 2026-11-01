@@ -322,6 +322,30 @@ describe('selection', () => {
   });
 });
 
+describe('the laravel framework', () => {
+  it('is selected from --framework alone, with one rule per layer', async () => {
+    const { selection, report } = await run('laravel');
+    expect(report.ok).toBe(true);
+    const rules = selection.rules.map((entry) => entry.artifact.meta.id);
+    const skills = selection.skills.map((entry) => entry.artifact.meta.id);
+    expect(rules).toEqual(
+      expect.arrayContaining([
+        'laravel-conventions',
+        'laravel-http',
+        'laravel-eloquent',
+        'laravel-queries',
+        'laravel-migrations',
+        'laravel-queues',
+        'laravel-testing',
+      ]),
+    );
+    expect(rules).not.toContain('laravel-pattern');
+    expect(skills).toContain('laravel-endpoint');
+    expect(skills).toContain('laravel-migration');
+    expect(skills).toContain('laravel-job');
+  });
+});
+
 describe('the fastapi framework', () => {
   it('is selected from --framework alone, with its rules and skills', async () => {
     const { selection, report } = await run('fastapi');
