@@ -1,0 +1,16 @@
+{
+  "_comment": "OPTIONAL. Merge into .claude/settings.json. Copy templates/hooks/dart-format.sh to .claude/hooks/ and chmod +x. The script ignores non-.dart and generated files itself. Analyze is slow: run it via scripts/verify.sh, not per edit.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/dart-format.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -277,9 +277,9 @@ Nếu bạn đang viết các bước được đánh số thì đó là **skill
 
 **Layer 1 — global.** Copy từ một dự án MIT tại commit được ghim trong `upstream.yaml`: 26 skill và 9 command từ [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills).
 
-**Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record gate bằng `rails`; PHP, Eloquent, Pest gate bằng `laravel`; API, async DB, security và test của FastAPI gate bằng `fastapi`; component, hook, state, test và accessibility của React gate bằng `react`; component, state, test và accessibility của Vue gate bằng `vue`; module, HTTP, persistence, security và test của NestJS gate bằng `nestjs`.
+**Layer 2 — tự viết trong repo này.** Ruby, Rails, Active Record gate bằng `rails`; PHP, Eloquent, Pest gate bằng `laravel`; API, async DB, security và test của FastAPI gate bằng `fastapi`; component, hook, state, test và accessibility của React gate bằng `react`; component, state, test và accessibility của Vue gate bằng `vue`; module, HTTP, persistence, security và test của NestJS gate bằng `nestjs`; Dart, Flutter và quy trình app mobile gate bằng `flutter`.
 
-**Catalog có sáu entry: Rails, Laravel, FastAPI, React, Vue và NestJS**, và cả sáu đều đã có rule và skill riêng. Framework nào có trong catalog mà chưa có nội dung thì validator báo là `uncovered-technology` chứ không làm hỏng lần chạy.
+**Catalog có bảy entry: Rails, Laravel, FastAPI, React, Vue, NestJS và Flutter**, và cả bảy đều đã có rule và skill riêng. Framework nào có trong catalog mà chưa có nội dung thì validator báo là `uncovered-technology` chứ không làm hỏng lần chạy.
 
 > [!NOTE]
 > Một framework có trong catalog mà chưa có rule nào là **khoảng trống đã được ghi nhận, không phải bug**. Bổ sung nội dung cho nó là đóng góp có giá trị nhất.

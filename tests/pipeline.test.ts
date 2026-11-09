@@ -312,6 +312,17 @@ describe('selection', () => {
     expect(report.ok).toBe(true);
   });
 
+  it('selects the Flutter layer from the framework alone', async () => {
+    const { selection, report } = await run('flutter');
+    const ruleIds = selection.rules.map((entry) => entry.artifact.meta.id);
+    const skillIds = selection.skills.map((entry) => entry.artifact.meta.id);
+    expect(ruleIds).toContain('flutter-conventions');
+    expect(skillIds).toContain('flutter-feature');
+    expect(skillIds).toContain('flutter-setup');
+    expect(ruleIds.filter((id) => !id.startsWith('flutter-'))).toEqual([]);
+    expect(report.ok).toBe(true);
+  });
+
   it("leaves another framework's content out", async () => {
     const { selection } = await run('laravel');
     const ids = selection.rules.map((entry) => entry.artifact.meta.id);

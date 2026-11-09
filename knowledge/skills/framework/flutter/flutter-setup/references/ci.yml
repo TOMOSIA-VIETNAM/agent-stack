@@ -1,0 +1,22 @@
+name: flutter-ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # Enable only if the project uses code generation:
+      # - run: dart run build_runner build --delete-conflicting-outputs
+      # Whole-tree check: fine for new projects; on a retrofit with format debt, format once first.
+      - run: dart format --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test --coverage

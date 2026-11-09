@@ -33,3 +33,6 @@ technologies:
 
   nestjs:
     name: NestJS
+
+  flutter:
+    name: Flutter
